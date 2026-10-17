@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: user.old-installers
+    name: Old installers in Downloads
+    category: user
+    risk: dangerous
+    targets:
+      - path: '%USERPROFILE%\Downloads'
+        mode: files
+        include: ['*.exe', '*.msi', '*.iso']
+        min_age_days: 90
