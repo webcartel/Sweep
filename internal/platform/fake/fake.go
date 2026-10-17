@@ -96,12 +96,24 @@ func (f *FS) ReadDir(path string) ([]platform.Info, error) {
 // Glob returns the paths the mask takes.
 func (f *FS) Glob(mask string) ([]string, error) { return platform.GlobPaths(f, mask) }
 
-// LongPath gives the long spelling of a path.
+// LongPath gives the long spelling of a path: the 8.3 names it was taught are
+// expanded at every level, the way Windows expands them.
 func (f *FS) LongPath(path string) (string, error) {
 	if long, ok := f.long[fold(path)]; ok {
 		return long, nil
 	}
-	return path, nil
+	parent := parentOf(path)
+	if parent == "" || fold(parent) == fold(path) {
+		return path, nil
+	}
+	long, err := f.LongPath(parent)
+	if err != nil {
+		return "", err
+	}
+	if long == parent {
+		return path, nil
+	}
+	return long + `\` + lastElement(path), nil
 }
 
 // DriveType answers what kind of drive holds the path.
@@ -227,11 +239,18 @@ func parentOf(path string) string {
 	return trimmed[:index]
 }
 
-// rootOf is the drive root of a path.
+// rootOf is what DriveType can be asked about: the drive root of a lettered
+// path, and the share of a UNC path.
 func rootOf(path string) string {
 	cleaned := strings.ReplaceAll(path, "/", `\`)
 	if len(cleaned) >= 2 && cleaned[1] == ':' {
 		return cleaned[:2] + `\`
+	}
+	if strings.HasPrefix(cleaned, `\\`) {
+		parts := strings.SplitN(cleaned[2:], `\`, 3)
+		if len(parts) >= 2 && parts[0] != "" && parts[1] != "" {
+			return `\\` + parts[0] + `\` + parts[1]
+		}
 	}
 	return cleaned
 }
