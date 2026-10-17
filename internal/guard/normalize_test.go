@@ -208,23 +208,34 @@ func TestNormalizeAcceptsAPathThatIsNotThere(t *testing.T) {
 }
 
 // newGuard builds a guard over a small machine: one fixed drive, a few
-// directories and the environment a rule can name.
-func newGuard(t *testing.T) (*Guard, *fake.FS) {
+// directories and the environment a rule can name. Any paths given are the
+// config's exclude_paths.
+func newGuard(t *testing.T, excludePaths ...string) (*Guard, *fake.FS) {
 	t.Helper()
 	fsys := fake.NewFS()
 	fsys.Add(platform.Info{Path: `C:\Temp`, IsDir: true})
 	fsys.Add(platform.Info{Path: `C:\Windows`, IsDir: true})
 
-	env := fake.NewEnv()
-	env.Set(`USERPROFILE`, `C:\Users\probe`)
-	env.Set(`TEMP`, `C:\Temp`)
-	env.Set(`SystemRoot`, `C:\Windows`)
-
-	g, err := New(fsys, env, `C:\Users\probe`, nil)
+	g, err := New(fsys, guardEnv(), `C:\Users\probe`, excludePaths)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 	return g, fsys
+}
+
+// guardEnv is the environment of the machine the guard tests run on: the
+// directories Windows puts a user's data in, with no machine in sight.
+func guardEnv() *fake.Env {
+	env := fake.NewEnv()
+	env.Set(`USERPROFILE`, `C:\Users\probe`)
+	env.Set(`SystemRoot`, `C:\Windows`)
+	env.Set(`ProgramData`, `C:\ProgramData`)
+	env.Set(`ProgramFiles`, `C:\Program Files`)
+	env.Set(`ProgramFiles(x86)`, `C:\Program Files (x86)`)
+	env.Set(`APPDATA`, `C:\Users\probe\AppData\Roaming`)
+	env.Set(`LOCALAPPDATA`, `C:\Users\probe\AppData\Local`)
+	env.Set(`TEMP`, `C:\Temp`)
+	return env
 }
 
 // refusalOf takes the refusal out of an error, and fails the test when there

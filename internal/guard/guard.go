@@ -22,20 +22,30 @@ type Guard struct {
 	fs  platform.FS
 	env platform.Env
 	cwd string
-	// extra holds the paths the config adds to the protected list. They are
-	// read when a path is checked, not when the guard is built.
+	// extra holds the paths the config adds to the protected list, already
+	// read into the form the comparison uses.
 	extra []string
+	// ranges is the protected list of this machine, built once, when the
+	// guard is built.
+	ranges []protectedRange
 }
 
 // New returns a guard over a file system and an environment. cwd is what a
-// relative path is taken from.
+// relative path is taken from. The paths in excludePaths are added to the
+// protected list, and a path the guard cannot read there stops it: a
+// misspelled exclusion must not pass unnoticed.
 func New(fs platform.FS, env platform.Env, cwd string, excludePaths []string) (*Guard, error) {
-	return &Guard{
-		fs:    fs,
-		env:   env,
-		cwd:   cwd,
-		extra: append([]string(nil), excludePaths...),
-	}, nil
+	g := &Guard{fs: fs, env: env, cwd: cwd}
+
+	for _, entry := range excludePaths {
+		path, err := g.exclusion(entry)
+		if err != nil {
+			return nil, err
+		}
+		g.extra = append(g.extra, path)
+	}
+	g.ranges = protectedRanges(env, g.extra)
+	return g, nil
 }
 
 // Refusal says why a path may not be used, in the terms of the report.
@@ -63,6 +73,45 @@ type Path struct {
 	Chain []string
 }
 
+// Verdict is what the guard says about one path.
+type Verdict struct {
+	// Path is the path the verdict is about: the normalized one when
+	// normalization worked, and the one it was given otherwise.
+	Path string
+	// Allowed says whether the engine may touch it.
+	Allowed bool
+	// Reason is empty when Allowed, and the reason of the refusal otherwise.
+	Reason model.SkipReason
+	// Message says which part of the protected list refused the path.
+	Message string
+}
+
+// Check says whether the engine may touch a path, in the mode of the rule that
+// wants it. include and minAgeDays are the rule's filters: they are the one
+// thing that lets `mode: files` reach into a root or a user directory.
+func (g *Guard) Check(path string, mode model.Mode, include []string, minAgeDays int) (Verdict, error) {
+	target, err := g.Normalize(path)
+	if err != nil {
+		var refusal *Refusal
+		if errors.As(err, &refusal) {
+			return Verdict{Path: path, Reason: refusal.Reason, Message: refusal.Message}, nil
+		}
+		return Verdict{}, err
+	}
+
+	filtered := mode == model.ModeFiles && len(include) > 0 && minAgeDays > 0
+	for _, candidate := range []string{target.Given, target.Final} {
+		if r, ok := g.match(candidate); ok && !r.permits(filtered) {
+			return Verdict{
+				Path:    target.Final,
+				Reason:  model.ReasonProtected,
+				Message: fmt.Sprintf("the path %s is protected by %s", quote(candidate), quote(r.path)),
+			}, nil
+		}
+	}
+	return Verdict{Path: target.Final, Allowed: true}, nil
+}
+
 // Normalize turns a path written in a rule into the path the engine works
 // with, and refuses the ones that must not be touched at all.
 func (g *Guard) Normalize(path string) (Path, error) {
@@ -72,12 +121,12 @@ func (g *Guard) Normalize(path string) (Path, error) {
 
 	expanded := platform.Expand(path, g.env)
 	if names := platform.EnvNames(expanded); len(names) > 0 {
-		return Path{}, refuse(fmt.Sprintf("the path %q names %%%s%%, which this machine does not set", path, names[0]))
+		return Path{}, refuse(fmt.Sprintf("the path %s names %%%s%%, which this machine does not set", quote(path), names[0]))
 	}
 
 	given := cleanPath(stripDevicePrefix(expanded))
 	if given == "" {
-		return Path{}, refuse(fmt.Sprintf("the path %q names no place at all", path))
+		return Path{}, refuse(fmt.Sprintf("the path %s names no place at all", quote(path)))
 	}
 	if !isAbsPath(given) {
 		given = cleanPath(joinPath(g.cwd, given))
@@ -126,7 +175,7 @@ func (g *Guard) follow(path string) (string, []string, error) {
 	for hop := 0; hop <= limit; hop++ {
 		key := pathKey(current)
 		if seen[key] {
-			return "", nil, refuse(fmt.Sprintf("the links of %q lead back to themselves", path))
+			return "", nil, refuse(fmt.Sprintf("the links of %s lead back to themselves", quote(path)))
 		}
 		seen[key] = true
 
@@ -149,7 +198,7 @@ func (g *Guard) follow(path string) (string, []string, error) {
 		chain = append(chain, current)
 	}
 
-	return "", nil, refuse(fmt.Sprintf("the links of %q are more than %d deep", path, limit))
+	return "", nil, refuse(fmt.Sprintf("the links of %s are more than %d deep", quote(path), limit))
 }
 
 // checkLocalFixed refuses everything but a fixed local disk: a stick belongs
@@ -161,7 +210,7 @@ func (g *Guard) checkLocalFixed(path string) error {
 		return err
 	}
 	if kind != platform.DriveFixed {
-		return refuse(fmt.Sprintf("the path %q is not on a fixed local disk", path))
+		return refuse(fmt.Sprintf("the path %s is not on a fixed local disk", quote(path)))
 	}
 	return nil
 }

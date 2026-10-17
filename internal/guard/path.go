@@ -98,6 +98,29 @@ func dirPath(path string) string {
 // the way Windows compares paths.
 func pathKey(path string) string { return strings.ToLower(path) }
 
+// quote puts a path in the quotation marks a message uses. The path is not
+// escaped the way %q would escape it: a path in a report has to read the way
+// Windows writes it.
+func quote(path string) string { return `"` + path + `"` }
+
+// below says whether a path is inside a directory: it starts with the
+// directory and then a separator, so that C:\WindowsX is not inside C:\Windows.
+func below(path, dir string) bool {
+	prefix := pathKey(strings.TrimSuffix(dir, `\`)) + `\`
+	return strings.HasPrefix(pathKey(path), prefix)
+}
+
+// driveRootOf is the root of the drive a path is on ("D:\"), when the path
+// starts with one. The drive is read from the path itself: the guard does not
+// ask Windows for the list of drives.
+func driveRootOf(path string) (string, bool) {
+	volume, _ := splitVolume(path)
+	if len(volume) == 2 && volume[1] == ':' {
+		return volume + `\`, true
+	}
+	return "", false
+}
+
 // isLetter says whether a byte is an ASCII letter.
 func isLetter(char byte) bool {
 	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
