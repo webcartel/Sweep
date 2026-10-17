@@ -51,8 +51,13 @@ func TestCheckModes(t *testing.T) {
 			andRefused: true,
 		},
 		{
-			name: "files with both filters may reach into a root",
+			name: "Windows is refused whole, even for files with both filters",
 			path: `C:\Windows`, mode: model.ModeFiles, include: []string{`*.log`}, minAgeDays: 7,
+			andRefused: true,
+		},
+		{
+			name: "files with both filters may reach into a root",
+			path: `C:\ProgramData`, mode: model.ModeFiles, include: []string{`*.log`}, minAgeDays: 7,
 		},
 	}
 
@@ -251,6 +256,10 @@ func TestCheckProtectedSpellings(t *testing.T) {
 		{"the fonts directory is refused", `%SystemRoot%\Fonts`, model.ModeContents},
 		{"the recovery directory of Windows is refused", `%SystemRoot%\Recovery\x`, model.ModeContents},
 		{"the recovery directory of a drive is refused", `C:\Recovery\WindowsRE`, model.ModeContents},
+		{"the rest of Windows is refused whole", `%SystemRoot%\explorer.exe`, model.ModeSelf},
+		{"a directory of Windows the specification does not name is refused", `%SystemRoot%\assembly`, model.ModeContents},
+		{"Prefetch is refused: it is not in the list of exceptions", `%SystemRoot%\Prefetch`, model.ModeContents},
+		{"a directory of Windows is refused for files too", `%SystemRoot%\Prefetch`, model.ModeFiles},
 		{"a Unicode-looking path is still the same path", `C:\WINDOWS\SYSWOW64\x`, model.ModeContents},
 		{"a rooted path starts at the root of the drive", `\Windows\System32\x`, model.ModeContents},
 		{"the device namespace is the same path", `\\.\C:\Windows\System32`, model.ModeContents},
@@ -283,7 +292,6 @@ func TestCheckProtectedSpellings(t *testing.T) {
 		{"the minidump directory", `%SystemRoot%\Minidump\a.dmp`, model.ModeContents},
 		{"the delivery optimization cache", `%SystemRoot%\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache`, model.ModeContents},
 		{"a file in the system root, which the specification cleans", `%SystemRoot%\MEMORY.DMP`, model.ModeSelf},
-		{"a directory in the system root that the specification leaves alone", `%SystemRoot%\Prefetch`, model.ModeContents},
 		{"a path that leaves the system root again", `%SystemRoot%\System32\..\..\Temp\x`, model.ModeContents},
 		{"a temporary directory that is not Windows", `C:\Temp\probe`, model.ModeContents},
 		{"an AppData cache", `%APPDATA%\App\Cache`, model.ModeContents},

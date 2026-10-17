@@ -21,6 +21,8 @@ var neverAllowed = []string{
 	`c:\windows\boot`,
 	`c:\windows\fonts`,
 	`c:\windows\recovery`,
+	`c:\windows\assembly`,
+	`c:\windows\prefetch`,
 	`c:\program files`,
 	`c:\program files (x86)`,
 	`c:\$recycle.bin`,

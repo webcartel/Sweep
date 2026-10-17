@@ -135,10 +135,14 @@ func protectedRanges(env platform.Env, extra []string) []protectedRange {
 		// The roots themselves: they may not be deleted and may not be
 		// emptied, and only a `mode: files` rule with both filters reaches
 		// into one.
-		{path: systemRoot, extent: extentSelf, rule: ruleFiles},
 		{path: programFiles, extent: extentSelf, rule: ruleFiles},
 		{path: programFilesX86, extent: extentSelf, rule: ruleFiles},
 		{path: value(`ProgramData`, `C:\ProgramData`), extent: extentSelf, rule: ruleFiles},
+		// Windows itself is refused whole, and the directories named below
+		// are the only way in: the specification calls that list an explicit
+		// one on top of the ban on C:\Windows, and extending it is a change to
+		// this file with the tests that go with it (346).
+		{path: systemRoot, extent: extentBelow, rule: ruleForbid},
 		// C:\Users is refused whole, and the profile in front of the guard is
 		// the one exception inside it: the other profiles are not this
 		// machine's to clean.
@@ -164,6 +168,10 @@ func protectedRanges(env platform.Env, extra []string) []protectedRange {
 		{path: joinPath(systemRoot, `Minidump`), extent: extentBelow, rule: ruleAllow},
 		{path: joinPath(systemRoot, `SoftwareDistribution\Download`), extent: extentBelow, rule: ruleAllow},
 		{path: joinPath(systemRoot, `ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization`), extent: extentBelow, rule: ruleAllow},
+		// The one file in the system root the specification cleans, and the
+		// reason the ban above is on the tree rather than on the file: the
+		// rule names it by its own name, in `mode: self`.
+		{path: joinPath(systemRoot, `MEMORY.DMP`), extent: extentSelf, rule: ruleAllow},
 	}
 
 	if profile != "" {
