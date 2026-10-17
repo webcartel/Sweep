@@ -42,6 +42,16 @@ func GlobPaths(fsys FS, mask string) ([]string, error) {
 		return nil, err
 	}
 
+	// The walk does not go through a junction, and a mask that starts inside
+	// one is no exception: what stands there is a link, and following it would
+	// take the walk somewhere the guard never agreed to look. A mask that names
+	// the link itself has no mask character and was answered above.
+	if info, ok, err := readInfo(fsys, start); err != nil {
+		return nil, err
+	} else if ok && info.Reparse {
+		return nil, nil
+	}
+
 	w := &walker{fsys: fsys, mask: compiled, taken: map[string]string{}}
 	if err := w.walk([]string{start}, segments); err != nil {
 		return nil, err

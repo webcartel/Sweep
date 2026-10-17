@@ -134,6 +134,39 @@ func TestNormalizeLinks(t *testing.T) {
 		}
 	})
 
+	t.Run("a junction in the middle of a path is followed too", func(t *testing.T) {
+		g, fsys := newGuard(t)
+		fsys.Add(platform.Info{Path: `C:\Temp\sys`, IsDir: true, Reparse: true, Link: `\??\C:\Windows\System32`})
+
+		path, err := g.Normalize(`C:\Temp\sys\kernel32.dll`)
+		if err != nil {
+			t.Fatalf("Normalize: %v", err)
+		}
+		if want := `C:\Windows\System32\kernel32.dll`; path.Final != want {
+			t.Errorf("Final = %q, want %q", path.Final, want)
+		}
+		if want := []string{`C:\Windows\System32`}; len(path.Chain) != 1 || path.Chain[0] != want[0] {
+			t.Errorf("Chain = %q, want %q", path.Chain, want)
+		}
+		if want := `C:\Temp\sys\kernel32.dll`; path.Given != want {
+			t.Errorf("Given = %q, want %q", path.Given, want)
+		}
+	})
+
+	t.Run("a link target written with a short name is expanded", func(t *testing.T) {
+		g, fsys := newGuard(t)
+		fsys.MapLong(`C:\PROGRA~1`, `C:\Program Files`)
+		fsys.Add(platform.Info{Path: `C:\Temp\pf`, IsDir: true, Reparse: true, Link: `C:\PROGRA~1`})
+
+		path, err := g.Normalize(`C:\Temp\pf\App`)
+		if err != nil {
+			t.Fatalf("Normalize: %v", err)
+		}
+		if want := `C:\Program Files\App`; path.Final != want {
+			t.Errorf("Final = %q, want %q", path.Final, want)
+		}
+	})
+
 	t.Run("a reparse point with no target ends where it stands", func(t *testing.T) {
 		g, fsys := newGuard(t)
 		fsys.Add(platform.Info{Path: `C:\Temp\cloud`, Reparse: true})
@@ -218,6 +251,12 @@ func newGuard(t *testing.T, excludePaths ...string) (*Guard, *fake.FS) {
 	fsys := fake.NewFS()
 	fsys.Add(platform.Info{Path: `C:\Temp`, IsDir: true})
 	fsys.Add(platform.Info{Path: `C:\Windows`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Users`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Users\probe`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Users\probe\AppData`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Users\probe\AppData\Local`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Users\probe\AppData\Roaming`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Program Files`, IsDir: true})
 
 	g, err := New(fsys, guardEnv(), `C:\Users\probe`, excludePaths)
 	if err != nil {

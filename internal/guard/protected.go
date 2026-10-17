@@ -119,7 +119,9 @@ func (g *Guard) match(path string) (protectedRange, bool) {
 func protectedRanges(env platform.Env, extra []string) []protectedRange {
 	value := func(name, fallback string) string {
 		if set, ok := env.Get(name); ok && set != "" {
-			return set
+			// A value that ends with a separator or is written with the other
+			// one is the same place, and the comparison below is literal.
+			return cleanPath(deviceFree(set))
 		}
 		return fallback
 	}

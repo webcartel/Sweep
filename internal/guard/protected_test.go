@@ -341,6 +341,17 @@ func TestCheckLinks(t *testing.T) {
 			t.Errorf("Check = %+v, want a refusal: the chain ends in a protected subtree", verdict)
 		}
 	})
+	t.Run("a junction in the middle of a path is refused", func(t *testing.T) {
+		g, fsys := newGuard(t)
+		fsys.Add(platform.Info{
+			Path: `C:\Temp\sys`, IsDir: true, Reparse: true, Link: `C:\Windows\System32`,
+		})
+
+		verdict := check(t, g, `C:\Temp\sys\kernel32.dll`, model.ModeSelf, nil, 0)
+		if verdict.Allowed {
+			t.Errorf("Check = %+v, want a refusal: the directory on the way is a junction into a protected subtree", verdict)
+		}
+	})
 }
 
 func TestCheckExcludePaths(t *testing.T) {
@@ -391,6 +402,47 @@ func TestCheckExcludePaths(t *testing.T) {
 			t.Fatal("New accepted an empty exclusion")
 		}
 	})
+}
+
+// TestCheckEnvSpellings keeps the refusal list from being switched off by the
+// way a variable happens to be written: a value with a trailing separator or
+// the other separator is the same place, and the comparison is literal.
+func TestCheckEnvSpellings(t *testing.T) {
+	env := guardEnv()
+	env.Set(`SystemRoot`, `C:\Windows\`)
+	env.Set(`ProgramFiles`, `C:\Program Files/`)
+	env.Set(`ProgramData`, `C:/ProgramData/`)
+	env.Set(`USERPROFILE`, `C:\Users\probe/`)
+	env.Set(`APPDATA`, `C:\Users\probe\AppData\Roaming\`)
+	env.Set(`LOCALAPPDATA`, `C:\Users\probe\AppData\Local/`)
+	env.Set(`TEMP`, `C:\Temp\`)
+
+	g, err := New(fake.NewFS(), env, `C:\Users\probe`, nil)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	refused := []string{
+		`C:\Windows`,
+		`C:\Windows\System32\x`,
+		`C:\Program Files\App`,
+		`C:\ProgramData`,
+		`C:\Users\probe\Desktop\x`,
+		`C:\Users\probe\AppData\Roaming`,
+		`C:\Users\probe\AppData\Local`,
+	}
+	for _, path := range refused {
+		if verdict := check(t, g, path, model.ModeContents, nil, 0); verdict.Allowed {
+			t.Errorf("Check(%q) = %+v, want a refusal: a trailing separator is the same place", path, verdict)
+		}
+	}
+
+	allowed := []string{`C:\Windows\Temp\x`, `C:\Temp\x`, `C:\Users\probe\AppData\Local\app\cache`}
+	for _, path := range allowed {
+		if verdict := check(t, g, path, model.ModeContents, nil, 0); !verdict.Allowed {
+			t.Errorf("Check(%q) = %+v, want it allowed", path, verdict)
+		}
+	}
 }
 
 // check asks the guard about a path and fails the test when the call itself

@@ -137,7 +137,7 @@ func (g *Guard) Normalize(path string) (Path, error) {
 		given = long
 	}
 
-	final, chain, err := g.follow(given)
+	final, chain, err := g.resolve(given)
 	if err != nil {
 		return Path{}, err
 	}
@@ -178,16 +178,18 @@ func (g *Guard) absolute(text, path string) string {
 	return cleanPath(joinPath(base, path))
 }
 
-// follow walks the links the path itself is, and answers where it ends up,
-// with every target on the way. A reparse point that points nowhere — a cloud
-// placeholder, a deduplicated file — ends where it stands.
-func (g *Guard) follow(path string) (string, []string, error) {
+// resolve walks the links on the way to a path, component by component, and
+// answers where the path ends up and every target it followed. A link in the
+// middle of a path is resolved as well as the path itself: a junction in a
+// directory would otherwise carry a rule into a place the guard never looked
+// at, and the file at the end of it need not be a link at all.
+func (g *Guard) resolve(path string) (string, []string, error) {
 	const limit = 8
 
 	seen := map[string]bool{}
 	var chain []string
-	current := path
 
+	current := path
 	for hop := 0; hop <= limit; hop++ {
 		key := pathKey(current)
 		if seen[key] {
@@ -195,26 +197,70 @@ func (g *Guard) follow(path string) (string, []string, error) {
 		}
 		seen[key] = true
 
-		info, err := g.fs.Lstat(current)
+		next, target, ok, err := g.linkOn(current)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return current, chain, nil
-			}
 			return "", nil, err
 		}
-		if !info.Reparse || info.Link == "" {
+		if !ok {
 			return current, chain, nil
 		}
-
-		target := strings.TrimPrefix(info.Link, `\??\`)
-		if !isAbsPath(target) {
-			target = joinPath(dirPath(current), target)
-		}
-		current = cleanPath(target)
-		chain = append(chain, current)
+		chain = append(chain, target)
+		current = next
 	}
 
 	return "", nil, refuse(fmt.Sprintf("the links of %s are more than %d deep", quote(path), limit))
+}
+
+// linkOn finds the first link on the way to a path and answers the path with
+// that link replaced by what it points at, together with the target. A path
+// that stops at something that is not there has no link on the way: the rest of
+// it cannot be a reparse point, so the walk stops there and lets the refusal
+// list decide.
+func (g *Guard) linkOn(path string) (string, string, bool, error) {
+	volume, rest := splitVolume(path)
+	if volume == "" {
+		return path, "", false, nil
+	}
+
+	segments := strings.Split(rest, `\`)
+	current := strings.TrimSuffix(volume, `\`)
+
+	for i, segment := range segments {
+		if segment == "" {
+			continue
+		}
+		candidate := joinPath(current, segment)
+		info, err := g.fs.Lstat(candidate)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) || errors.Is(err, fs.ErrInvalid) {
+				return path, "", false, nil
+			}
+			return "", "", false, err
+		}
+		if !info.Reparse || info.Link == "" {
+			current = candidate
+			continue
+		}
+
+		target := deviceFree(info.Link)
+		if !isAbsPath(target) {
+			target = joinPath(current, target)
+		}
+		target = cleanPath(target)
+		// The target is a place Windows may have written with a short name,
+		// and the refusal list knows only the long one.
+		if long, err := g.fs.LongPath(target); err == nil {
+			target = long
+		}
+
+		composed := target
+		for _, name := range segments[i+1:] {
+			composed = joinPath(composed, name)
+		}
+		return cleanPath(composed), target, true, nil
+	}
+
+	return path, "", false, nil
 }
 
 // checkLocalFixed refuses everything but a fixed local disk: a stick belongs

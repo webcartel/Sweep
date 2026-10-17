@@ -169,6 +169,26 @@ func TestGlobPathsReparse(t *testing.T) {
 	if !reflect.DeepEqual(paths, want) {
 		t.Errorf("GlobPaths = %q, want %q: a reparse point is a match of its own", paths, want)
 	}
+
+	// A mask that starts inside a junction has no way through it either.
+	for _, mask := range []string{`C:\Temp\link\**\*.txt`, `C:\Temp\link\*`} {
+		paths, err := platform.GlobPaths(fsys, mask)
+		if err != nil {
+			t.Fatalf("GlobPaths(%q): %v", mask, err)
+		}
+		if len(paths) != 0 {
+			t.Errorf("GlobPaths(%q) = %q, want nothing: the walk starts inside a reparse point", mask, paths)
+		}
+	}
+
+	// The link itself is still found when the mask names it.
+	paths, err = platform.GlobPaths(fsys, `C:\Temp\link`)
+	if err != nil {
+		t.Fatalf("GlobPaths: %v", err)
+	}
+	if want := []string{`C:\Temp\link`}; !reflect.DeepEqual(paths, want) {
+		t.Errorf("GlobPaths = %q, want %q", paths, want)
+	}
 }
 
 func TestGlobPathsNoLiteralPrefix(t *testing.T) {

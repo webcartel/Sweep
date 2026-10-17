@@ -44,12 +44,16 @@ func cleanPath(path string) string {
 	}
 }
 
-// stripDevicePrefix takes off the \\?\ that lets a path be longer than
-// MAX_PATH, and turns the UNC spelling of one back into a share.
+// stripDevicePrefix takes off the namespaces Windows puts in front of a path —
+// `\\?\`, `\\.\` and the `\??\` that a junction target is written with — and
+// turns the UNC spelling of one back into a share.
 func stripDevicePrefix(path string) string {
-	rest, ok := strings.CutPrefix(path, `\\?\`)
-	if !ok {
-		rest, ok = strings.CutPrefix(path, `\\.\`)
+	rest, ok := "", false
+	for _, prefix := range []string{`\\?\`, `\\.\`, `\??\`} {
+		if cut, found := strings.CutPrefix(path, prefix); found {
+			rest, ok = cut, true
+			break
+		}
 	}
 	if !ok {
 		return path
@@ -105,18 +109,6 @@ func joinPath(dir, name string) string {
 		return dir + name
 	}
 	return dir + `\` + name
-}
-
-// dirPath is the directory that holds a path.
-func dirPath(path string) string {
-	volume, rest := splitVolume(path)
-	if rest == "" {
-		return path
-	}
-	if index := strings.LastIndex(rest, `\`); index >= 0 {
-		return volume + `\` + rest[:index]
-	}
-	return volume + `\`
 }
 
 // pathKey is the key two spellings of one path share: comparisons ignore case,
