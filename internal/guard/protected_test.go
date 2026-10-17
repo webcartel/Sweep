@@ -404,6 +404,17 @@ func TestCheckExcludePaths(t *testing.T) {
 		}
 	})
 
+	t.Run("an exclusion written as a mask stops the guard", func(t *testing.T) {
+		fsys := fake.NewFS()
+		_, err := New(fsys, guardEnv(), `C:\Users\probe`, []string{`D:\Games\**`})
+		if err == nil {
+			t.Fatal("New accepted an exclusion written as a mask")
+		}
+		if !strings.Contains(err.Error(), "mask") {
+			t.Errorf("error = %v, want it to say that the list takes paths", err)
+		}
+	})
+
 	t.Run("an empty exclusion stops the guard", func(t *testing.T) {
 		fsys := fake.NewFS()
 		if _, err := New(fsys, guardEnv(), `C:\Users\probe`, []string{``}); err == nil {

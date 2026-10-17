@@ -4,7 +4,7 @@ rules:
   system.user-temp:
     enabled: true
 exclude_paths:
-  - 'D:\Games\**'
+  - 'D:\Games'
   - '%USERPROFILE%\Videos'
 allow_user_commands: true
 profiles:

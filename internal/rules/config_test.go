@@ -40,7 +40,7 @@ func TestLoadConfigReadsTogglesAndProfiles(t *testing.T) {
 	if !config.Rules["system.user-temp"].Enabled {
 		t.Error("system.user-temp is off, want it switched on")
 	}
-	if want := []string{`D:\Games\**`, `%USERPROFILE%\Videos`}; !slices.Equal(config.ExcludePaths, want) {
+	if want := []string{`D:\Games`, `%USERPROFILE%\Videos`}; !slices.Equal(config.ExcludePaths, want) {
 		t.Errorf("ExcludePaths = %v, want %v", config.ExcludePaths, want)
 	}
 	if !config.AllowUserCommands {

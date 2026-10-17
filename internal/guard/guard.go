@@ -103,13 +103,16 @@ func (g *Guard) Check(path string, mode model.Mode, include []string, minAgeDays
 	for _, candidate := range []string{target.Given, target.Final} {
 		if r, ok := g.match(candidate); ok && !r.permits(filtered) {
 			return Verdict{
-				Path:    target.Final,
+				// The verdict names the path the rule wrote: that is the one
+				// the message is about, and where it leads is refused on its
+				// own account.
+				Path:    target.Given,
 				Reason:  model.ReasonProtected,
 				Message: fmt.Sprintf("the path %s is protected by %s", quote(candidate), quote(r.path)),
 			}, nil
 		}
 	}
-	return Verdict{Path: target.Final, Allowed: true}, nil
+	return Verdict{Path: target.Given, Allowed: true}, nil
 }
 
 // Normalize turns a path written in a rule into the path the engine works

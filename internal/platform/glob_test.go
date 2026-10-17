@@ -144,6 +144,40 @@ func TestGlobPathsDoubleStar(t *testing.T) {
 	}
 }
 
+// TestMaskAgreesWithTheWalk keeps the compiled mask and the walk saying the
+// same thing about `**`: the walk reads it as one or more levels, and a mask
+// that read it as zero or more would take paths the walk never offers.
+func TestMaskAgreesWithTheWalk(t *testing.T) {
+	fsys := fake.NewFS()
+	for _, path := range []string{
+		`C:\Temp\a`, `C:\Temp\a\b`, `C:\Temp\a\x`, `C:\Temp\a\x\b`,
+	} {
+		fsys.Add(platform.Info{Path: path, IsDir: true})
+	}
+
+	mask := `C:\Temp\a\**\b`
+	compiled, err := platform.CompileMask(mask)
+	if err != nil {
+		t.Fatalf("CompileMask: %v", err)
+	}
+	if compiled.Match(`C:\Temp\a\b`) {
+		t.Error("the mask takes a path one level short of what it asks for")
+	}
+
+	paths, err := platform.GlobPaths(fsys, mask)
+	if err != nil {
+		t.Fatalf("GlobPaths: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("GlobPaths found nothing")
+	}
+	for _, path := range paths {
+		if !compiled.Match(path) {
+			t.Errorf("GlobPaths found %q, which its own mask does not take", path)
+		}
+	}
+}
+
 func TestGlobPathsReparse(t *testing.T) {
 	fsys := fake.NewFS()
 	fsys.Add(platform.Info{Path: `C:\Temp`, IsDir: true})

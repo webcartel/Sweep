@@ -18,8 +18,9 @@ id.
 
 Everything that touches WinAPI sits behind `internal/platform`: the file
 system (reparse points, 8.3 names, drive kinds, the recycle bin), the process
-list and the environment. The Windows side is one file under a build tag, and
-the tests run against an in-memory one, so the same cases run on either machine.
+list and the environment. The Windows side is a pair of files under a build tag,
+and the tests run against an in-memory one, so the same cases run on either
+machine.
 `internal/guard` decides what may be touched: a path is normalized — variables,
 `..`, either separator, `\\?\`, trailing dots and spaces, 8.3 names, links — and
 compared against a protected list that no rule can widen. There is no scanner,

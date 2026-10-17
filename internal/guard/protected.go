@@ -2,6 +2,7 @@ package guard
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -215,6 +216,12 @@ func (g *Guard) exclusion(entry string) (string, error) {
 	cleaned := cleanPath(text)
 	if cleaned == "" {
 		return "", fmt.Errorf("exclude_paths %s names no place at all", quote(entry))
+	}
+	// An entry is a path, not a mask: the specification lets the config add to
+	// the refusal list and nothing more. A mask that refuses nothing would be
+	// a config that loads and quietly does not do what it says.
+	if strings.ContainsAny(cleaned, `*?`) {
+		return "", fmt.Errorf("exclude_paths %s is a mask, and the list takes paths", quote(entry))
 	}
 	if !isAbsPath(text) {
 		cleaned = g.absolute(text, cleaned)
