@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: user.probe
+    name: Probe
+    category: user
+    risk: safe
+    targets:
+      # A mask that is empty takes nothing and does it in silence; the schema
+      # allows it, so only the semantic pass can name it.
+      - path: '%TEMP%'
+        include: ['*.log', '']

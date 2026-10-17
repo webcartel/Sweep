@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,11 +32,12 @@ func newRulesValidateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate [path...]",
 		Short: "Check rule files and report every finding with its place",
-		Long: "Check rule files and report every finding as file:line:column.\n\n" +
+		Long: "Check rule files and report every finding as file:line:column on\n" +
+			"the error stream.\n\n" +
 			"With no path it checks everything sweep loads: the built-in rules, the\n" +
-			"rules of the user and every directory named as --rules-dir. It prints\n" +
-			"nothing when there is nothing to report, and leaves with code 2 when\n" +
-			"there is.",
+			"rules of the user and every directory named as --rules-dir. A path that\n" +
+			"is a directory stands for the rule files it holds. It prints nothing\n" +
+			"when there is nothing to report, and leaves with code 2 when there is.",
 		Args: countArgs(cobra.ArbitraryArgs),
 		RunE: func(cmd *cobra.Command, paths []string) error {
 			if len(paths) == 0 {
@@ -46,31 +48,36 @@ func newRulesValidateCmd() *cobra.Command {
 	}
 }
 
-// validateEverything checks every source the loader reads. What the loader
-// reported goes to stdout, where the answer of the command belongs.
+// validateEverything checks every source the loader reads. The findings come
+// back as the error of the command, which cobra puts on stderr once, where the
+// findings of a checker belong.
 func validateEverything(cmd *cobra.Command) error {
 	set, err := loadSet(cmd)
 	if err != nil {
-		w := &writer{out: cmd.OutOrStdout()}
-		w.printf("%v\n", err)
-		return usageError(errors.New("the rule files have findings"))
+		return usageError(err)
 	}
 	printWarnings(cmd, set.Warnings)
 	return nil
 }
 
-// validatePaths checks the files named on the command line.
+// validatePaths checks the files named on the command line. A directory stands
+// for the rule files it holds, so that pointing the command at a folder does
+// what the reader expects.
 func validatePaths(cmd *cobra.Command, paths []string) error {
+	files, err := ruleFiles(paths)
+	if err != nil {
+		return usageError(err)
+	}
+
 	var (
 		findings []error
 		warnings []string
 	)
-
 	env := platform.OSEnv{}
-	for _, path := range paths {
+	for _, path := range files {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			findings = append(findings, fmt.Errorf("read %s: %w", path, err))
+			findings = append(findings, err)
 			continue
 		}
 		file, err := rules.LoadFile(path, data)
@@ -79,23 +86,48 @@ func validatePaths(cmd *cobra.Command, paths []string) error {
 			continue
 		}
 
-		found := rules.ValidateSchema(file)
-		semantic, warns := rules.ValidateSemantics(file, env)
-		for _, finding := range append(found, semantic...) {
+		found, warns := rules.Validate(file, env)
+		for _, finding := range found {
 			findings = append(findings, finding)
 		}
 		warnings = append(warnings, warns...)
 	}
 
 	printWarnings(cmd, warnings)
-	w := &writer{out: cmd.OutOrStdout()}
-	for _, finding := range findings {
-		w.printf("%v\n", finding)
-	}
 	if len(findings) != 0 {
-		return usageError(errors.New("the rule files have findings"))
+		return usageError(errors.Join(findings...))
 	}
-	return w.err
+	return nil
+}
+
+// ruleFiles turns the paths of the command line into the rule files to check: a
+// file stands for itself, a directory for the rule files it holds, in name
+// order. A path that cannot be read is an error of its own, named as the
+// system named it.
+func ruleFiles(paths []string) ([]string, error) {
+	var files []string
+
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
+			files = append(files, path)
+			continue
+		}
+
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+				files = append(files, filepath.Join(path, entry.Name()))
+			}
+		}
+	}
+	return files, nil
 }
 
 // newRulesShowCmd returns `sweep rules show`.
@@ -136,7 +168,7 @@ func findRule(set *rules.Set, id string) *model.Rule {
 // printRule writes one merged rule the way `sweep rules show` reads it.
 func printRule(out io.Writer, rule *model.Rule, env platform.Env) error {
 	w := &writer{out: out}
-	w.printf("%s — %s\n", rule.ID, rule.Name)
+	w.printf("%s - %s\n", rule.ID, rule.Name)
 	if rule.Description != "" {
 		w.printf("  %s\n", rule.Description)
 	}

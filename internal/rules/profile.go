@@ -3,11 +3,11 @@ package rules
 import (
 	"fmt"
 	"maps"
-	"path"
 	"slices"
 	"strings"
 
 	"github.com/webcartel/sweep/internal/model"
+	"github.com/webcartel/sweep/internal/platform"
 )
 
 // riskRank orders the three risks, so that a ceiling can be compared with them.
@@ -81,21 +81,32 @@ func picked(rule *model.Rule, profile model.Profile) bool {
 // takes nothing; unbuildableMasks reports it.
 func masksTake(masks []string, id string) bool {
 	for _, mask := range masks {
-		if matched, err := path.Match(mask, id); err == nil && matched {
+		compiled, err := platform.CompileMask(mask)
+		if err == nil && compiled.Match(id) {
 			return true
 		}
 	}
 	return false
 }
 
-// unbuildableMasks names every mask of a profile that is not a valid glob.
+// unbuildableMasks names every mask of a profile that cannot be read, with the
+// list it stands in.
 func unbuildableMasks(profileName string, profile model.Profile) []string {
 	var warnings []string
 
-	for _, mask := range append(slices.Clone(profile.Include), profile.Exclude...) {
-		if _, err := path.Match(mask, ""); err != nil {
-			warnings = append(warnings, fmt.Sprintf(
-				"the profile '%s' mask '%s' is not a valid glob: %v", profileName, mask, err))
+	lists := []struct {
+		field string
+		masks []string
+	}{
+		{"include", profile.Include},
+		{"exclude", profile.Exclude},
+	}
+	for _, list := range lists {
+		for _, mask := range list.masks {
+			if _, err := platform.CompileMask(mask); err != nil {
+				warnings = append(warnings, fmt.Sprintf(
+					"the profile '%s' %s mask '%s': %v", profileName, list.field, mask, err))
+			}
 		}
 	}
 	return warnings

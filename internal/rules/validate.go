@@ -15,6 +15,7 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
+	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/schema"
 )
 
@@ -39,6 +40,18 @@ var ruleSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	}
 	return compiler.Compile(schemaName)
 })
+
+// Validate runs both validation passes over one parsed file: the JSON Schema
+// that fixes the shape of the format, then the semantic checks it cannot
+// express. The warnings of the second pass come back too.
+//
+// This is the pair `rules validate` and the loader both need, in one place, so
+// that what the command reports and what the loader refuses cannot disagree.
+func Validate(file *File, env platform.Env) ([]Error, []string) {
+	findings := ValidateSchema(file)
+	semantic, warnings := ValidateSemantics(file, env)
+	return append(findings, semantic...), warnings
+}
 
 // ValidateSchema checks a parsed file against the rule format's JSON Schema and
 // reports every place where the file does not fit it.

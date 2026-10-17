@@ -1,8 +1,6 @@
 package rules
 
 import (
-	"path"
-
 	"go.yaml.in/yaml/v3"
 
 	"github.com/webcartel/sweep/internal/model"
@@ -54,6 +52,13 @@ func duplicateIDs(file *File) []Error {
 
 // checkTarget runs the checks of one target and appends its warnings.
 func checkTarget(file string, node *yaml.Node, env platform.Env, warnings *[]string) []Error {
+	if node.Kind != yaml.MappingNode {
+		// The schema reports the shape of what is not a target; telling the
+		// author what a path target needs on top of that repeats one mistake
+		// as two findings.
+		return nil
+	}
+
 	var findings []Error
 
 	targetPath := scalar(field(node, "path"))
@@ -110,16 +115,23 @@ func checkTarget(file string, node *yaml.Node, env platform.Env, warnings *[]str
 	return findings
 }
 
-// checkMask reports a mask that does not compile. The check runs on path.Match,
-// whose answer does not depend on the platform the check runs on; the matching
-// itself belongs to the platform layer.
+// checkMask reports a mask the rule language cannot read. The mask language
+// belongs to the platform layer, which also matches with it, so that the check
+// and the walking of the file system cannot drift apart.
+//
+// An empty path is left to the schema, which requires a path to hold
+// something; an empty name mask is a mistake only this pass can see, since a
+// mask that is empty takes nothing and does it in silence.
 func checkMask(file, name string, node *yaml.Node) []Error {
+	if node.Kind != yaml.ScalarNode {
+		return nil // the schema reports the shape of what is not a mask
+	}
 	mask := scalar(node)
-	if mask == "" {
+	if mask == "" && name == "path" {
 		return nil
 	}
-	if _, err := path.Match(mask, ""); err != nil {
-		return []Error{errorAt(file, node, "%s '%s' is not a valid glob: %v", name, mask, err)}
+	if _, err := platform.CompileMask(mask); err != nil {
+		return []Error{errorAt(file, node, "%s '%s': %v", name, mask, err)}
 	}
 	return nil
 }

@@ -30,7 +30,7 @@ type ParsedRule struct {
 func LoadFile(path string, data []byte) (*File, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return nil, syntaxError(path, err)
 	}
 
 	file := &File{Path: path, Doc: &doc}

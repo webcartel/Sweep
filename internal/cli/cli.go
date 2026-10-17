@@ -46,18 +46,31 @@ func NewRootCmd() *cobra.Command {
 }
 
 // dataDir is where sweep keeps the config and the rules of the user:
-// %APPDATA%\sweep, as the spec lists it.
-func dataDir() string { return filepath.Join(os.Getenv("APPDATA"), "sweep") }
+// %APPDATA%\sweep on Windows, which is what the spec names. os.UserConfigDir
+// answers it, and says so instead of quietly reading a relative path when the
+// machine has no such directory.
+func dataDir() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("find the directory of the config: %w", err)
+	}
+	return filepath.Join(dir, "sweep"), nil
+}
 
 // loadSet reads every rule source the machine and the flags name: the built-in
 // rules, the rules of the user, the directories of --rules-dir and the config.
 func loadSet(cmd *cobra.Command) (*rules.Set, error) {
+	dir, err := dataDir()
+	if err != nil {
+		return nil, usageError(err)
+	}
+
 	path, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return nil, usageError(err)
 	}
 	if path == "" {
-		path = filepath.Join(dataDir(), "config.yaml")
+		path = filepath.Join(dir, "config.yaml")
 	}
 	config, err := rules.LoadConfig(path)
 	if err != nil {
@@ -71,7 +84,7 @@ func loadSet(cmd *cobra.Command) (*rules.Set, error) {
 
 	set, err := rules.Loader{
 		Env:       platform.OSEnv{},
-		UserDir:   filepath.Join(dataDir(), "rules"),
+		UserDir:   filepath.Join(dir, "rules"),
 		ExtraDirs: dirs,
 		Config:    config,
 	}.Load()

@@ -151,8 +151,11 @@ func TestSelectExcludeMaskWins(t *testing.T) {
 	}
 }
 
+// A mask that cannot be read takes nothing, and the profile says so instead of
+// quietly selecting the wrong set: an empty mask is one, and it is the only one
+// the mask language has.
 func TestSelectWarnsAboutAMaskThatDoesNotCompile(t *testing.T) {
-	set := probeSet("mine", model.Profile{Include: []string{"[bad"}, Exclude: []string{"[worse"}},
+	set := probeSet("mine", model.Profile{Include: []string{""}, Exclude: []string{""}},
 		probeRule("dev.npm-cache", "dev", model.RiskSafe, true),
 	)
 
@@ -166,9 +169,9 @@ func TestSelectWarnsAboutAMaskThatDoesNotCompile(t *testing.T) {
 	if len(warnings) != 2 {
 		t.Fatalf("got %d warnings, want 2, one for each mask: %v", len(warnings), warnings)
 	}
-	for i, mask := range []string{"[bad", "[worse"} {
+	for i, mask := range []string{"include", "exclude"} {
 		if !strings.Contains(warnings[i], mask) {
-			t.Errorf("warning = %q, want it to name the mask %q", warnings[i], mask)
+			t.Errorf("warning = %q, want it to say which list holds the mask %q", warnings[i], mask)
 		}
 	}
 }

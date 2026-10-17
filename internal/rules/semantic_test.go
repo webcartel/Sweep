@@ -62,9 +62,9 @@ func TestValidateSemanticsWarnsAboutUnknownEnvironmentVariable(t *testing.T) {
 	}
 }
 
-func TestValidateSemanticsRejectsMaskThatDoesNotCompile(t *testing.T) {
+func TestValidateSemanticsRejectsAnEmptyNameMask(t *testing.T) {
 	const source = "schema: 1\nrules:\n  - id: user.probe\n    name: Probe\n    category: user\n" +
-		"    risk: safe\n    targets:\n      - path: '%TEMP%'\n        include: ['*.exe', '[a-']\n"
+		"    risk: safe\n    targets:\n      - path: '%TEMP%'\n        include: ['*.exe', '']\n"
 
 	file, err := LoadFile("test.yaml", []byte(source))
 	if err != nil {
@@ -81,24 +81,40 @@ func TestValidateSemanticsRejectsMaskThatDoesNotCompile(t *testing.T) {
 	if findings[0].Line != 9 {
 		t.Errorf("finding at %d:%d, want it on line 9 (the include list)", findings[0].Line, findings[0].Col)
 	}
-	if !strings.Contains(findings[0].Msg, "'[a-'") {
-		t.Errorf("message = %q, want it to quote the mask", findings[0].Msg)
+	if !strings.Contains(findings[0].Msg, "the mask is empty") {
+		t.Errorf("message = %q, want it to say why the mask cannot be used", findings[0].Msg)
 	}
 }
 
-func TestValidateSemanticsAcceptsMasksThatCompile(t *testing.T) {
+// The separator of a Windows path is a separator and not an escape, so a mask
+// the spec itself writes — one that ends at a separator, with `**` in it —
+// compiles, and a star beside a separator stays a mask.
+func TestValidateSemanticsAcceptsTheMaskLanguageOfTheRules(t *testing.T) {
 	const source = "schema: 1\nrules:\n  - id: user.probe\n    name: Probe\n    category: user\n" +
-		"    risk: safe\n    targets:\n      - path: '%LOCALAPPDATA%\\App\\**\\Cache'\n" +
-		"        include: ['*.exe', 'file[0-9].log', 'sub\\?.log']\n        exclude: ['keep-*']\n"
+		"    risk: safe\n    targets:\n      - path: '%LOCALAPPDATA%\\App\\**\\'\n" +
+		"        include: ['*.exe', 'file[0-9].log', 'sub\\?.log']\n        exclude: ['keep-*']\n" +
+		"      - path: '%TEMP%\\*\\Cache'\n"
 
 	file, err := LoadFile("test.yaml", []byte(source))
 	if err != nil {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	findings, warnings := ValidateSemantics(file, fakeEnv{"LOCALAPPDATA": `C:\Users\probe\AppData\Local`})
+	findings, warnings := ValidateSemantics(file,
+		fakeEnv{"LOCALAPPDATA": `C:\Users\probe\AppData\Local`, "TEMP": `C:\Temp`})
 	if len(findings) != 0 || len(warnings) != 0 {
 		t.Errorf("got findings %v and warnings %v, want none", findings, warnings)
+	}
+}
+
+// A target that is not a mapping is the schema's finding; the semantic pass
+// stays out of its way instead of saying what a path target needs on top of it.
+func TestValidateSemanticsLeavesANonMappingTargetToTheSchema(t *testing.T) {
+	file := loadInvalid(t, "target-not-an-object.yaml")
+
+	findings, _ := ValidateSemantics(file, fakeEnv{"TEMP": `C:\Temp`})
+	if len(findings) != 0 {
+		t.Errorf("got %v, want no findings from the semantic pass", findings)
 	}
 }
 

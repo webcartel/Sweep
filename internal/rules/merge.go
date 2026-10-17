@@ -218,12 +218,11 @@ func (l Loader) check(files []*File) ([]*File, []string, []error) {
 
 	env := l.env()
 	for _, file := range files {
-		found := ValidateSchema(file)
-		semantic, warns := ValidateSemantics(file, env)
+		found, warns := Validate(file, env)
 		warnings = append(warnings, warns...)
 
-		if len(found) != 0 || len(semantic) != 0 {
-			for _, finding := range append(found, semantic...) {
+		if len(found) != 0 {
+			for _, finding := range found {
 				findings = append(findings, finding)
 			}
 			continue

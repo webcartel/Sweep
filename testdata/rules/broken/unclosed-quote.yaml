@@ -1,0 +1,6 @@
+schema: 1
+rules:
+  # The quote of name is never closed, so the YAML parser refuses the file and
+  # nothing after this line is read. The loader still has to say where.
+  - id: user.probe
+    name: 'unclosed

@@ -2,7 +2,6 @@ package rules
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"slices"
@@ -45,7 +44,7 @@ func LoadConfig(path string) (model.Config, error) {
 
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return model.Config{}, fmt.Errorf("%s: %w", path, err)
+		return model.Config{}, syntaxError(path, err)
 	}
 	root := docRoot(&doc)
 	if root == nil {
@@ -114,6 +113,9 @@ func readToggles(file string, rules *yaml.Node) (map[string]model.RuleToggle, er
 		if err != nil {
 			return nil, err
 		}
+		if _, seen := toggles[id.Value]; seen {
+			return nil, errorAt(file, id, "rule '%s' is switched twice", id.Value)
+		}
 		toggles[id.Value] = model.RuleToggle{Enabled: enabled}
 	}
 	return toggles, nil
@@ -136,6 +138,9 @@ func readProfiles(file string, profiles *yaml.Node) (map[string]model.Profile, e
 		profile, err := readProfile(file, body)
 		if err != nil {
 			return nil, err
+		}
+		if _, seen := read[name.Value]; seen {
+			return nil, errorAt(file, name, "profile '%s' is written twice", name.Value)
 		}
 		read[name.Value] = profile
 	}
@@ -176,17 +181,24 @@ func readProfile(file string, body *yaml.Node) (model.Profile, error) {
 	return profile, nil
 }
 
-// checkFields reports a key the format does not have, so that a typo is named
-// instead of silently ignored. The config has no JSON Schema to do it.
+// checkFields reports a key the format does not have and a key that is written
+// twice, so that a typo or a repeated key is named instead of silently ignored.
+// The config has no JSON Schema to do it.
 func checkFields(file string, mapping *yaml.Node, known []string) error {
 	if mapping == nil {
 		return nil
 	}
+
+	seen := map[string]bool{}
 	for i := 0; i+1 < len(mapping.Content); i += 2 {
 		key := mapping.Content[i]
 		if !slices.Contains(known, key.Value) {
 			return errorAt(file, key, "unknown field '%s'", key.Value)
 		}
+		if seen[key.Value] {
+			return errorAt(file, key, "field '%s' is set twice", key.Value)
+		}
+		seen[key.Value] = true
 	}
 	return nil
 }

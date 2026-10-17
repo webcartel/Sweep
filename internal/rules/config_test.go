@@ -124,6 +124,46 @@ func TestLoadConfigRejectsUnknownFieldsInNestedMappings(t *testing.T) {
 	}
 }
 
+// A key that is written twice is a finding: the config is read once, so a
+// repeated key would silently leave whichever half the reader happened to
+// reach last.
+func TestLoadConfigRejectsAKeyThatIsWrittenTwice(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name:   "a field of the config",
+			source: "exclude_paths: ['D:\\Games']\nexclude_paths: ['D:\\Films']\n",
+		},
+		{
+			name:   "a field of a profile",
+			source: "profiles:\n  mine:\n    max_risk: safe\n    max_risk: moderate\n",
+		},
+		{
+			name: "a rule that is switched twice",
+			source: "rules:\n  browsers.chrome.cache:\n    enabled: false\n" +
+				"  browsers.chrome.cache:\n    enabled: true\n",
+		},
+		{
+			name:   "a profile that is written twice",
+			source: "profiles:\n  mine:\n    max_risk: safe\n  mine:\n    max_risk: moderate\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := LoadConfig(writeConfig(t, test.source))
+			if err == nil {
+				t.Fatal("LoadConfig accepted a key that is written twice")
+			}
+			if !strings.Contains(err.Error(), "twice") {
+				t.Errorf("error = %v, want it to say the key is written twice", err)
+			}
+		})
+	}
+}
+
 func TestLoadConfigRejectsTheWrongShape(t *testing.T) {
 	tests := []struct {
 		name   string

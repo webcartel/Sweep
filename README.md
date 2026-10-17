@@ -10,10 +10,11 @@ and `sweep clean` work in scripts and in Task Scheduler.
 **Stage 1 of 8 — rules.** The repository builds, `sweep version` prints the
 version, and CI runs on `windows-latest` and `ubuntu-latest`. The rules are
 data: `sweep list` shows what was loaded and whether the profile takes it,
-`sweep rules validate` checks a rule file and reports every finding as
-`file:line:column`, and `sweep rules show <id>` prints one merged rule with its
-`%VARIABLES%` expanded. A rule of the user replaces the built-in one of the
-same id. There is no scanner, no cleaner and no TUI yet.
+`sweep rules validate` checks rule files or the directories that hold them and
+reports every finding as `file:line:column` on the error stream, and `sweep
+rules show <id>` prints one merged rule with its `%VARIABLES%` expanded. A rule
+of the user replaces the built-in one of the same id. There is no scanner, no
+cleaner and no TUI yet.
 
 ```sh
 .\sweep.exe list
@@ -38,6 +39,12 @@ Requires Go 1.27 or newer.
 go build ./...
 go vet ./...
 go test ./...
+```
+
+The rule and config parsers carry fuzz targets; a short local run is:
+
+```sh
+go test ./internal/rules/ -run '^$' -fuzz FuzzLoadFile -fuzztime 30s
 ```
 
 Build the binary and print its version:

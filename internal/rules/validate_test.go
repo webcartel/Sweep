@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,5 +183,89 @@ func TestValidateSchemaChecksTheShapeOfMinSize(t *testing.T) {
 	}
 	if !strings.Contains(findings[0].Msg, "pattern") {
 		t.Errorf("message = %q, want it to mention the pattern", findings[0].Msg)
+	}
+}
+
+// TestValidateReportsOneFindingPerDefect walks every fixture that holds one
+// defect. A second finding for one file means a pass reports the consequence of
+// the first mistake as a mistake of its own, which sends the reader after
+// something that is not there.
+func TestValidateReportsOneFindingPerDefect(t *testing.T) {
+	// The one fixture that holds two mistakes on purpose.
+	want := map[string]int{
+		"two-unknown-fields.yaml": 2,
+	}
+
+	entries, err := os.ReadDir(invalidDir)
+	if err != nil {
+		t.Fatalf("read %s: %v", invalidDir, err)
+	}
+
+	env := fakeEnv{"TEMP": `C:\Temp`, "LOCALAPPDATA": `C:\Users\probe\AppData\Local`}
+	for _, entry := range entries {
+		name := entry.Name()
+		count := want[name]
+		if count == 0 {
+			count = 1
+		}
+
+		t.Run(name, func(t *testing.T) {
+			findings, _ := Validate(loadInvalid(t, name), env)
+			if len(findings) != count {
+				t.Errorf("got %d findings, want %d: %v", len(findings), count, findings)
+			}
+		})
+	}
+}
+
+// TestValidateAcceptsTheValidFixtures keeps the other direction honest: every
+// fixture of the valid set passes both passes. unknown-env.yaml sits there to
+// show that a variable this machine does not set is a warning, not a finding.
+func TestValidateAcceptsTheValidFixtures(t *testing.T) {
+	entries, err := os.ReadDir(validDir)
+	if err != nil {
+		t.Fatalf("read %s: %v", validDir, err)
+	}
+
+	env := fakeEnv{"TEMP": `C:\Temp`, "USERPROFILE": `C:\Users\probe`,
+		"LOCALAPPDATA": `C:\Users\probe\AppData\Local`}
+	for _, entry := range entries {
+		name := entry.Name()
+		t.Run(name, func(t *testing.T) {
+			findings, _ := Validate(loadValid(t, name), env)
+			if len(findings) != 0 {
+				t.Errorf("got findings, want none: %v", findings)
+			}
+		})
+	}
+}
+
+// A file the YAML parser refuses is a finding with a place like any other: the
+// parser names the line inside its message, and the column is where that line
+// begins.
+func TestLoadFilePutsAPositionOnABrokenYAMLFile(t *testing.T) {
+	path := filepath.Join("../../testdata/rules/broken", "unclosed-quote.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+
+	_, err = LoadFile(path, data)
+	if err == nil {
+		t.Fatal("LoadFile accepted a file the YAML parser refuses")
+	}
+
+	var finding Error
+	if !errors.As(err, &finding) {
+		t.Fatalf("error = %v, want a finding with a place", err)
+	}
+	if finding.Line == 0 || finding.Col == 0 {
+		t.Errorf("finding at %d:%d, want a line and a column", finding.Line, finding.Col)
+	}
+	if finding.File != path {
+		t.Errorf("File = %q, want the file it was read from", finding.File)
+	}
+	if strings.Contains(finding.Msg, "yaml") || strings.Contains(finding.Msg, "line ") {
+		t.Errorf("message = %q, want it to say what went wrong and nothing more", finding.Msg)
 	}
 }

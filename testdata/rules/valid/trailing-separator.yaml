@@ -1,0 +1,16 @@
+schema: 1
+rules:
+  # The mask language belongs to the paths of Windows: a separator is a
+  # separator and not an escape, so a path the spec writes — one that ends at a
+  # separator, with a star beside one — is a mask that compiles and means what
+  # it says.
+  - id: user.browser-cache
+    name: A cache directory per profile
+    category: browsers
+    risk: safe
+    default_enabled: true
+    targets:
+      - path: '%LOCALAPPDATA%\Google\Chrome\User Data\*\'
+        include: ['Cache', 'Code Cache', 'GPUCache']
+      - path: '%LOCALAPPDATA%\App\**\Cache'
+        exclude: ['keep-*']
