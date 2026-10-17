@@ -1,0 +1,13 @@
+# Keep line endings the same in the working tree on every platform, so a
+# commit made on Windows does not rewrite the whole repository on Linux.
+* text=auto eol=lf
+
+# Windows-only build and script files.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files git must not touch.
+*.exe binary
+*.ico binary
+*.png binary
