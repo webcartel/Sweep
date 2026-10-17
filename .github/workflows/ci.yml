@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # A long fuzz run once a week: Monday, 04:00 UTC.
+    - cron: '0 4 * * 1'
 
 permissions:
   contents: read
@@ -37,5 +40,37 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go build ./internal/model/... ./internal/rules/...
-      - run: go test ./internal/model/... ./internal/rules/...
+      # The guard and the portable part of the platform run here too: the
+      # WinAPI sits behind a build tag or behind an interface, so what decides
+      # whether a path may be deleted does not depend on the machine.
+      - run: go build ./internal/model/... ./internal/rules/... ./internal/guard/... ./internal/platform/...
+      - run: go test ./internal/model/... ./internal/rules/... ./internal/guard/... ./internal/platform/...
+
+  fuzz:
+    name: fuzz, 30s
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      # Rule files written by the community and paths written by nobody: the
+      # short run on every push is the gate, the long one below is the hunt.
+      - run: go test ./internal/guard/ -run=^$ -fuzz=FuzzNormalize -fuzztime=30s
+      - run: go test ./internal/rules/ -run=^$ -fuzz=FuzzLoadFile -fuzztime=30s
+      - run: go test ./internal/rules/ -run=^$ -fuzz=FuzzLoadConfig -fuzztime=30s
+
+  fuzz-long:
+    name: fuzz, 10m
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/guard/ -run=^$ -fuzz=FuzzNormalize -fuzztime=10m
+      - run: go test ./internal/rules/ -run=^$ -fuzz=FuzzLoadFile -fuzztime=10m
+      - run: go test ./internal/rules/ -run=^$ -fuzz=FuzzLoadConfig -fuzztime=10m
