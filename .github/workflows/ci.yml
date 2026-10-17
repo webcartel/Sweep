@@ -21,9 +21,12 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
-      - uses: golangci/golangci-lint-action@v8
+      # Pinned on purpose: the lint result is a gate, and `latest` lets a new
+      # golangci-lint release redden an untouched commit. v2.15.0 is the
+      # version that runs clean on this tree.
+      - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.15.0
 
   linux:
     name: core packages
