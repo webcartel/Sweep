@@ -1,0 +1,16 @@
+schema: 1
+rules:
+  - id: browsers.chrome.cache
+    name: Chrome cache
+    description: Chrome's on-disk cache of pages and scripts. Chrome rebuilds it, so pages load slower once.
+    category: browsers
+    risk: safe
+    default_enabled: true
+    requires_closed: [chrome.exe]
+    targets:
+      - path: '%LOCALAPPDATA%\Google\Chrome\User Data\*\Cache'
+        mode: contents
+      - path: '%LOCALAPPDATA%\Google\Chrome\User Data\*\Code Cache'
+        mode: contents
+      - path: '%LOCALAPPDATA%\Google\Chrome\User Data\*\GPUCache'
+        mode: contents

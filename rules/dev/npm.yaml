@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: dev.npm-cache
+    name: npm cache
+    description: npm's download cache. The next install fetches the packages again.
+    category: dev
+    risk: safe
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\npm-cache'
+        mode: contents

@@ -1,0 +1,12 @@
+schema: 1
+rules:
+  - id: system.user-temp
+    name: User temp files
+    description: Files in your own temp folder that nothing has touched for a day.
+    category: system
+    risk: safe
+    default_enabled: true
+    targets:
+      - path: '%TEMP%'
+        mode: contents
+        min_age_days: 1
