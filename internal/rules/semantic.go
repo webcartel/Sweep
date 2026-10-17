@@ -2,16 +2,12 @@ package rules
 
 import (
 	"path"
-	"regexp"
 
 	"go.yaml.in/yaml/v3"
 
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
-
-// envName matches a %VARIABLE% reference inside a target path.
-var envName = regexp.MustCompile(`%([A-Za-z_][A-Za-z0-9_]*)%`)
 
 // maskFields are the fields of a target that hold glob masks.
 var maskFields = []string{"path", "include", "exclude"}
@@ -104,10 +100,10 @@ func checkTarget(file string, node *yaml.Node, env platform.Env, warnings *[]str
 	}
 
 	if targetPath != "" {
-		for _, reference := range envName.FindAllStringSubmatch(targetPath, -1) {
-			if _, set := env.Get(reference[1]); !set {
+		for _, name := range platform.EnvNames(targetPath) {
+			if _, set := env.Get(name); !set {
 				*warnings = append(*warnings,
-					errorAt(file, field(node, "path"), "environment variable %%%s%% is not set", reference[1]).Error())
+					errorAt(file, field(node, "path"), "environment variable %%%s%% is not set", name).Error())
 			}
 		}
 	}

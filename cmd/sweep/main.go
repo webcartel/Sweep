@@ -3,13 +3,24 @@
 package main
 
 import (
+	"errors"
 	"os"
 
 	"github.com/webcartel/sweep/internal/cli"
 )
 
 func main() {
-	if err := cli.NewRootCmd().Execute(); err != nil {
-		os.Exit(1)
+	err := cli.NewRootCmd().Execute()
+	if err == nil {
+		return
 	}
+
+	// A command that knows what the user has to fix says which code to leave
+	// with; anything else is an error the program did not expect.
+	code := cli.ExitInternal
+	var exit *cli.ExitError
+	if errors.As(err, &exit) {
+		code = exit.Code
+	}
+	os.Exit(code)
 }

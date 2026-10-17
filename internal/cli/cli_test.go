@@ -50,6 +50,16 @@ func TestVersionCommandReportsVersion(t *testing.T) {
 	}
 }
 
+func TestUnknownFlagIsAUsageError(t *testing.T) {
+	_, _, err := execute(t, "list", "--nope")
+	if err == nil {
+		t.Fatal("sweep list accepted a flag it does not have")
+	}
+	if code := exitCode(t, err); code != ExitUsage {
+		t.Errorf("exit code = %d, want %d", code, ExitUsage)
+	}
+}
+
 func TestRootWithoutArgsPrintsHelp(t *testing.T) {
 	out, errOut, err := execute(t)
 	if err != nil {
