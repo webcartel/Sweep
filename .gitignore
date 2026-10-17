@@ -1,0 +1,9 @@
+# Build output
+/sweep
+/sweep.exe
+/dist/
+
+# Go
+*.test
+*.out
+coverage.*
