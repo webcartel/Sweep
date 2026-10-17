@@ -1,0 +1,5 @@
+rules:
+  browsers.chrome.cache:
+    enabled: false
+excluded_paths:
+  - 'D:\Games\**'

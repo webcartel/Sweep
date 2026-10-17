@@ -1,0 +1,16 @@
+rules:
+  browsers.chrome.cache:
+    enabled: false
+  system.user-temp:
+    enabled: true
+exclude_paths:
+  - 'D:\Games\**'
+  - '%USERPROFILE%\Videos'
+allow_user_commands: true
+profiles:
+  mine:
+    include: ['dev.*', 'browsers.chrome.cache']
+    include_tags: [dev]
+    include_categories: [system]
+    max_risk: moderate
+    exclude: ['dev.docker-prune']
