@@ -124,11 +124,21 @@ func (f *FS) DriveType(path string) (platform.DriveKind, error) {
 	return platform.DriveFixed, nil
 }
 
-// Remove deletes an entry.
+// Remove deletes an entry, and only an empty directory: that is what os.Remove
+// does, and the engine counts on the difference.
 func (f *FS) Remove(path string) error { return f.delete(path, &f.removed) }
 
-// Trash moves an entry to the recycle bin.
-func (f *FS) Trash(path string) error { return f.delete(path, &f.trashed) }
+// Trash moves an entry to the recycle bin, which takes a directory together
+// with everything inside it: unlike Remove, it does not ask for an empty one.
+func (f *FS) Trash(path string) error {
+	key := fold(path)
+	if _, ok := f.entries[key]; !ok {
+		return &fs.PathError{Op: "trash", Path: path, Err: fs.ErrNotExist}
+	}
+	f.drop(key)
+	f.trashed = append(f.trashed, path)
+	return nil
+}
 
 // RemoveOnReboot schedules an entry for the next start of Windows. It is not
 // deleted now, which is the point of it.
@@ -151,6 +161,15 @@ func (f *FS) delete(path string, log *[]string) error {
 	delete(f.entries, key)
 	*log = append(*log, path)
 	return nil
+}
+
+// drop takes an entry and everything below it out of the file system.
+func (f *FS) drop(key string) {
+	for other := range f.entries {
+		if other == key || strings.HasPrefix(other, key+`\`) {
+			delete(f.entries, other)
+		}
+	}
 }
 
 // Procs is a process list in memory.

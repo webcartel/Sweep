@@ -105,7 +105,10 @@ func (windowsFS) RemoveOnReboot(path string) error {
 }
 
 // describe turns what the standard library knows about an entry into what the
-// rules need to know about it.
+// rules need to know about it. Whether an entry is a directory comes from the
+// attribute Windows sets, not from the Go file mode: a junction to a directory
+// carries the reparse attribute, and the file mode does not always call it a
+// directory, which would make a folder rule read it as a file.
 func describe(path string, info os.FileInfo) Info {
 	entry := Info{
 		Path:    path,
@@ -114,6 +117,9 @@ func describe(path string, info os.FileInfo) Info {
 		ModTime: info.ModTime(),
 		IsDir:   info.IsDir(),
 		Reparse: isReparse(info),
+	}
+	if attributes, ok := attributesOf(info); ok {
+		entry.IsDir = attributes&windows.FILE_ATTRIBUTE_DIRECTORY != 0
 	}
 	if entry.Reparse {
 		entry.Link = linkTarget(path)
@@ -124,11 +130,20 @@ func describe(path string, info os.FileInfo) Info {
 // isReparse reads the attribute Windows sets for junctions, symbolic links and
 // every other reparse point.
 func isReparse(info os.FileInfo) bool {
-	attributes, ok := info.Sys().(*syscall.Win32FileAttributeData)
+	attributes, ok := attributesOf(info)
 	if !ok {
 		return false
 	}
-	return attributes.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0
+	return attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+// attributesOf reads the file attributes Windows keeps beside every entry.
+func attributesOf(info os.FileInfo) (uint32, bool) {
+	data, ok := info.Sys().(*syscall.Win32FileAttributeData)
+	if !ok {
+		return 0, false
+	}
+	return data.FileAttributes, true
 }
 
 // linkTarget reads where a junction or a symbolic link points. Everything else
@@ -158,13 +173,18 @@ type fileOp struct {
 const (
 	// opDelete is FO_DELETE.
 	opDelete = 0x0003
-	// flagSilent, flagNoConfirm, flagAllowUndo and flagNoErrorUI ask the shell
-	// to delete without a dialogue, into the recycle bin, and without an error
-	// box that nobody is there to close.
+	// flagSilent, flagAllowUndo and flagNoErrorUI ask the shell to delete into
+	// the recycle bin without a progress dialogue and without an error box
+	// that nobody is there to close.
 	flagSilent    = 0x0004
-	flagNoConfirm = 0x0010
 	flagAllowUndo = 0x0040
 	flagNoErrorUI = 0x0400
+	// flagWantNukeWarning asks the shell to say so before it deletes a file
+	// for good because it does not fit in the recycle bin. A rule with
+	// `trash: true` promises the bin, and deleting instead without a word
+	// breaks that promise. The shell ignores this flag when flagNoConfirm is
+	// set, which is why it is not: the warning is the one dialogue left.
+	flagWantNukeWarning = 0x4000
 )
 
 var procSHFileOperation = windows.NewLazySystemDLL("shell32.dll").NewProc("SHFileOperationW")
@@ -178,11 +198,16 @@ func shellDelete(path string) error {
 	op := fileOp{
 		Func:  opDelete,
 		From:  &from[0],
-		Flags: flagSilent | flagNoConfirm | flagAllowUndo | flagNoErrorUI,
+		Flags: flagSilent | flagAllowUndo | flagNoErrorUI | flagWantNukeWarning,
 	}
 	result, _, _ := procSHFileOperation.Call(uintptr(unsafe.Pointer(&op)))
 	if result != 0 {
 		return &os.PathError{Op: "Trash", Path: path, Err: syscall.Errno(result)}
+	}
+	// The shell reports a cancelled operation as success and says so here:
+	// the path is still there and the caller has to know.
+	if op.AnyOps != 0 {
+		return &os.PathError{Op: "Trash", Path: path, Err: syscall.ECANCELED}
 	}
 	return nil
 }

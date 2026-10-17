@@ -129,6 +129,25 @@ func TestFakeFS(t *testing.T) {
 		}
 	})
 
+	t.Run("trash takes a directory with everything inside it", func(t *testing.T) {
+		// A tree of its own, so that the tests around it keep their entries.
+		fsys.Add(platform.Info{Path: `C:\Temp\deep`, IsDir: true})
+		fsys.Add(platform.Info{Path: `C:\Temp\deep\x`, IsDir: true})
+		fsys.Add(platform.Info{Path: `C:\Temp\deep\x\y.txt`})
+
+		if err := fsys.Trash(`C:\Temp\deep`); err != nil {
+			t.Fatalf("Trash: %v", err)
+		}
+		for _, path := range []string{`C:\Temp\deep`, `C:\Temp\deep\x`, `C:\Temp\deep\x\y.txt`} {
+			if _, err := fsys.Lstat(path); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("Lstat(%s) after Trash = %v, want fs.ErrNotExist", path, err)
+			}
+		}
+		if err := fsys.Trash(`C:\Temp\nope`); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("Trash error = %v, want fs.ErrNotExist", err)
+		}
+	})
+
 	t.Run("remove on reboot schedules the path and keeps it", func(t *testing.T) {
 		if err := fsys.RemoveOnReboot(`C:\Temp\sub\b.txt`); err != nil {
 			t.Fatalf("RemoveOnReboot: %v", err)

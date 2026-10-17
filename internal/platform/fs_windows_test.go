@@ -57,6 +57,9 @@ func TestWindowsLstat(t *testing.T) {
 	if !info.Reparse {
 		t.Errorf("Lstat(%s).Reparse = false, want true: a junction is a reparse point even where the Go file mode does not say so", link)
 	}
+	if !info.IsDir {
+		t.Errorf("Lstat(%s).IsDir = false, want true: a junction to a directory is a directory", link)
+	}
 	if !strings.Contains(strings.ToLower(info.Link), "sub") {
 		t.Errorf("Lstat(%s).Link = %q, want the directory the junction points at", link, info.Link)
 	}
