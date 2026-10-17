@@ -21,10 +21,15 @@ func Builtin() fs.FS { return builtinrules.FS }
 
 // ReadBuiltin reads every built-in rule file, in the order the file system
 // walks them. The rules carry Source SourceBuiltin instead of a path on disk.
-func ReadBuiltin() ([]*File, error) {
+func ReadBuiltin() ([]*File, error) { return readRuleFS(Builtin()) }
+
+// readRuleFS reads every rule file of a file system whose root is the rules
+// directory, which is how the built-in rules are laid out both in the binary and
+// in the repository.
+func readRuleFS(fsys fs.FS) ([]*File, error) {
 	var files []*File
 
-	err := fs.WalkDir(Builtin(), ".", func(name string, entry fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -32,7 +37,7 @@ func ReadBuiltin() ([]*File, error) {
 			return nil
 		}
 
-		data, err := fs.ReadFile(Builtin(), name)
+		data, err := fs.ReadFile(fsys, name)
 		if err != nil {
 			return err
 		}

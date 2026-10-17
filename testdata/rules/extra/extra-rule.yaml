@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: extra.probe
+    name: Probe from an extra directory
+    description: A rule that arrives through --rules-dir.
+    category: user
+    risk: safe
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\probe'
+        mode: contents

@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: user.probe-command
+    name: Probe with a command
+    description: Runs a command of my own to clean something sweep does not know.
+    category: user
+    risk: safe
+    targets:
+      - kind: command
+        cmd: my-tool.exe
+        args: ['--clean']

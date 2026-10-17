@@ -1,0 +1,10 @@
+schema: 1
+rules:
+  - id: browsers.chrome.cache
+    name: Chrome cache (mine)
+    description: My own, narrower take on Chrome's cache.
+    category: user
+    risk: safe
+    targets:
+      - path: '%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache'
+        mode: contents
