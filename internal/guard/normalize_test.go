@@ -38,16 +38,19 @@ func TestNormalizeShape(t *testing.T) {
 		want string
 	}{
 		{"the device prefix goes away", `\\?\C:\Temp`, `C:\Temp`},
+		{"the device namespace goes away too", `\\.\C:\Temp`, `C:\Temp`},
 		{"a trailing separator goes away", `C:\Temp\`, `C:\Temp`},
 		{"a trailing dot goes away", `C:\Temp\probe..`, `C:\Temp\probe`},
 		{"a trailing space goes away", `C:\Temp\probe `, `C:\Temp\probe`},
 		{"a trailing dot with a space goes away", `C:\Temp\probe. `, `C:\Temp\probe`},
+		{"a name of nothing but spaces goes away", `C:\Temp\ `, `C:\Temp`},
 		{"a dot segment goes away", `C:\Temp\.\probe`, `C:\Temp\probe`},
 		{"a dot dot segment is resolved", `C:\Temp\..\Windows`, `C:\Windows`},
 		{"a dot dot above the root is dropped", `C:\..\Temp`, `C:\Temp`},
 		{"either separator is a separator", `C:/Temp/probe`, `C:\Temp\probe`},
 		{"the drive letter is written in capitals, the rest is left alone", `c:\temp\Probe`, `C:\temp\Probe`},
 		{"a relative path is taken from the working directory", `probe\cache`, `C:\Users\probe\probe\cache`},
+		{"a rooted path starts at the root of the drive", `\Temp\probe`, `C:\Temp\probe`},
 		{"a drive root keeps its separator", `C:\`, `C:\`},
 		{"a long name with a device prefix is left as written", `\\?\C:\Temp\probe.txt`, `C:\Temp\probe.txt`},
 	}

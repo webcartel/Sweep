@@ -25,9 +25,14 @@ func cleanPath(path string) string {
 			}
 			continue
 		}
-		segments = append(segments, strings.TrimRight(segment, ". "))
+		// Windows ignores dots and spaces at the end of a name, so a name of
+		// nothing but those is no name at all and cannot exist.
+		name := strings.TrimRight(segment, ". ")
+		if name == "" {
+			continue
+		}
+		segments = append(segments, name)
 	}
-
 	cleaned := strings.Join(segments, `\`)
 	switch {
 	case volume == "":
@@ -42,10 +47,30 @@ func cleanPath(path string) string {
 // stripDevicePrefix takes off the \\?\ that lets a path be longer than
 // MAX_PATH, and turns the UNC spelling of one back into a share.
 func stripDevicePrefix(path string) string {
-	if rest, ok := strings.CutPrefix(path, `\\?\UNC\`); ok {
-		return `\\` + rest
+	rest, ok := strings.CutPrefix(path, `\\?\`)
+	if !ok {
+		rest, ok = strings.CutPrefix(path, `\\.\`)
 	}
-	return strings.TrimPrefix(path, `\\?\`)
+	if !ok {
+		return path
+	}
+	if unc, ok := strings.CutPrefix(rest, `UNC\`); ok {
+		return `\\` + unc
+	}
+	// `\\.\PhysicalDrive0` and the like are devices rather than places on a
+	// disk, and the guard has no business reading them as a relative path.
+	// Only the spellings that carry a drive letter are the same place as the
+	// plain path; the rest is left as written, for the drive check to refuse.
+	if len(rest) >= 2 && rest[1] == ':' && isLetter(rest[0]) {
+		return rest
+	}
+	return path
+}
+
+// deviceFree takes off the device namespace and writes either separator the one
+// way, so that what is left can be read the same way on every machine.
+func deviceFree(path string) string {
+	return strings.ReplaceAll(stripDevicePrefix(path), "/", `\`)
 }
 
 // splitVolume takes off the drive letter or the UNC share a path starts with,

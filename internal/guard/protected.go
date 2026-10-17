@@ -201,12 +201,13 @@ func (g *Guard) exclusion(entry string) (string, error) {
 		return "", fmt.Errorf("exclude_paths %s names %%%s%%, which this machine does not set", quote(entry), names[0])
 	}
 
-	cleaned := cleanPath(stripDevicePrefix(expanded))
+	text := deviceFree(expanded)
+	cleaned := cleanPath(text)
 	if cleaned == "" {
 		return "", fmt.Errorf("exclude_paths %s names no place at all", quote(entry))
 	}
-	if !isAbsPath(cleaned) {
-		cleaned = cleanPath(joinPath(g.cwd, cleaned))
+	if !isAbsPath(text) {
+		cleaned = g.absolute(text, cleaned)
 	}
 	if long, err := g.fs.LongPath(cleaned); err == nil {
 		cleaned = long

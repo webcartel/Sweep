@@ -124,12 +124,13 @@ func (g *Guard) Normalize(path string) (Path, error) {
 		return Path{}, refuse(fmt.Sprintf("the path %s names %%%s%%, which this machine does not set", quote(path), names[0]))
 	}
 
-	given := cleanPath(stripDevicePrefix(expanded))
+	text := deviceFree(expanded)
+	given := cleanPath(text)
 	if given == "" {
 		return Path{}, refuse(fmt.Sprintf("the path %s names no place at all", quote(path)))
 	}
-	if !isAbsPath(given) {
-		given = cleanPath(joinPath(g.cwd, given))
+	if !isAbsPath(text) {
+		given = g.absolute(text, given)
 	}
 
 	if long, err := g.fs.LongPath(given); err == nil {
@@ -160,6 +161,21 @@ func (g *Guard) Normalize(path string) (Path, error) {
 		}
 	}
 	return target, nil
+}
+
+// absolute places a path that does not start at a drive or a share. A path that
+// starts with a single separator starts at the root of the drive the working
+// directory is on, the way Windows reads it — `\Windows\System32` is
+// `C:\Windows\System32` — and anything else is taken from the working directory
+// itself.
+func (g *Guard) absolute(text, path string) string {
+	base := g.cwd
+	if strings.HasPrefix(text, `\`) || strings.HasPrefix(text, `/`) {
+		if root, ok := driveRootOf(g.cwd); ok {
+			base = root
+		}
+	}
+	return cleanPath(joinPath(base, path))
 }
 
 // follow walks the links the path itself is, and answers where it ends up,

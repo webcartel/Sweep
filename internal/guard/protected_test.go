@@ -252,6 +252,8 @@ func TestCheckProtectedSpellings(t *testing.T) {
 		{"the recovery directory of Windows is refused", `%SystemRoot%\Recovery\x`, model.ModeContents},
 		{"the recovery directory of a drive is refused", `C:\Recovery\WindowsRE`, model.ModeContents},
 		{"a Unicode-looking path is still the same path", `C:\WINDOWS\SYSWOW64\x`, model.ModeContents},
+		{"a rooted path starts at the root of the drive", `\Windows\System32\x`, model.ModeContents},
+		{"the device namespace is the same path", `\\.\C:\Windows\System32`, model.ModeContents},
 	}
 
 	for _, test := range refused {
