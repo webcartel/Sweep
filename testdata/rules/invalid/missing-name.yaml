@@ -1,0 +1,7 @@
+schema: 1
+rules:
+  - id: user.probe
+    category: user
+    risk: safe
+    targets:
+      - path: '%TEMP%'

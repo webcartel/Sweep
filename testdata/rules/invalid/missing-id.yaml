@@ -1,0 +1,7 @@
+schema: 1
+rules:
+  - name: Probe
+    category: user
+    risk: safe
+    targets:
+      - path: '%TEMP%'

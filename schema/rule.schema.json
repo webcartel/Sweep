@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sweep rule file",
+  "description": "A sweep rule file: the version of the format and the rules it holds. Unknown fields are an error, so a typo is reported instead of being ignored.",
+  "type": "object",
+  "required": ["schema", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1,
+      "description": "Version of the rule format."
+    },
+    "rules": {
+      "type": "array",
+      "description": "The rules of this file.",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": ["id", "name", "category", "risk", "targets"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
+          "description": "Unique id, such as browsers.chrome.cache."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short name for the list."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the rule cleans and what happens after it."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "description": "browsers, system, dev, apps, user or a category of your own."
+        },
+        "risk": {
+          "enum": ["safe", "moderate", "dangerous"],
+          "description": "safe comes back on its own, moderate comes back at a cost, dangerous may still be wanted."
+        },
+        "default_enabled": {
+          "type": "boolean",
+          "description": "Whether the rule is part of the default profile."
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "For profiles to select, such as dev."
+        },
+        "requires_admin": {
+          "type": "boolean",
+          "description": "Whether the rule needs administrator rights."
+        },
+        "requires_closed": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Processes that must not run, or the rule is skipped."
+        },
+        "os_min_build": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Oldest Windows build the rule runs on (10 1809 is 17763)."
+        },
+        "trash": {
+          "type": "boolean",
+          "description": "Send to the recycle bin instead of deleting; on for dangerous rules unless it says otherwise."
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/target"}
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["path", "command"],
+          "description": "path (the default) or command."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path with %VARS% and the glob masks *, ** and ?."
+        },
+        "mode": {
+          "enum": ["contents", "self", "files"],
+          "description": "contents (the default) clears what the path matched, self removes it, files takes only the files that match include."
+        },
+        "include": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Name masks to take, relative to path."
+        },
+        "exclude": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Name masks to leave alone, relative to path."
+        },
+        "min_age_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Take only what has not changed for this many days."
+        },
+        "min_size": {
+          "type": "string",
+          "pattern": "^ *[0-9]+ *([Bb]|[Kk][Bb]|[Mm][Bb]|[Gg][Bb]|[Tt][Bb])? *$",
+          "description": "Take only files at least this big, such as 50MB; suffixes are powers of 1024."
+        },
+        "cmd": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Command to run, for kind: command."
+        },
+        "args": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Arguments of the command, for kind: command."
+        }
+      }
+    }
+  }
+}
