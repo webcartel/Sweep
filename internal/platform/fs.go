@@ -1,6 +1,9 @@
 package platform
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Info describes one file system entry the way cleaning needs to see it.
 type Info struct {
@@ -77,3 +80,8 @@ type Procs interface {
 	// Windows compares process names.
 	Running(names []string) ([]string, error)
 }
+
+// ErrNotWindows is what the constructors of the platform answer away from
+// Windows: sweep cleans Windows, and the other builds exist for the tests and
+// for the earlier CI signal.
+var ErrNotWindows = errors.New("sweep cleans Windows only")
