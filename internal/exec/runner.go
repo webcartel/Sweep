@@ -108,7 +108,8 @@ func (x *Executor) runItem(rule *model.Rule, item model.Item, opt model.ExecOpti
 }
 
 // dispose puts one item away: to the recycle bin when asked, otherwise
-// unwound from the bottom up.
+// unwound from the bottom up. A reparse point is taken as itself either way:
+// reading the inside of a link is another tree's business.
 func (x *Executor) dispose(item model.Item, useTrash, isDir bool) error {
 	if useTrash {
 		if err := x.fs.Trash(item.Path); err != nil {
@@ -116,7 +117,7 @@ func (x *Executor) dispose(item model.Item, useTrash, isDir bool) error {
 		}
 		return nil
 	}
-	if !isDir {
+	if item.Reparse || !isDir {
 		return x.fs.Remove(item.Path)
 	}
 	return x.removeTree(item.Path)

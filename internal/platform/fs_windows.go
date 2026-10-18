@@ -3,9 +3,13 @@
 package platform
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -17,16 +21,63 @@ func NewFS() (FS, error) { return windowsFS{}, nil }
 // windowsFS is the file system as Windows shows it.
 type windowsFS struct{}
 
+// devicePath spells the path the way NT itself reads it: the Win32 spelling
+// drops the difference a name can carry at the end — a trailing dot, a
+// trailing space — and only the device form keeps the name whole.
+func devicePath(path string) string {
+	// filepath.Abs would run the path through Clean, which takes the
+	// trailing dot the name may carry away — the very thing that makes
+	// the device form necessary. IsAbs reads without changing anything.
+	if !filepath.IsAbs(path) {
+		if abs, err := filepath.Abs(path); err == nil {
+			path = abs
+		}
+	}
+	if strings.HasPrefix(path, `\\`) {
+		return path
+	}
+	return `\\?\` + path
+}
+
+// deviceLstat reads an entry by its NT spelling, for the names whose form
+// the Win32 calls would take apart. The attributes carry all an Info holds,
+// so no Go FileInfo is needed.
+func deviceLstat(path string) (Info, bool) {
+	var data windows.Win32FileAttributeData
+	if err := windows.GetFileAttributesEx(windows.StringToUTF16Ptr(devicePath(path)),
+		windows.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&data))); err != nil {
+		return Info{}, false
+	}
+	attributes := data.FileAttributes
+	entry := Info{
+		Path:    path,
+		Name:    filepath.Base(path),
+		Size:    int64(data.FileSizeLow) | int64(data.FileSizeHigh)<<32,
+		ModTime: time.Unix(0, data.LastWriteTime.Nanoseconds()),
+		IsDir:   attributes&windows.FILE_ATTRIBUTE_DIRECTORY != 0,
+		Reparse: attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0,
+	}
+	return entry, true
+}
+
 // Lstat describes an entry without following a reparse point. Whether the
 // entry is a junction is read from the file attributes, as the rules require:
 // the Go file mode does not always say so, and a junction that slipped through
 // would be walked into.
 func (windowsFS) Lstat(path string) (Info, error) {
 	info, err := os.Lstat(path)
-	if err != nil {
-		return Info{}, err
+	if err == nil {
+		return describe(path, info), nil
 	}
-	return describe(path, info), nil
+	// The Win32 spelling of the path may hide the whole entry: a name
+	// that ends in what Windows ignores at the end is only there under
+	// the spelling NT reads.
+	if errors.Is(err, fs.ErrNotExist) {
+		if entry, found := deviceLstat(path); found {
+			return entry, nil
+		}
+	}
+	return Info{}, err
 }
 
 // ReadDir lists what is inside a directory.
@@ -89,7 +140,33 @@ func (windowsFS) DriveType(path string) (DriveKind, error) {
 
 // Remove deletes a file, a directory or a reparse point itself: the link goes
 // and what it points at stays.
-func (windowsFS) Remove(path string) error { return os.Remove(path) }
+func (windowsFS) Remove(path string) error {
+	err := os.Remove(path)
+	if err == nil {
+		return nil
+	}
+	// A name Windows ignores at the end — a trailing dot, a trailing
+	// space — is not spelled the way Win32 reads: NT alone can see it,
+	// and only the device form of the path takes it away.
+	if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	device := windows.StringToUTF16Ptr(devicePath(path))
+	data, attributesErr := windows.GetFileAttributes(windows.StringToUTF16Ptr(devicePath(path)))
+	if attributesErr != nil {
+		return err
+	}
+	if data&windows.FILE_ATTRIBUTE_DIRECTORY != 0 {
+		if rmErr := windows.RemoveDirectory(device); rmErr != nil {
+			return err
+		}
+		return nil
+	}
+	if delErr := windows.DeleteFile(device); delErr != nil {
+		return err
+	}
+	return nil
+}
 
 // Trash sends a path to the recycle bin through the shell.
 func (windowsFS) Trash(path string) error { return shellDelete(path) }
