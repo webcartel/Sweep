@@ -44,6 +44,7 @@ type Model struct {
 	scanState
 	listState
 	detailState
+	confirmState
 }
 
 // scanState is what the screen of the scan and its neighbours read and
@@ -92,6 +93,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateList(msg)
 	case screenDetail:
 		cmd, _ = m.updateDetail(msg)
+	case screenConfirm:
+		cmd, _ = m.updateConfirm(msg)
 	}
 	return m, cmd
 }
@@ -105,6 +108,8 @@ func (m *Model) View() string {
 		return m.viewList(80)
 	case screenDetail:
 		return m.viewDetail()
+	case screenConfirm:
+		return m.viewConfirm()
 	}
 	return ""
 }
