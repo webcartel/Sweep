@@ -11,9 +11,16 @@ import (
 	"github.com/webcartel/sweep/internal/scan"
 )
 
-// testMachine builds the fake of a machine with one directory the rules aim
-// at, and the scanner that knows it.
+// testMachine builds the scanner of the fake of a machine with one
+// directory the rules aim at.
 func testMachine(t *testing.T) *scan.Scanner {
+	_, _, scanner := machineParts(t)
+	return scanner
+}
+
+// machineParts builds the fake of a machine the scanner reads: the disk,
+// the environment and the scanner that reads them.
+func machineParts(t *testing.T) (*fake.FS, *fake.Env, *scan.Scanner) {
 	t.Helper()
 	fsys := fake.NewFS()
 	env := fake.NewEnv()
@@ -31,7 +38,7 @@ func testMachine(t *testing.T) *scan.Scanner {
 	if err != nil {
 		t.Fatalf("the guard failed to build: %v", err)
 	}
-	return scan.New(scan.Deps{
+	return fsys, env, scan.New(scan.Deps{
 		FS: fsys, Env: env, System: fake.NewSystem(), Guard: guarded,
 	})
 }

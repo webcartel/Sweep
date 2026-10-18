@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/exec"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/scan"
@@ -26,6 +27,8 @@ type Deps struct {
 	Env platform.Env
 	// AsciiFlag and NoASCIIFlag are the say of the command line.
 	AsciiFlag, NoASCIIFlag bool
+	// Executor is the executor of the core the run works through.
+	Executor *exec.Executor
 	// Profiles names every profile of the rules, in the order the TUI
 	// lists them.
 	Profiles []profileRow
@@ -45,6 +48,7 @@ type Model struct {
 	listState
 	detailState
 	confirmState
+	run runState
 }
 
 // scanState is what the screen of the scan and its neighbours read and
@@ -60,6 +64,7 @@ type scanState struct {
 	rules      []*model.Rule
 	plan       *model.Plan
 	selection  model.Selection
+	executor   *exec.Executor
 }
 
 // New puts the model together. The TUI opens on the screen of the profile.
@@ -67,6 +72,7 @@ func New(d Deps) *Model {
 	m := &Model{screen: screenProfile}
 	m.profiles = d.Profiles
 	m.scanner = d.Scanner
+	m.executor = d.Executor
 	m.rulesFor = d.RulesFor
 	env := d.Env
 	if env == nil {
@@ -95,6 +101,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateDetail(msg)
 	case screenConfirm:
 		cmd, _ = m.updateConfirm(msg)
+	case screenRunning:
+		cmd, _ = m.updateRunning(msg)
 	}
 	return m, cmd
 }
@@ -110,6 +118,8 @@ func (m *Model) View() string {
 		return m.viewDetail()
 	case screenConfirm:
 		return m.viewConfirm()
+	case screenRunning:
+		return m.viewRunning()
 	}
 	return ""
 }

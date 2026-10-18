@@ -19,14 +19,6 @@ type confirmState struct {
 	confirmText string
 }
 
-// startRun takes the run the confirm modal agrees to; the command it hands
-// over makes the executor work. The executor asks nothing once the modal
-// said its word.
-func (m *Model) startRun() tea.Cmd {
-	// The executor comes with task 8; the screen is in place now.
-	return nil
-}
-
 // selectedDangerous says whether the choice holds a rule the run asks a
 // word for.
 func (m *Model) selectedDangerous() bool {
