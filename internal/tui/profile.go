@@ -48,7 +48,7 @@ func (m *Model) updateProfile(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case "enter":
 		m.screen = screenScanning
-		return nil, true
+		return m.startScan(), true
 	}
 	return nil, false
 }

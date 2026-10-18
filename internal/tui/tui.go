@@ -3,7 +3,13 @@
 // the work itself.
 package tui
 
-import "github.com/charmbracelet/bubbletea"
+import (
+	"context"
+
+	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/model"
+	"github.com/webcartel/sweep/internal/scan"
+)
 
 // The screens of the TUI, in the order a run walks them. A screen is a state
 // of one Model, not a type of its own: the plan of the spec.
@@ -17,6 +23,10 @@ type Deps struct {
 	// Profiles names every profile of the rules, in the order the TUI
 	// lists them.
 	Profiles []profileRow
+	// Scanner is the scanner of the core the run reads the disk through.
+	Scanner *scan.Scanner
+	// RulesFor answers the rules of one profile of the set.
+	RulesFor func(profile string) ([]*model.Rule, error)
 }
 
 // Model is the one Bubble Tea model of the TUI. Every screen of the run is a
@@ -24,11 +34,31 @@ type Deps struct {
 type Model struct {
 	screen int
 	profileState
+	scanState
+}
+
+// scanState is what the screen of the scan and its neighbours read and
+// write.
+type scanState struct {
+	scanError  error
+	progress   map[string]model.RulePlan
+	notes      []string
+	scanner    *scan.Scanner
+	rulesFor   func(profile string) ([]*model.Rule, error)
+	scanEvents <-chan model.Event
+	cancelScan context.CancelFunc
+	rules      []*model.Rule
+	plan       *model.Plan
+	selection  model.Selection
 }
 
 // New puts the model together. The TUI opens on the screen of the profile.
-func New(_ Deps) *Model {
-	return &Model{screen: screenProfile}
+func New(d Deps) *Model {
+	m := &Model{screen: screenProfile}
+	m.profiles = d.Profiles
+	m.scanner = d.Scanner
+	m.rulesFor = d.RulesFor
+	return m
 }
 
 // Init starts the first command of the program; none yet.
@@ -42,7 +72,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case screenProfile:
 		cmd, _ = m.updateProfile(msg)
 	case screenScanning:
-		// The scan waits for task 4.
+		cmd, _ = m.updateScanning(msg)
 	}
 	return m, cmd
 }
