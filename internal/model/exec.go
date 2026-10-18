@@ -66,5 +66,9 @@ type ItemRemoved struct {
 // execution that ran to the end.
 type ExecDone struct{ Result *Result }
 
+// RuleFinished tells how one rule fared, as the run of it closes. It reaches
+// the stream so that a frontend shows the result while the others run on.
+type RuleFinished struct{ Result RuleResult }
+
 func (ItemRemoved) isEvent() {}
 func (ExecDone) isEvent()    {}

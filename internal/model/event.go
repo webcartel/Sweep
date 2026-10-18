@@ -9,6 +9,7 @@ func (RuleStarted) isEvent()  {}
 func (RuleProgress) isEvent() {}
 func (RuleScanned) isEvent()  {}
 func (ScanDone) isEvent()     {}
+func (RuleFinished) isEvent() {}
 func (ItemSkipped) isEvent()  {}
 func (ItemFailed) isEvent()   {}
 func (Warning) isEvent()      {}
