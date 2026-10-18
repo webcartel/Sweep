@@ -98,7 +98,14 @@ func (g *Guard) Check(path string, mode model.Mode, include []string, minAgeDays
 		}
 		return Verdict{}, err
 	}
+	return g.CheckNormalized(target, mode, include, minAgeDays)
+}
 
+// CheckNormalized says whether the engine may touch a path that Normalize has
+// already answered for. It holds the part of Check that compares against the
+// protected list, and the verdict names the path the rule wrote, the way
+// Check's does.
+func (g *Guard) CheckNormalized(target Path, mode model.Mode, include []string, minAgeDays int) (Verdict, error) {
 	filtered := mode == model.ModeFiles && len(include) > 0 && minAgeDays > 0
 	for _, candidate := range []string{target.Given, target.Final} {
 		if r, ok := g.match(candidate); ok && !r.permits(filtered) {
