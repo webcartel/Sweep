@@ -7,14 +7,25 @@ and `sweep clean` work in scripts and in Task Scheduler.
 
 ## Status
 
-**Stage 2 of 8 — the guard and the platform.** The repository builds,
-`sweep version` prints the version, and CI runs on `windows-latest` and
-`ubuntu-latest`. The rules are data: `sweep list` shows what was loaded and
-whether the profile takes it, `sweep rules validate` checks rule files or the
-directories that hold them and reports every finding as `file:line:column` on
-the error stream, and `sweep rules show <id>` prints one merged rule with its
-`%VARIABLES%` expanded. A rule of the user replaces the built-in one of the same
-id.
+**Stage 3 of 8 — the scanner.** Everything the previous stages built now
+answers a real question: `sweep scan` reads the disk and prints what would be
+cleaned, without changing anything. The scanner walks each target of a rule —
+the directory itself, its contents or its files — respects the includes, the
+age filters and the `min_age_days` of the rules, aggregates a directory into
+one entry with the counts of what is below and never enters a reparse point.
+The rules run side by side in a worker pool, the progress is throttled, and
+Ctrl+C closes the stream within the second and without a plan.
+
+```sh
+.\sweep.exe scan
+.\sweep.exe scan --json
+.\sweep.exe scan --rule dev.*
+```
+
+`scan` prints a table (ID, items, files, size, skipped, with a TOTAL row);
+`--json` prints one versioned document instead, with the whole plan of every
+rule, and `--rule` takes an id or a mask of rules wherever they came from,
+repeated as often as needed, taking the place of the profile.
 
 Everything that touches WinAPI sits behind `internal/platform`: the file
 system (reparse points, 8.3 names, drive kinds, the recycle bin), the process
@@ -23,8 +34,8 @@ and the tests run against an in-memory one, so the same cases run on either
 machine.
 `internal/guard` decides what may be touched: a path is normalized — variables,
 `..`, either separator, `\\?\`, trailing dots and spaces, 8.3 names, links — and
-compared against a protected list that no rule can widen. There is no scanner,
-no cleaner and no TUI yet.
+compared against a protected list that no rule can widen. There is no cleaner
+and no TUI yet.
 
 ```sh
 .\sweep.exe list
