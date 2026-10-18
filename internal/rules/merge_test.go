@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -64,6 +65,19 @@ func ruleFileWithID(id string) string {
 	return "schema: 1\nrules:\n  - id: " + id +
 		"\n    name: Probe\n    category: user\n    risk: safe" +
 		"\n    targets:\n      - path: '%LOCALAPPDATA%\\probe'\n"
+}
+
+func TestLoaderCarriesTheConfig(t *testing.T) {
+	loader := userLoader()
+	loader.Config.ExcludePaths = []string{`C:\Games`}
+
+	set, err := loader.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if want := []string{`C:\Games`}; !reflect.DeepEqual(set.Config.ExcludePaths, want) {
+		t.Errorf("set.Config.ExcludePaths = %q, want %q", set.Config.ExcludePaths, want)
+	}
 }
 
 func TestLoaderUserRuleReplacesBuiltinWithWarning(t *testing.T) {

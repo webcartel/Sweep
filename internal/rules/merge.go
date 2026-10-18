@@ -20,6 +20,9 @@ import (
 // with the profiles, the switches the config sets and what the merge wants to
 // say out loud.
 type Set struct {
+	// Config is the configuration the loader was given, kept so that the
+	// frontends can read what the config adds on top of the rules.
+	Config   model.Config
 	Rules    []*model.Rule
 	Profiles map[string]model.Profile
 	Toggles  map[string]model.RuleToggle
@@ -65,6 +68,7 @@ func (l Loader) Load() (*Set, error) {
 	sources, warnings, findings := l.read()
 
 	set := &Set{
+		Config:   l.Config,
 		Profiles: BuiltinProfiles(),
 		Toggles:  map[string]model.RuleToggle{},
 		Warnings: warnings,

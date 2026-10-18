@@ -171,6 +171,28 @@ func TestFakeProcs(t *testing.T) {
 	}
 }
 
+func TestFakeSystem(t *testing.T) {
+	var sys platform.System = fake.NewSystem()
+	sys.(*fake.System).SetBuild(19045)
+
+	build, err := sys.OSBuild()
+	if err != nil {
+		t.Fatalf("OSBuild: %v", err)
+	}
+	if build != 19045 {
+		t.Errorf("OSBuild = %d, want 19045", build)
+	}
+
+	var zero fake.System
+	build, err = zero.OSBuild()
+	if err != nil {
+		t.Fatalf("OSBuild of a zero System: %v", err)
+	}
+	if build != 0 {
+		t.Errorf("OSBuild = %d, want 0", build)
+	}
+}
+
 func TestFakeEnv(t *testing.T) {
 	env := fake.NewEnv()
 	env.Set(`TEMP`, `C:\Temp`)

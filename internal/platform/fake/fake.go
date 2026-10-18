@@ -172,6 +172,20 @@ func (f *FS) drop(key string) {
 	}
 }
 
+// System is the running Windows in memory.
+type System struct {
+	build int
+}
+
+// NewSystem returns a system that reports build 0 until SetBuild is called.
+func NewSystem() *System { return &System{} }
+
+// SetBuild says what build the system runs.
+func (s *System) SetBuild(build int) { s.build = build }
+
+// OSBuild gives the build SetBuild set.
+func (s *System) OSBuild() (int, error) { return s.build, nil }
+
 // Procs is a process list in memory.
 type Procs struct {
 	running map[string]string
