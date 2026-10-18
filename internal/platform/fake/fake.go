@@ -8,13 +8,17 @@ import (
 	"io/fs"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/webcartel/sweep/internal/platform"
 )
 
 // FS is a file system in memory. Paths are compared the way Windows compares
-// them: without case, and with either separator.
+// them: without case, and with either separator. A fake stands for a real
+// disk at any moment the core touches it, so every operation of it is
+// serialized, the way a disk would be.
 type FS struct {
+	mu      sync.Mutex
 	entries map[string]platform.Info
 	// The errors an operation on one path answers with, after the entry in
 	// entries is found.
@@ -46,6 +50,8 @@ func NewFS() *FS {
 // directory a process holds or a key that is missing does on a real machine.
 // The error answers for every Lstat and ReadDir of that path.
 func (f *FS) Deny(path string, with error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.denied == nil {
 		f.denied = map[string]error{}
 	}
@@ -56,6 +62,8 @@ func (f *FS) Deny(path string, with error) {
 // given, the way a file a process keeps open does: reading the path still
 // works, and putting it away does not.
 func (f *FS) DenyDel(path string, with error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.deniedRemove == nil {
 		f.deniedRemove = map[string]error{}
 	}
@@ -65,6 +73,8 @@ func (f *FS) DenyDel(path string, with error) {
 // DenyReboot teaches the fake to refuse scheduling the removal of one path
 // for the next start of Windows.
 func (f *FS) DenyReboot(path string, with error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.deniedReboot == nil {
 		f.deniedReboot = map[string]error{}
 	}
@@ -75,6 +85,8 @@ func (f *FS) DenyReboot(path string, with error) {
 // filled from it when left empty. Adding the same path again overwrites it
 // instead of leaving it twice in the list of its directory.
 func (f *FS) Add(info platform.Info) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if info.Name == "" {
 		info.Name = lastElement(info.Path)
 	}
@@ -99,23 +111,45 @@ func (f *FS) Add(info platform.Info) {
 }
 
 // MapLong teaches LongPath that short is spelled long.
-func (f *FS) MapLong(short, long string) { f.long[fold(short)] = long }
+func (f *FS) MapLong(short, long string) {
+	f.mu.Lock()
+	f.long[fold(short)] = long
+	f.mu.Unlock()
+}
 
 // SetDrive says what kind of drive the root of the path is. A drive that is
 // not set is fixed, which is what a test usually wants.
-func (f *FS) SetDrive(root string, kind platform.DriveKind) { f.drives[fold(root)] = kind }
+func (f *FS) SetDrive(root string, kind platform.DriveKind) {
+	f.mu.Lock()
+	f.drives[fold(root)] = kind
+	f.mu.Unlock()
+}
 
 // Removed lists the paths Remove has deleted, in order.
-func (f *FS) Removed() []string { return append([]string(nil), f.removed...) }
+func (f *FS) Removed() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.removed...)
+}
 
 // Trashed lists the paths Trash has deleted, in order.
-func (f *FS) Trashed() []string { return append([]string(nil), f.trashed...) }
+func (f *FS) Trashed() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.trashed...)
+}
 
 // Pending lists the paths RemoveOnReboot has scheduled, in order.
-func (f *FS) Pending() []string { return append([]string(nil), f.pending...) }
+func (f *FS) Pending() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.pending...)
+}
 
 // Lstat describes an entry in the file system.
 func (f *FS) Lstat(path string) (platform.Info, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err, ok := f.denied[fold(path)]; ok {
 		return platform.Info{}, &fs.PathError{Op: "lstat", Path: path, Err: err}
 	}
@@ -128,6 +162,8 @@ func (f *FS) Lstat(path string) (platform.Info, error) {
 
 // ReadDir lists what is inside a directory.
 func (f *FS) ReadDir(path string) ([]platform.Info, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err, ok := f.denied[fold(path)]; ok {
 		return nil, &fs.PathError{Op: "readdir", Path: path, Err: err}
 	}
@@ -158,6 +194,13 @@ func (f *FS) Glob(mask string) ([]string, error) { return platform.GlobPaths(f, 
 // LongPath gives the long spelling of a path: the 8.3 names it was taught are
 // expanded at every level, the way Windows expands them.
 func (f *FS) LongPath(path string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.longPath(path)
+}
+
+// longPath is the walk of LongPath, running under the lock it holds.
+func (f *FS) longPath(path string) (string, error) {
 	if long, ok := f.long[fold(path)]; ok {
 		return long, nil
 	}
@@ -165,7 +208,7 @@ func (f *FS) LongPath(path string) (string, error) {
 	if parent == "" || fold(parent) == fold(path) {
 		return path, nil
 	}
-	long, err := f.LongPath(parent)
+	long, err := f.longPath(parent)
 	if err != nil {
 		return "", err
 	}
@@ -177,6 +220,8 @@ func (f *FS) LongPath(path string) (string, error) {
 
 // DriveType answers what kind of drive holds the path.
 func (f *FS) DriveType(path string) (platform.DriveKind, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if kind, ok := f.drives[fold(rootOf(path))]; ok {
 		return kind, nil
 	}
@@ -186,6 +231,8 @@ func (f *FS) DriveType(path string) (platform.DriveKind, error) {
 // Remove deletes an entry, and only an empty directory: that is what os.Remove
 // does, and the engine counts on the difference.
 func (f *FS) Remove(path string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.deletionDenied(path); err != nil {
 		return err
 	}
@@ -195,6 +242,8 @@ func (f *FS) Remove(path string) error {
 // Trash moves an entry to the recycle bin, which takes a directory together
 // with everything inside it: unlike Remove, it does not ask for an empty one.
 func (f *FS) Trash(path string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.deletionDenied(path); err != nil {
 		return &fs.PathError{Op: "trash", Path: path, Err: err}
 	}
@@ -210,6 +259,8 @@ func (f *FS) Trash(path string) error {
 // RemoveOnReboot schedules an entry for the next start of Windows. It is not
 // deleted now, which is the point of it.
 func (f *FS) RemoveOnReboot(path string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err, ok := f.deniedReboot[fold(path)]; ok {
 		return &fs.PathError{Op: "removeonreboot", Path: path, Err: err}
 	}

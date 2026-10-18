@@ -20,6 +20,9 @@ type deps struct {
 	Env    platform.Env
 	System platform.System
 	Cwd    string
+	// LogDir is where the log of a run goes. The machine reads it out of
+	// %LOCALAPPDATA% when the builder gives nothing.
+	LogDir string
 }
 
 // realDeps reads the machine the process runs on; it is all NewRootCmd does.
@@ -69,7 +72,7 @@ func newRootCmd(d deps) *cobra.Command {
 	root.PersistentFlags().StringArray("rules-dir", nil,
 		"extra directory of rule files; repeat it to read several")
 
-	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d))
+	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d), newCleanCmd(d))
 
 	return root
 }

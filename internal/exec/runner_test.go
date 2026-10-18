@@ -274,8 +274,11 @@ func TestRunItemPutsABusyFileOffTillTheReboot(t *testing.T) {
 	if pend := fsys.Pending(); len(pend) != 1 || pend[0] != path {
 		t.Errorf("Pending() = %v, want the path", pend)
 	}
-	if got.freed != 0 || len(saw) != 0 {
-		t.Errorf("outcome = %+v events %v, want quiet", got, saw)
+	if got.freed != 0 || len(saw) != 1 {
+		t.Errorf("outcome = %+v, saw %v, want quiet but the pending told", got, saw)
+	}
+	if pending, ok := saw[0].(model.ItemPending); !ok || pending.Path != path {
+		t.Errorf("event = %+v, want ItemPending for the path", saw[0])
 	}
 }
 

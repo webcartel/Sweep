@@ -73,3 +73,12 @@ type RuleFinished struct{ Result RuleResult }
 
 func (ItemRemoved) isEvent() {}
 func (ExecDone) isEvent()    {}
+
+// ItemPending reports one path whose holding process could not be got rid
+// of, so that the removal waits for the next start of Windows.
+type ItemPending struct {
+	RuleID string
+	Path   string
+}
+
+func (ItemPending) isEvent() {}

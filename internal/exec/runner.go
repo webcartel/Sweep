@@ -98,6 +98,9 @@ func (x *Executor) runItem(rule *model.Rule, item model.Item, opt model.ExecOpti
 		if rebootErr := x.fs.RemoveOnReboot(item.Path); rebootErr == nil {
 			// The path stays put for now and goes away with the next
 			// start of Windows; the run does not count it as freed.
+			if say != nil {
+				say(model.ItemPending{RuleID: rule.ID, Path: item.Path})
+			}
 			return outcome{pending: true}
 		}
 	}
