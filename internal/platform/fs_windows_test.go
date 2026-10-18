@@ -114,7 +114,8 @@ func TestWindowsLongPath(t *testing.T) {
 }
 
 func TestWindowsLongPath83(t *testing.T) {
-	dir := t.TempDir()
+	fsys := newFS(t)
+	dir := longTempDir(t, fsys)
 	file := filepath.Join(dir, "a-long-name-for-eight-three.txt")
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatalf("write the file: %v", err)
@@ -125,7 +126,6 @@ func TestWindowsLongPath83(t *testing.T) {
 		t.Skip("this volume does not generate 8.3 names")
 	}
 
-	fsys := newFS(t)
 	long, err := fsys.LongPath(short)
 	if err != nil {
 		t.Fatalf("LongPath(%s): %v", short, err)
@@ -136,13 +136,13 @@ func TestWindowsLongPath83(t *testing.T) {
 }
 
 func TestWindowsLongPathKeepsALongName(t *testing.T) {
-	dir := t.TempDir()
+	fsys := newFS(t)
+	dir := longTempDir(t, fsys)
 	file := filepath.Join(dir, "a-name-that-is-already-long.txt")
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatalf("write the file: %v", err)
 	}
 
-	fsys := newFS(t)
 	long, err := fsys.LongPath(file)
 	if err != nil {
 		t.Fatalf("LongPath(%s): %v", file, err)
@@ -150,6 +150,21 @@ func TestWindowsLongPathKeepsALongName(t *testing.T) {
 	if !strings.EqualFold(long, file) {
 		t.Errorf("LongPath(%s) = %q, want the path itself", file, long)
 	}
+}
+
+// longTempDir is t.TempDir with every part of it spelled the long way. A
+// machine whose TEMP sits under an 8.3 profile name — `C:\Users\RUNNER~1\...` —
+// otherwise hands back a path that LongPath rightly expands, and the test would
+// compare two spellings of one place.
+func longTempDir(t *testing.T, fsys platform.FS) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	long, err := fsys.LongPath(dir)
+	if err != nil {
+		t.Fatalf("LongPath(%q): %v", dir, err)
+	}
+	return long
 }
 
 func TestWindowsDriveType(t *testing.T) {

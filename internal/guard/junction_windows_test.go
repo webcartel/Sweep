@@ -19,7 +19,7 @@ import (
 // alone.
 func TestRealJunctionIsFollowedAndLeftAlone(t *testing.T) {
 	g, fsys := realGuard(t)
-	dir := t.TempDir()
+	dir := longDir(t, fsys)
 
 	decoy := filepath.Join(dir, "decoy")
 	keep := filepath.Join(decoy, "keep.txt")
@@ -114,8 +114,8 @@ func TestRealJunctionToWindowsIsRefused(t *testing.T) {
 		t.Skipf("there is no %s: %v", system32, err)
 	}
 
-	g, _ := realGuard(t)
-	dir := t.TempDir()
+	g, fsys := realGuard(t)
+	dir := longDir(t, fsys)
 
 	link := filepath.Join(dir, "windows")
 	junction(t, link, system32)
@@ -160,6 +160,21 @@ func realGuard(t *testing.T) (*Guard, platform.FS) {
 		t.Fatalf("New: %v", err)
 	}
 	return g, fsys
+}
+
+// longDir is a temporary directory with every part of it spelled the long way.
+// A machine whose TEMP sits under an 8.3 profile name — `C:\Users\RUNNER~1\...`
+// — otherwise hands back the short spelling, and the guard rightly expands it,
+// so the test has to compare like with like.
+func longDir(t *testing.T, fsys platform.FS) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	long, err := fsys.LongPath(dir)
+	if err != nil {
+		t.Fatalf("LongPath(%q): %v", dir, err)
+	}
+	return long
 }
 
 // junction makes a junction at link that points at target. A machine that
