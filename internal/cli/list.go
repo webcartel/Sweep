@@ -29,7 +29,7 @@ type listReport struct {
 }
 
 // newListCmd returns `sweep list`.
-func newListCmd() *cobra.Command {
+func newListCmd(d deps) *cobra.Command {
 	var (
 		category string
 		profile  string
@@ -43,7 +43,7 @@ func newListCmd() *cobra.Command {
 			"rules first, then the ones of the user.",
 		Args: countArgs(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			set, err := loadSet(cmd)
+			set, err := loadSet(d, cmd)
 			if err != nil {
 				return err
 			}

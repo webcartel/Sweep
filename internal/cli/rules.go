@@ -17,18 +17,18 @@ import (
 
 // newRulesCmd returns `sweep rules`, the group that works with the rule files
 // themselves rather than with what they would clean.
-func newRulesCmd() *cobra.Command {
+func newRulesCmd(d deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rules",
 		Short: "Check and inspect the rule files",
 		Args:  countArgs(cobra.NoArgs),
 	}
-	cmd.AddCommand(newRulesValidateCmd(), newRulesShowCmd())
+	cmd.AddCommand(newRulesValidateCmd(d), newRulesShowCmd(d))
 	return cmd
 }
 
 // newRulesValidateCmd returns `sweep rules validate`.
-func newRulesValidateCmd() *cobra.Command {
+func newRulesValidateCmd(d deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate [path...]",
 		Short: "Check rule files and report every finding with its place",
@@ -41,9 +41,9 @@ func newRulesValidateCmd() *cobra.Command {
 		Args: countArgs(cobra.ArbitraryArgs),
 		RunE: func(cmd *cobra.Command, paths []string) error {
 			if len(paths) == 0 {
-				return validateEverything(cmd)
+				return validateEverything(d, cmd)
 			}
-			return validatePaths(cmd, paths)
+			return validatePaths(d, cmd, paths)
 		},
 	}
 }
@@ -51,8 +51,8 @@ func newRulesValidateCmd() *cobra.Command {
 // validateEverything checks every source the loader reads. The findings come
 // back as the error of the command, which cobra puts on stderr once, where the
 // findings of a checker belong.
-func validateEverything(cmd *cobra.Command) error {
-	set, err := loadSet(cmd)
+func validateEverything(d deps, cmd *cobra.Command) error {
+	set, err := loadSet(d, cmd)
 	if err != nil {
 		return usageError(err)
 	}
@@ -63,7 +63,7 @@ func validateEverything(cmd *cobra.Command) error {
 // validatePaths checks the files named on the command line. A directory stands
 // for the rule files it holds, so that pointing the command at a folder does
 // what the reader expects.
-func validatePaths(cmd *cobra.Command, paths []string) error {
+func validatePaths(d deps, cmd *cobra.Command, paths []string) error {
 	files, err := ruleFiles(paths)
 	if err != nil {
 		return usageError(err)
@@ -73,7 +73,7 @@ func validatePaths(cmd *cobra.Command, paths []string) error {
 		findings []error
 		warnings []string
 	)
-	env := platform.OSEnv{}
+	env := d.Env
 	for _, path := range files {
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -131,7 +131,7 @@ func ruleFiles(paths []string) ([]string, error) {
 }
 
 // newRulesShowCmd returns `sweep rules show`.
-func newRulesShowCmd() *cobra.Command {
+func newRulesShowCmd(d deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <id>",
 		Short: "Print one rule as the sources left it, with its variables expanded",
@@ -140,7 +140,7 @@ func newRulesShowCmd() *cobra.Command {
 			"target with its %VARIABLES% expanded to what this machine holds.",
 		Args: countArgs(cobra.ExactArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			set, err := loadSet(cmd)
+			set, err := loadSet(d, cmd)
 			if err != nil {
 				return err
 			}
@@ -150,7 +150,7 @@ func newRulesShowCmd() *cobra.Command {
 			if rule == nil {
 				return usageError(fmt.Errorf("unknown rule '%s'", args[0]))
 			}
-			return printRule(cmd.OutOrStdout(), rule, platform.OSEnv{})
+			return printRule(cmd.OutOrStdout(), rule, d.Env)
 		},
 	}
 }
