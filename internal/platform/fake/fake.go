@@ -20,6 +20,7 @@ type FS struct {
 	// directory, so that ReadDir looks up its few instead of walking all the
 	// entries of the file system for them.
 	kids    map[string][]platform.Info
+	denied  map[string]error
 	long    map[string]string
 	drives  map[string]platform.DriveKind
 	removed []string
@@ -37,16 +38,40 @@ func NewFS() *FS {
 	}
 }
 
+// Deny teaches the fake to fail at one path with the error given, the way a
+// directory a process holds or a key that is missing does on a real machine.
+// The error answers for every Lstat and ReadDir of that path.
+func (f *FS) Deny(path string, with error) {
+	if f.denied == nil {
+		f.denied = map[string]error{}
+	}
+	f.denied[fold(path)] = with
+}
+
 // Add puts one entry in the file system. Path is taken as written; Name is
-// filled from it when left empty.
+// filled from it when left empty. Adding the same path again overwrites it
+// instead of leaving it twice in the list of its directory.
 func (f *FS) Add(info platform.Info) {
 	if info.Name == "" {
 		info.Name = lastElement(info.Path)
 	}
-	f.entries[fold(info.Path)] = info
+	key := fold(info.Path)
+	held := false
+	if _, ok := f.entries[key]; ok {
+		held = true
+	}
+	f.entries[key] = info
 	if parent := parentOf(info.Path); parent != "" {
-		key := fold(parent)
-		f.kids[key] = append(f.kids[key], info)
+		parentKey := fold(parent)
+		if held {
+			for i, entry := range f.kids[parentKey] {
+				if fold(entry.Path) == key {
+					f.kids[parentKey][i] = info
+				}
+			}
+		} else {
+			f.kids[parentKey] = append(f.kids[parentKey], info)
+		}
 	}
 }
 
@@ -68,6 +93,9 @@ func (f *FS) Pending() []string { return append([]string(nil), f.pending...) }
 
 // Lstat describes an entry in the file system.
 func (f *FS) Lstat(path string) (platform.Info, error) {
+	if err, ok := f.denied[fold(path)]; ok {
+		return platform.Info{}, &fs.PathError{Op: "lstat", Path: path, Err: err}
+	}
 	info, ok := f.entries[fold(path)]
 	if !ok {
 		return platform.Info{}, &fs.PathError{Op: "lstat", Path: path, Err: fs.ErrNotExist}
@@ -77,6 +105,9 @@ func (f *FS) Lstat(path string) (platform.Info, error) {
 
 // ReadDir lists what is inside a directory.
 func (f *FS) ReadDir(path string) ([]platform.Info, error) {
+	if err, ok := f.denied[fold(path)]; ok {
+		return nil, &fs.PathError{Op: "readdir", Path: path, Err: err}
+	}
 	info, ok := f.entries[fold(path)]
 	if !ok {
 		return nil, &fs.PathError{Op: "readdir", Path: path, Err: fs.ErrNotExist}

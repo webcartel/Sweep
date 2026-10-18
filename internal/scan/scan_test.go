@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"reflect"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -169,8 +170,18 @@ func TestScanParallelism(t *testing.T) {
 	rules := rulesOf(6, model.ModeSelf)
 	drain(s.Scan(context.Background(), rules, model.ScanOptions{Workers: 2, Throttle: time.Hour}))
 
-	if got := lab.peak.Load(); got < 2 {
-		t.Errorf("at most %d calls to the disk stood together, want the two workers", got)
+	if got := lab.peak.Load(); got < 2 || got > 2 {
+		t.Errorf("peak = %d calls to the disk, want the two workers and no more", got)
+	}
+
+	// With one worker nothing stands together, no matter how many rules
+	// there are.
+	alone := &labFS{FS: fsys}
+	solo := New(Deps{FS: alone, Env: env, System: fake.NewSystem(), Guard: buildGuard(t, env, alone)})
+	drain(solo.Scan(context.Background(), rulesOf(4, model.ModeSelf),
+		model.ScanOptions{Workers: 1, Throttle: time.Hour}))
+	if got := alone.peak.Load(); got != 1 {
+		t.Errorf("peak = %d with one worker, want exactly one", got)
 	}
 }
 
@@ -190,22 +201,48 @@ func TestScanThrottle(t *testing.T) {
 
 	s := New(Deps{FS: fsys, Env: env, System: fake.NewSystem(), Guard: buildGuard(t, env, fsys)})
 
+	// The contents mode gives the walker something to say about for every
+	// entry it takes: twenty files, twenty calls of the report.
+	mode := model.ModeContents
+
 	// A clock that stands still: with the throttle at 100 ms and time that
 	// never moves, one rule may send at most one RuleProgress.
 	still := func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }
 
-	var progresses []model.RuleProgress
-	for event := range s.Scan(context.Background(), rulesOf(1, model.ModeSelf),
+	count := 0
+	for event := range s.Scan(context.Background(), rulesOf(1, mode),
 		model.ScanOptions{Workers: 1, Throttle: 100 * time.Millisecond, Now: still}) {
+		if _, ok := event.(model.RuleProgress); ok {
+			count++
+		}
+	}
+	if count > 1 {
+		t.Errorf("progress = %d events, want at most one while the clock did not move", count)
+	}
+
+	// A clock that walks past the throttle between the entries keeps every
+	// one of the reports: the throttle both ways.
+	tick := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	advancing := func() time.Time {
+		tick = tick.Add(150 * time.Millisecond)
+		return tick
+	}
+	var progresses []model.RuleProgress
+	for event := range s.Scan(context.Background(), rulesOf(1, mode),
+		model.ScanOptions{Workers: 1, Throttle: 100 * time.Millisecond, Now: advancing}) {
 		if progress, ok := event.(model.RuleProgress); ok {
 			progresses = append(progresses, progress)
 		}
 	}
-	if len(progresses) > 1 {
-		t.Errorf("progress = %d events, want at most one while the clock did not move", len(progresses))
+	if len(progresses) != 20 {
+		t.Errorf("progress = %d events, want one for each of the twenty files", len(progresses))
 	}
-	if len(progresses) == 1 && (progresses[0].Files != 20 || progresses[0].Bytes != 20) {
-		t.Errorf("progress = %+v, want the counts of the plan", progresses[0])
+	last := model.RuleProgress{}
+	for _, progress := range progresses {
+		if progress.Files < last.Files {
+			t.Errorf("progress went from %d back to %d files", last.Files, progress.Files)
+		}
+		last = progress
 	}
 }
 
@@ -263,6 +300,42 @@ func TestScanClosesWithoutReader(t *testing.T) {
 		}
 	case <-time.After(1500 * time.Millisecond):
 		t.Fatal("the scan did not close within the second")
+	}
+}
+
+func TestScanSaysEverySkipOnTheStream(t *testing.T) {
+	fsys := bigTree(2)
+	env := theEnv()
+	s := New(Deps{FS: fsys, Env: env, System: fake.NewSystem(), Guard: buildGuard(t, env, fsys)})
+
+	// The target that is not there and the target that is: the stream says
+	// about the skip while the scan runs, and the plan keeps it, too.
+	rules := []*model.Rule{
+		{ID: "gone.rule", Targets: []model.Target{
+			{Kind: model.KindPath, Path: `%LOCALAPPDATA%\absent`, Mode: model.ModeContents}}},
+		{ID: "here.rule", Targets: []model.Target{
+			{Kind: model.KindPath, Path: `%LOCALAPPDATA%\big`, Mode: model.ModeContents}}},
+	}
+	var (
+		said []string
+		plan *model.Plan
+	)
+	for event := range s.Scan(context.Background(), rules, model.ScanOptions{Workers: 2, Throttle: time.Hour}) {
+		switch one := event.(type) {
+		case model.ItemSkipped:
+			said = append(said, one.RuleID+":"+string(one.Skip.Reason))
+		case model.ScanDone:
+			plan = one.Plan
+		}
+	}
+	if !slices.Contains(said, "gone.rule:not_found") {
+		t.Errorf("the skips on the stream = %q, want gone.rule:not_found", said)
+	}
+	if plan == nil {
+		t.Fatal("no plan came out")
+	}
+	if len(plan.Rules[0].Skipped) != 1 || plan.Rules[0].Skipped[0].Reason != model.ReasonNotFound {
+		t.Errorf("the plan of the rule = %+v, want the skip to stay in the plan", plan.Rules[0])
 	}
 }
 

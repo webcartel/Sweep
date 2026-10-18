@@ -26,7 +26,7 @@ func realTree(t *testing.T) (string, int64) {
 	// at the 260 characters of its own.
 	deep := base
 	for i := 0; i < 12; i++ {
-		deep += `\Кэш-директория-с-длинным-именем-234567890`
+		deep += `\РљСЌС€-РґРёСЂРµРєС‚РѕСЂРёСЏ-СЃ-РґР»РёРЅРЅС‹Рј-РёРјРµРЅРµРј-234567890`
 	}
 	if err := os.MkdirAll(`\\?\`+deep, 0o700); err != nil {
 		t.Fatalf("mkdir the deep tree: %v", err)
@@ -36,8 +36,8 @@ func realTree(t *testing.T) (string, int64) {
 		name string
 		size int
 	}{
-		{`файл-первый.dat`, 3},
-		{`файл-второй-十.dat`, 5},
+		{`С„Р°Р№Р»-РїРµСЂРІС‹Р№.dat`, 3},
+		{`С„Р°Р№Р»-РІС‚РѕСЂРѕР№-еЌЃ.dat`, 5},
 	} {
 		file := `\\?\` + deep + `\` + one.name
 		if err := os.WriteFile(file, []byte(strings.Repeat("x", one.size)), 0o600); err != nil {
@@ -67,7 +67,7 @@ func TestWalkOfTheRealDiskReachesTheLongAndTheUnicode(t *testing.T) {
 	s, _ := realGuardFor(t, deep)
 
 	plan, warnings, err := s.planFor(context.Background(), &model.Rule{ID: "test.deep",
-		Targets: []model.Target{{Kind: model.KindPath, Path: deep, Mode: model.ModeContents}}}, nil)
+		Targets: []model.Target{{Kind: model.KindPath, Path: deep, Mode: model.ModeContents}}}, nil, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestWalkOfTheRealDiskKeepsTheJunctionOnTheOutside(t *testing.T) {
 	s, _ := realGuardFor(t, base)
 	rule := &model.Rule{ID: "test.junction", Targets: []model.Target{
 		{Kind: model.KindPath, Path: base + `\tempproj\caches`, Mode: model.ModeFiles}}}
-	plan, warnings, err := s.planFor(context.Background(), rule, nil)
+	plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestWalkOfTheRealDiskKeepsTheJunctionOnTheOutside(t *testing.T) {
 	// the target it points at stays out of the plan.
 	targetRule := &model.Rule{ID: "test.link", Targets: []model.Target{
 		{Kind: model.KindPath, Path: base + `\tempproj\caches\plink`, Mode: model.ModeContents}}}
-	plan, warnings, err = s.planFor(context.Background(), targetRule, nil)
+	plan, warnings, err = s.planFor(context.Background(), targetRule, nil, nil)
 	if err != nil {
 		t.Fatalf("planFor the junction: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestWalkOfTheRealDiskKeepsTheJunctionOnTheOutside(t *testing.T) {
 func TestWalkSkipsSystemRoot(t *testing.T) {
 	s, _ := realGuardFor(t, `C:\Windows\Temp`)
 	plan, _, err := s.planFor(context.Background(), &model.Rule{ID: "test.root",
-		Targets: []model.Target{{Kind: model.KindPath, Path: `%SystemRoot%`, Mode: model.ModeSelf}}}, nil)
+		Targets: []model.Target{{Kind: model.KindPath, Path: `%SystemRoot%`, Mode: model.ModeSelf}}}, nil, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}

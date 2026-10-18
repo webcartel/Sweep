@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"runtime"
 	"sync"
 	"time"
@@ -106,7 +107,12 @@ func (s *Scanner) scan(ctx context.Context, rules []*model.Rule, opt model.ScanO
 				}
 			}
 
-			plan, warnings, err := s.planFor(ctx, rule, report)
+			plan, warnings, err := s.planFor(ctx, rule, report, func(reason model.Skip) {
+				select {
+				case out <- model.ItemSkipped{RuleID: rule.ID, Skip: reason}:
+				case <-done:
+				}
+			})
 			plans[place] = plan
 			if err != nil && ctx.Err() != nil {
 				return
@@ -119,6 +125,8 @@ func (s *Scanner) scan(ctx context.Context, rules []*model.Rule, opt model.ScanO
 				}
 			}
 			if err != nil {
+				// A glob or a walk that ended in something the path is not
+				// to blame for, and that is not the context's doing.
 				select {
 				case out <- model.Warning{RuleID: rule.ID,
 					Message: fmt.Sprintf("the rule could not be walked: %v", err)}:
@@ -149,7 +157,7 @@ func (s *Scanner) scan(ctx context.Context, rules []*model.Rule, opt model.ScanO
 // left out, and what is worth saying before the plan is shown. It is the one
 // place the guard is asked about a path: nothing enters the plan it has not
 // been asked about.
-func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(files int, bytes int64)) (model.RulePlan, []string, error) {
+func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(files int, bytes int64), onSkip func(model.Skip)) (model.RulePlan, []string, error) {
 	if s.sys != nil {
 		if build, err := s.sys.OSBuild(); err == nil && rule.OSMinBuild > build {
 			var skipped []model.Skip
@@ -163,6 +171,14 @@ func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(fil
 	}
 
 	plan := model.RulePlan{Rule: rule}
+	// Every path the plan leaves out is said twice: once in the plan to
+	// stay, once on the stream, so that a frontend presents the skip while
+	// the scan is still walking.
+	note := func(reason model.Skip) {
+		if onSkip != nil {
+			onSkip(reason)
+		}
+	}
 	var warnings []string
 
 	for _, target := range rule.Targets {
@@ -186,12 +202,15 @@ func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(fil
 		if err := s.target(ctx, target,
 			func(item model.Item) {
 				files := plan.Files
-				s.takeItem(&plan, target, item)
+				s.takeItem(&plan, target, item, note)
 				if report != nil && plan.Files != files {
 					report(plan.Files, plan.Bytes)
 				}
 			},
-			func(reason model.Skip) { plan.Skipped = append(plan.Skipped, reason) },
+			func(reason model.Skip) {
+				plan.Skipped = append(plan.Skipped, reason)
+				note(reason)
+			},
 			&warnings); err != nil {
 			return model.RulePlan{Rule: rule}, warnings, err
 		}
@@ -204,9 +223,24 @@ func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(fil
 func (s *Scanner) target(ctx context.Context, t model.Target,
 	add func(model.Item), skip func(model.Skip), warnings *[]string) error {
 
+	// A target that names a variable the machine does not set is a path that
+	// is not there, said before the guard is asked, which would only refuse
+	// a path it cannot make sense of.
+	if unset := platform.EnvNames(platform.Expand(t.Path, s.env)); len(unset) > 0 {
+		skip(model.Skip{Path: t.Path, Reason: model.ReasonNotFound,
+			Detail: "the variable " + unset[0] + " is not set"})
+		return nil
+	}
+
 	asked, err := s.guard.Check(t.Path, t.Mode, t.Include, t.MinAgeDays)
 	switch {
 	case err != nil:
+		if errors.Is(err, fs.ErrPermission) {
+			// What the guard found in the way of reading is the path's own
+			// business: it is said as a skip, the way a walk of it would.
+			skip(model.Skip{Path: t.Path, Reason: model.ReasonAccessDenied, Detail: err.Error()})
+			return nil
+		}
 		*warnings = append(*warnings,
 			fmt.Sprintf("the rule cannot read the target %s: %v", t.Path, err))
 		// One unreadable target does not stop the scan.
@@ -231,14 +265,21 @@ func (s *Scanner) target(ctx context.Context, t model.Target,
 // takeItem adopts one item into the plan, but only after the guard has been
 // asked about the item itself: a target that is allowed can still hold a path
 // the guard refuses, a junction for example.
-func (s *Scanner) takeItem(plan *model.RulePlan, t model.Target, item model.Item) {
+func (s *Scanner) takeItem(plan *model.RulePlan, t model.Target, item model.Item,
+	note func(model.Skip)) {
+	tell := func(reason model.Skip) {
+		plan.Skipped = append(plan.Skipped, reason)
+		if note != nil {
+			note(reason)
+		}
+	}
 	asked, err := s.guard.Check(item.Path, t.Mode, t.Include, t.MinAgeDays)
 	switch {
 	case err != nil:
-		plan.Skipped = append(plan.Skipped, model.Skip{Path: item.Path,
+		tell(model.Skip{Path: item.Path,
 			Reason: model.ReasonAccessDenied, Detail: err.Error()})
 	case !asked.Allowed:
-		plan.Skipped = append(plan.Skipped, model.Skip{Path: item.Path,
+		tell(model.Skip{Path: item.Path,
 			Reason: model.ReasonProtected, Detail: asked.Message})
 	default:
 		plan.Items = append(plan.Items, item)

@@ -64,7 +64,7 @@ func TestMemoryDoesNotGrowWithFiles(t *testing.T) {
 	fsys := aTreeOf(10000)
 	s := judgeScanner(t, fsys)
 
-	plan, warnings, err := s.planFor(context.Background(), bigRule(), nil)
+	plan, warnings, err := s.planFor(context.Background(), bigRule(), nil, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}

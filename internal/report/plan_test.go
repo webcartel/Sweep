@@ -1,4 +1,4 @@
-﻿package report_test
+package report_test
 
 import (
 	"bytes"
@@ -166,4 +166,3 @@ func TestPlanJSONIsThePlan(t *testing.T) {
 		t.Errorf("command = %+v, want the plan of the command", document.Rules[1].Command)
 	}
 }
-

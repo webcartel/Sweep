@@ -2,8 +2,11 @@ package scan
 
 import (
 	"context"
+	"io/fs"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/webcartel/sweep/internal/guard"
 	"github.com/webcartel/sweep/internal/model"
@@ -55,7 +58,7 @@ func TestPlanForCommand(t *testing.T) {
 		Targets: []model.Target{{Kind: model.KindCommand, Cmd: "npm", Args: []string{"cache", "clean"}}},
 	}
 
-	plan, warnings, err := s.planFor(context.Background(), rule, nil)
+	plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}
@@ -83,7 +86,7 @@ func TestPlanSkipsProtected(t *testing.T) {
 		{Kind: model.KindPath, Path: `%LOCALAPPDATA%\app\cache`, Mode: model.ModeContents},
 	}}
 
-	plan, warnings, err := s.planFor(context.Background(), rule, nil)
+	plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}
@@ -115,7 +118,7 @@ func TestPlanSkipsOSMinBuild(t *testing.T) {
 		s, _ := probeScanner(t, fake.NewSystem())
 		s.sys.(*fake.System).SetBuild(19045)
 
-		plan, warnings, err := s.planFor(context.Background(), rule, nil)
+		plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
 		if err != nil {
 			t.Fatalf("planFor: %v", err)
 		}
@@ -137,7 +140,7 @@ func TestPlanSkipsOSMinBuild(t *testing.T) {
 
 	t.Run("the rule of this build is scanned", func(t *testing.T) {
 		s, _ := probeScanner(t, newer)
-		plan, warnings, err := s.planFor(context.Background(), rule, nil)
+		plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
 		if err != nil {
 			t.Fatalf("planFor: %v", err)
 		}
@@ -157,4 +160,69 @@ func planItems(plan model.RulePlan) []string {
 		got = append(got, item.Path)
 	}
 	return got
+}
+
+func TestSkipUnsetVariableIsNotFound(t *testing.T) {
+	s, fsys := probeScanner(t, fake.NewSystem())
+	_ = fsys
+
+	rule := &model.Rule{ID: "test.unset", Targets: []model.Target{
+		{Kind: model.KindPath, Path: `%NOT_SET_AT_ALL%\gone`, Mode: model.ModeSelf}}}
+	plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
+	if err != nil {
+		t.Fatalf("planFor: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("warnings = %q, want none: the variable says what is missing", warnings)
+	}
+	if len(plan.Items) != 0 {
+		t.Errorf("Items = %q, want none", planItems(plan))
+	}
+	if len(plan.Skipped) != 1 || plan.Skipped[0].Reason != model.ReasonNotFound ||
+		!strings.Contains(plan.Skipped[0].Detail, "NOT_SET_AT_ALL") {
+		t.Errorf("Skipped = %+v, want not_found naming the variable", plan.Skipped)
+	}
+}
+
+func TestSkipAccessDeniedIsThePathsFaultAndNoMore(t *testing.T) {
+	// The directory a: the walk cannot open it. The rule aims at it in the
+	// mode of self, so the walk stops with it alone.
+	s, fsys := probeScanner(t, fake.NewSystem())
+	fsys.Deny(`C:\Users\probe\AppData\Local\a`, fs.ErrPermission)
+
+	rule := &model.Rule{ID: "test.denied", Targets: []model.Target{
+		{Kind: model.KindPath, Path: `%LOCALAPPDATA%\a`, Mode: model.ModeSelf}}}
+	plan, warnings, err := s.planFor(context.Background(), rule, nil, nil)
+	if err != nil {
+		t.Fatalf("planFor: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("warnings = %q, want none: the path spoke for itself", warnings)
+	}
+	if len(plan.Skipped) != 1 || plan.Skipped[0].Reason != model.ReasonAccessDenied {
+		t.Errorf("Skipped = %+v, want one access_denied for the directory", plan.Skipped)
+	}
+
+	// A directory the walk can read that holds the denied one: what was
+	// found before stands in the plan, the denied one is skipped.
+	fsys.Deny(`C:\Users\probe\AppData\Local\b\locked`, fs.ErrPermission)
+	fsys.Add(platform.Info{Path: `C:\Users\probe\AppData\Local\b\locked`, IsDir: true})
+	fsys.Add(platform.Info{Path: `C:\Users\probe\AppData\Local\b\free`, Size: 5,
+		ModTime: time.Now().Add(-24 * time.Hour)})
+	older := &model.Rule{ID: "test.free", Targets: []model.Target{
+		{Kind: model.KindPath, Path: `%LOCALAPPDATA%\b`, Mode: model.ModeFiles,
+			MinAgeDays: 1}}}
+	plan, warnings, err = s.planFor(context.Background(), older, nil, nil)
+	if err != nil {
+		t.Fatalf("planFor the files mode: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("warnings = %q, want none", warnings)
+	}
+	if len(plan.Items) != 1 || plan.Items[0].Path != `C:\Users\probe\AppData\Local\b\free` {
+		t.Errorf("Items = %q, want the one file the walk could read", planItems(plan))
+	}
+	if len(plan.Skipped) != 1 || plan.Skipped[0].Reason != model.ReasonAccessDenied {
+		t.Errorf("Skipped = %+v, want access_denied for locked", plan.Skipped)
+	}
 }

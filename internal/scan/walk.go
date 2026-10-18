@@ -66,8 +66,12 @@ func (s *Scanner) candidate(ctx context.Context, path string, mode model.Mode,
 
 	info, err := s.fs.Lstat(path)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
 			skip(model.Skip{Path: path, Reason: model.ReasonNotFound, Detail: "the path does not exist"})
+			return nil
+		case errors.Is(err, fs.ErrPermission):
+			skip(model.Skip{Path: path, Reason: model.ReasonAccessDenied, Detail: err.Error()})
 			return nil
 		}
 		return err
@@ -75,14 +79,12 @@ func (s *Scanner) candidate(ctx context.Context, path string, mode model.Mode,
 
 	switch mode {
 	case model.ModeSelf:
-		s.entry(ctx, info, keep, add, skip)
-		return nil
+		return s.entry(ctx, info, keep, add, skip)
 
 	case model.ModeContents:
 		if info.Reparse || !info.IsDir {
 			if info.IsDir { // a junction is not walked into: the link itself is the item
-				s.entry(ctx, info, keep, add, skip)
-				return nil
+				return s.entry(ctx, info, keep, add, skip)
 			}
 			// The rule asked for the contents of directories, and a file
 			// holds none. Removing it here would be a guess.
@@ -98,7 +100,9 @@ func (s *Scanner) candidate(ctx context.Context, path string, mode model.Mode,
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			s.entry(ctx, entry, keep, add, skip)
+			if err := s.entry(ctx, entry, keep, add, skip); err != nil {
+				return err
+			}
 		}
 		return nil
 
@@ -127,11 +131,17 @@ func (s *Scanner) walk(ctx context.Context, root string, info platform.Info,
 			return err
 		}
 		for _, entry := range entries {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if err := s.walk(ctx, root, entry, keep, add, skip); err != nil {
 				return err
 			}
 		}
 		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if keep.allow(relPath(root, info.Path), info) {
 		add(model.Item{Path: info.Path, Size: info.Size, Files: 1,
@@ -167,7 +177,7 @@ func (s *Scanner) children(ctx context.Context, path string, skip func(model.Ski
 // is left out entirely: the filters are the intent of the rule, not a path
 // that went wrong.
 func (s *Scanner) entry(ctx context.Context, info platform.Info,
-	keep filters, add func(model.Item), skip func(model.Skip)) {
+	keep filters, add func(model.Item), skip func(model.Skip)) error {
 
 	item := model.Item{Path: info.Path, IsDir: info.IsDir, ModTime: info.ModTime, Reparse: info.Reparse}
 	switch {
@@ -176,10 +186,13 @@ func (s *Scanner) entry(ctx context.Context, info platform.Info,
 	case info.IsDir:
 		size, files, err := s.aggregate(ctx, info)
 		if err != nil {
-			// The whole walk below stops here, so the entry is skipped
-			// together with everything below it.
-			s.skipIO(info.Path, err, skip)
-			return
+			// The whole walk below stops here. What the path can answer
+			// for, the walk says through skip; the rest is not its fault
+			// and is passed on.
+			if pass := s.skipIO(info.Path, err, skip); pass != nil {
+				return pass
+			}
+			return nil
 		}
 		item.Size, item.Files = size, files
 	default:
@@ -188,9 +201,10 @@ func (s *Scanner) entry(ctx context.Context, info platform.Info,
 	seen := info
 	seen.Size = item.Size // the Size and age filters read what was accumulated
 	if !keep.allow(lastElement(info.Path), seen) {
-		return
+		return nil
 	}
 	add(item)
+	return nil
 }
 
 // aggregate walks everything below one directory and sums the size and the
@@ -226,16 +240,19 @@ func (s *Scanner) aggregate(ctx context.Context, dir platform.Info) (int64, int,
 	return size, files, nil
 }
 
-// skipIO repeats the error a ReadDir gave in the words of SkipReason.
-func (s *Scanner) skipIO(path string, err error, skip func(model.Skip)) {
+// skipIO repeats the error a ReadDir gave in the words of SkipReason, and
+// hands back the errors no path can answer for, for the caller to pass on
+// instead of blaming the path with them.
+func (s *Scanner) skipIO(path string, err error, skip func(model.Skip)) error {
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		skip(model.Skip{Path: path, Reason: model.ReasonNotFound, Detail: "the path disappeared"})
 	case errors.Is(err, fs.ErrPermission):
 		skip(model.Skip{Path: path, Reason: model.ReasonAccessDenied, Detail: err.Error()})
 	default:
-		skip(model.Skip{Path: path, Reason: model.ReasonAccessDenied, Detail: err.Error()})
+		return err
 	}
+	return nil
 }
 
 // relPath is the path of a file relative to the root of a target, the form

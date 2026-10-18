@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -45,12 +46,18 @@ func newScanCmd(d deps) *cobra.Command {
 
 			guarded, err := guard.New(d.FS, d.Env, d.Cwd, set.Config.ExcludePaths)
 			if err != nil {
-				return err
+				// What the machine's own config asked the guard to use is
+				// the user's business to fix: it goes with the code of the
+				// flags, not the code of an error.
+				return usageError(err)
 			}
 			scanner := scan.New(scan.Deps{
 				FS: d.FS, Env: d.Env, System: d.System, Guard: guarded,
 			})
 
+			// The rules that finished before the interruption stay in the
+			// answer: the spec asks for the partial result, not silence.
+			var finished []model.RulePlan
 			var plan *model.Plan
 			for event := range scanner.Scan(cmd.Context(), rulesList, model.ScanOptions{}) {
 				switch one := event.(type) {
@@ -58,12 +65,33 @@ func newScanCmd(d deps) *cobra.Command {
 					// The spec keeps what is not the answer on stderr, even
 					// when the answer is one JSON document.
 					_, _ = fmt.Fprintln(cmd.ErrOrStderr(), one.Message)
+				case model.ItemSkipped:
+					// In the table answer the skips sit in the SKIPPED
+					// column only by their number; what path was left out
+					// and why goes on the stream of remarks. The JSON
+					// document holds them and says nothing twice.
+					if !asJSON {
+						_, _ = fmt.Fprintln(cmd.ErrOrStderr(),
+							"skipped "+one.Skip.Path+": "+string(one.Skip.Reason))
+					}
+				case model.RuleScanned:
+					finished = append(finished, one.Plan)
 				case model.ScanDone:
 					plan = one.Plan
 				}
 			}
 
 			if cmd.Context().Err() != nil {
+				// What stood completed when Ctrl+C came is printed, then the
+				// word of the interruption.
+				if len(finished) != 0 {
+					partial := &model.Plan{CreatedAt: time.Now(), Rules: finished}
+					if asJSON {
+						_ = report.PlanJSON(cmd.OutOrStdout(), partial)
+					} else {
+						_ = printPlanTable(cmd.OutOrStdout(), partial)
+					}
+				}
 				_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "scan interrupted")
 				return nil
 			}
