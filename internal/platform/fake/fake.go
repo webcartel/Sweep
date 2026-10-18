@@ -16,11 +16,15 @@ import (
 // them: without case, and with either separator.
 type FS struct {
 	entries map[string]platform.Info
+	// The errors an operation on one path answers with, after the entry in
+	// entries is found.
+	denied       map[string]error
+	deniedRemove map[string]error
+	deniedReboot map[string]error
 	// kids holds the entries of a directory by the folded path of that
 	// directory, so that ReadDir looks up its few instead of walking all the
 	// entries of the file system for them.
 	kids    map[string][]platform.Info
-	denied  map[string]error
 	long    map[string]string
 	drives  map[string]platform.DriveKind
 	removed []string
@@ -46,6 +50,25 @@ func (f *FS) Deny(path string, with error) {
 		f.denied = map[string]error{}
 	}
 	f.denied[fold(path)] = with
+}
+
+// DenyDel teaches the fake to refuse the removal of one path with the error
+// given, the way a file a process keeps open does: reading the path still
+// works, and putting it away does not.
+func (f *FS) DenyDel(path string, with error) {
+	if f.deniedRemove == nil {
+		f.deniedRemove = map[string]error{}
+	}
+	f.deniedRemove[fold(path)] = with
+}
+
+// DenyReboot teaches the fake to refuse scheduling the removal of one path
+// for the next start of Windows.
+func (f *FS) DenyReboot(path string, with error) {
+	if f.deniedReboot == nil {
+		f.deniedReboot = map[string]error{}
+	}
+	f.deniedReboot[fold(path)] = with
 }
 
 // Add puts one entry in the file system. Path is taken as written; Name is
@@ -162,11 +185,19 @@ func (f *FS) DriveType(path string) (platform.DriveKind, error) {
 
 // Remove deletes an entry, and only an empty directory: that is what os.Remove
 // does, and the engine counts on the difference.
-func (f *FS) Remove(path string) error { return f.delete(path, &f.removed) }
+func (f *FS) Remove(path string) error {
+	if err := f.deletionDenied(path); err != nil {
+		return err
+	}
+	return f.delete(path, &f.removed)
+}
 
 // Trash moves an entry to the recycle bin, which takes a directory together
 // with everything inside it: unlike Remove, it does not ask for an empty one.
 func (f *FS) Trash(path string) error {
+	if err := f.deletionDenied(path); err != nil {
+		return &fs.PathError{Op: "trash", Path: path, Err: err}
+	}
 	key := fold(path)
 	if _, ok := f.entries[key]; !ok {
 		return &fs.PathError{Op: "trash", Path: path, Err: fs.ErrNotExist}
@@ -179,7 +210,18 @@ func (f *FS) Trash(path string) error {
 // RemoveOnReboot schedules an entry for the next start of Windows. It is not
 // deleted now, which is the point of it.
 func (f *FS) RemoveOnReboot(path string) error {
+	if err, ok := f.deniedReboot[fold(path)]; ok {
+		return &fs.PathError{Op: "removeonreboot", Path: path, Err: err}
+	}
 	f.pending = append(f.pending, path)
+	return nil
+}
+
+// deletionDenied says what stands in the way of putting the path away.
+func (f *FS) deletionDenied(path string) error {
+	if err, ok := f.deniedRemove[fold(path)]; ok {
+		return err
+	}
 	return nil
 }
 

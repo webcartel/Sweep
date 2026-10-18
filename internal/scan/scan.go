@@ -282,6 +282,9 @@ func (s *Scanner) takeItem(plan *model.RulePlan, t model.Target, item model.Item
 		tell(model.Skip{Path: item.Path,
 			Reason: model.ReasonProtected, Detail: asked.Message})
 	default:
+		item.Mode = t.Mode
+		item.Include = t.Include
+		item.MinAgeDays = t.MinAgeDays
 		plan.Items = append(plan.Items, item)
 		plan.Bytes += item.Size
 		plan.Files += item.Files

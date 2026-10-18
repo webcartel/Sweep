@@ -12,6 +12,11 @@ type Item struct {
 	IsDir   bool
 	ModTime time.Time
 	Reparse bool // a junction or a symlink: the link itself is removed, not the target
+	// The filters of the target the item was adopted under. The executor
+	// asks the guard again with them right before the removal.
+	Mode       Mode
+	Include    []string
+	MinAgeDays int
 }
 
 // Skip says why one path did not make it into the plan.
