@@ -44,6 +44,7 @@ type RuleResult struct {
 type Result struct {
 	StartedAt     time.Time
 	FinishedAt    time.Time
+	DryRun        bool
 	FreedBytes    int64
 	TrashBytes    int64
 	Removed       int
