@@ -19,3 +19,9 @@ func (system) OSBuild() (int, error) {
 	version := windows.RtlGetVersion()
 	return int(version.BuildNumber), nil
 }
+
+// Elevated says whether the process runs with administrator rights, by the
+// token of the process itself and not of the shell it came from.
+func (system) Elevated() (bool, error) {
+	return windows.GetCurrentProcessToken().IsElevated(), nil
+}

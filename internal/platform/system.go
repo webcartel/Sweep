@@ -5,4 +5,7 @@ package platform
 // a newer one.
 type System interface {
 	OSBuild() (int, error)
+
+	// Elevated says whether the process runs with administrator rights.
+	Elevated() (bool, error)
 }

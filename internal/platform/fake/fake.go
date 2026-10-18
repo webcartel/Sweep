@@ -234,17 +234,27 @@ func (f *FS) drop(key string) {
 
 // System is the running Windows in memory.
 type System struct {
-	build int
+	build    int
+	elevated bool
 }
 
-// NewSystem returns a system that reports build 0 until SetBuild is called.
-func NewSystem() *System { return &System{} }
+// NewSystem returns a system that reports build 0 until SetBuild is called,
+// and an elevated process until SetElevated(false) is called.
+func NewSystem() *System { return &System{elevated: true} }
 
 // SetBuild says what build the system runs.
 func (s *System) SetBuild(build int) { s.build = build }
 
 // OSBuild gives the build SetBuild set.
 func (s *System) OSBuild() (int, error) { return s.build, nil }
+
+// Elevated says whether the process runs with administrator rights. A system
+// starts elevated because the tests of rules that require admin want to pass
+// by default; SetElevated takes it away.
+func (s *System) Elevated() (bool, error) { return s.elevated, nil }
+
+// SetElevated says whether the system reports an elevated process.
+func (s *System) SetElevated(v bool) { s.elevated = v }
 
 // Procs is a process list in memory.
 type Procs struct {
