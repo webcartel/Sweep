@@ -147,6 +147,9 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 		}
 	}
 	if cmd.Context().Err() != nil {
+		// What stood completed when Ctrl+C came is printed, then the
+		// word of the interruption; the ask for a run that never got to
+		// take anything away is not asked.
 		_, _ = fmt.Fprintln(errOut, "scan interrupted")
 		return nil
 	}
@@ -160,6 +163,7 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 	selection := model.Selection{Rules: map[string]bool{}, Exclude: map[string]bool{}}
 	for _, rp := range plan.Rules {
 		if rp.Rule == nil {
+			// The executor keeps a rule with no id under an empty name.
 			selection.Rules[""] = true
 			continue
 		}
@@ -218,7 +222,14 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 	}
 
 	// The answer of the run goes to --report's file when one is named,
-	// and to the output of the command otherwise.
+	// and to the output of the command otherwise. The plan is printed
+	// before the question regardless, the way `sweep scan` answers, so
+	// that what the agreement asks about is on the screen.
+	if flags.json {
+		_ = report.PlanJSON(cmd.OutOrStdout(), plan)
+	} else {
+		_ = printPlanTable(cmd.OutOrStdout(), plan)
+	}
 	var answer = out
 	if flags.report != "" {
 		file, err := createFile(flags.report)
@@ -271,13 +282,35 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 				Time: time.Now(), RuleID: one.RuleID, Path: one.Path,
 				Action: "failed", Result: one.Err.Error(),
 			})
+		case model.CommandRan:
+			_ = sink.Append(report.Entry{
+				Time: time.Now(), RuleID: one.RuleID, Path: one.Command,
+				Action: "ran", Result: "ok",
+			})
 		case model.ExecDone:
 			result = one.Result
 			result.DryRun = flags.dryRun
+			// What was on offer is what the run's own selection held:
+			// the scan counted it before the question was asked.
+			for _, rp := range plan.Rules {
+				if rp.Rule != nil && !selection.Rules[rp.Rule.ID] {
+					continue
+				}
+				result.Items += len(rp.Items)
+				result.Files += int64(rp.Files)
+				result.BytesFound += rp.Bytes
+			}
 			if err := report.ExecJSON(answer, result); err != nil {
 				return err
 			}
 		}
+	}
+	if result == nil && cmd.Context().Err() != nil {
+		// The stream closed because the run was cancelled. The paths the
+		// rules made it through are on the disk in the order the events
+		// named them; the run says so instead of an error.
+		_, _ = fmt.Fprintln(errOut, "clean interrupted")
+		return nil
 	}
 	if result == nil {
 		return fmt.Errorf("the run ended without an answer")
@@ -285,6 +318,11 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 
 	if flags.report == "" && !flags.json {
 		printRunSummary(out, result)
+	}
+	// A dry run took nothing away, so nothing can be left behind; the
+	// skips and the failures are named, but they are not debts of a run.
+	if flags.dryRun {
+		return nil
 	}
 	if skipped+failed != 0 {
 		return &ExitError{Code: ExitPartial, Err: fmt.Errorf(

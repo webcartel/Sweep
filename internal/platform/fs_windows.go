@@ -34,7 +34,13 @@ func devicePath(path string) string {
 		}
 	}
 	if strings.HasPrefix(path, `\\`) {
-		return path
+		if strings.HasPrefix(path, `\\?\`) {
+			// The device form is already there.
+			return path
+		}
+		// A share is spelled the way NT names it: the device form of a
+		// UNC path changes the leading pair of separators, not adds.
+		return strings.Replace(path, `\\`, `\\?\UNC\`, 1)
 	}
 	return `\\?\` + path
 }

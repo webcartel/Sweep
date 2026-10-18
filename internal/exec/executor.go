@@ -87,7 +87,7 @@ func (x *Executor) execute(ctx context.Context, plan *model.Plan, sel model.Sele
 	for i := range plan.Rules {
 		rulePlan := &plan.Rules[i]
 		results[i].result.Rule = rulePlan.Rule
-		if sel.Rules != nil && !sel.Rules[rulePlan.Rule.ID] {
+		if sel.Rules != nil && !sel.Rules[ruleIDOf(rulePlan.Rule)] {
 			// A rule the user took away is not spoken about: it was
 			// deselected on purpose, and the report stays silent about it.
 			continue
@@ -102,7 +102,9 @@ func (x *Executor) execute(ctx context.Context, plan *model.Plan, sel model.Sele
 		go func(place int, rp *model.RulePlan) {
 			defer wg.Done()
 			defer func() { <-slots }()
-			results[place] = x.runRule(ctx, rp, sel, opt, out, done)
+			kept := x.runRule(ctx, rp, sel, opt, out, done)
+			results[place] = kept
+			tell(done, out, model.RuleFinished{Result: kept.result})
 		}(i, rulePlan)
 	}
 	wg.Wait()
@@ -111,7 +113,7 @@ func (x *Executor) execute(ctx context.Context, plan *model.Plan, sel model.Sele
 		return
 	}
 	for _, one := range results {
-		if one.result.Rule == nil || (sel.Rules != nil && !sel.Rules[one.result.Rule.ID]) {
+		if one.result.Rule == nil || (sel.Rules != nil && !sel.Rules[ruleIDOf(one.result.Rule)]) {
 			continue
 		}
 		result.PerRule = append(result.PerRule, one.result)
@@ -140,51 +142,73 @@ type ruleOutcome struct {
 	pending []string
 }
 
+// ruleIDOf names the rule; a rule the loader made with no id at all stands
+// under an empty name.
+func ruleIDOf(rule *model.Rule) string {
+	if rule == nil {
+		return ""
+	}
+	return rule.ID
+}
+
+// tell puts one event on the stream unless the context of the run is gone;
+// the many goroutines of a run reach no further than this one door.
+func tell(done <-chan struct{}, out chan<- model.Event, event model.Event) bool {
+	select {
+	case out <- event:
+		return true
+	case <-done:
+		return false
+	}
+}
+
 // runRule takes one rule to the end of its work, telling the stream as it
 // goes.
 func (x *Executor) runRule(ctx context.Context, rp *model.RulePlan, sel model.Selection, opt model.ExecOptions, out chan<- model.Event, done <-chan struct{}) ruleOutcome {
+	id := ruleIDOf(rp.Rule)
 	kept := ruleOutcome{result: model.RuleResult{Rule: rp.Rule, Status: model.StatusDone}}
 	if opt.DryRun {
 		kept.result.Status = model.StatusDryRun
 	}
-	put := func(event model.Event) {
-		select {
-		case out <- event:
-		case <-done:
-		}
-	}
-
-	if running := x.busyWith(rp.Rule); len(running) > 0 {
-		// A rule that asks for programs to be closed cannot wait here:
-		// every path of it is left alone under one and the same reason.
-		message := fmt.Sprintf("%s is running", strings.Join(running, ", "))
+	put := func(event model.Event) { tell(done, out, event) }
+	skipAll := func(reason model.SkipReason, detail string) {
 		for _, item := range rp.Items {
-			skip := model.Skip{Path: item.Path, Reason: model.ReasonAppRunning, Detail: message}
+			skip := model.Skip{Path: item.Path, Reason: reason, Detail: detail}
 			kept.result.Skipped = append(kept.result.Skipped, skip)
-			put(model.ItemSkipped{RuleID: rp.Rule.ID, Skip: skip})
+			put(model.ItemSkipped{RuleID: id, Skip: skip})
 		}
 		if rp.Command != nil {
-			skip := model.Skip{Path: rp.Command.Command, Reason: model.ReasonAppRunning, Detail: message}
+			skip := model.Skip{Path: rp.Command.Command, Reason: reason, Detail: detail}
 			kept.result.Skipped = append(kept.result.Skipped, skip)
-			put(model.ItemSkipped{RuleID: rp.Rule.ID, Skip: skip})
+			put(model.ItemSkipped{RuleID: id, Skip: skip})
 		}
 		kept.result.Status = model.StatusSkipped
+	}
+
+	running, asked := x.busyWith(rp.Rule)
+	if asked != nil {
+		// The snapshot of the machine did not come through, and the safe
+		// side of an unreadable machine is not to run: a short list would
+		// have read as "nothing is running".
+		put(model.Warning{RuleID: id,
+			Message: fmt.Sprintf("the running programs could not be asked: %v", asked)})
+		skipAll(model.ReasonSystemUnknown,
+			fmt.Sprintf("the running programs could not be asked: %v", asked))
+		return kept
+	}
+	if len(running) > 0 {
+		skipAll(model.ReasonAppRunning,
+			fmt.Sprintf("%s is running", strings.Join(running, ", ")))
 		return kept
 	}
 	if rp.Rule.RequiresAdmin && !x.elevated() {
-		for _, item := range rp.Items {
-			skip := model.Skip{Path: item.Path, Reason: model.ReasonNeedsAdmin,
-				Detail: "the rule asks for an administrator"}
-			kept.result.Skipped = append(kept.result.Skipped, skip)
-			put(model.ItemSkipped{RuleID: rp.Rule.ID, Skip: skip})
-		}
-		kept.result.Status = model.StatusSkipped
+		skipAll(model.ReasonNeedsAdmin, "the rule asks for an administrator")
 		return kept
 	}
 
 	if rp.Command != nil {
 		if !opt.DryRun {
-			if err := x.runCommand(ctx, rp, put); err != nil {
+			if err := x.runCommand(id, ctx, rp, put); err != nil {
 				kept.result.Status = model.StatusFailed
 				kept.failed++
 			}
@@ -223,16 +247,13 @@ func (x *Executor) runRule(ctx context.Context, rp *model.RulePlan, sel model.Se
 	return kept
 }
 
-// busyWith names the programs of the rule that are running now.
-func (x *Executor) busyWith(rule *model.Rule) []string {
-	if len(rule.RequiresClosed) == 0 {
-		return nil
+// busyWith names the programs of the rule that are running now, and says how
+// the asking went: a list that could not be read is not an empty one.
+func (x *Executor) busyWith(rule *model.Rule) ([]string, error) {
+	if rule == nil || len(rule.RequiresClosed) == 0 {
+		return nil, nil
 	}
-	running, err := x.procs.Running(rule.RequiresClosed)
-	if err != nil {
-		return nil
-	}
-	return running
+	return x.procs.Running(rule.RequiresClosed)
 }
 
 // elevated says whether the process runs with administrator rights.
@@ -245,8 +266,9 @@ func (x *Executor) elevated() bool {
 }
 
 // runCommand runs the command of one rule: no shell in between, no more
-// than ten minutes, and what it says goes to the telling.
-func (x *Executor) runCommand(ctx context.Context, rp *model.RulePlan, put func(model.Event)) error {
+// than ten minutes, and what it says ends up in the telling — its output
+// under each word of a failure, and the run itself under its success.
+func (x *Executor) runCommand(id string, ctx context.Context, rp *model.RulePlan, put func(model.Event)) error {
 	run, stop := context.WithTimeout(ctx, commandTimeout)
 	defer stop()
 	command := exec.CommandContext(run, rp.Command.Command, rp.Command.Args...)
@@ -258,8 +280,9 @@ func (x *Executor) runCommand(ctx context.Context, rp *model.RulePlan, put func(
 		if message != "" {
 			err = fmt.Errorf("%w: %s", err, strings.TrimSpace(message))
 		}
-		put(model.ItemFailed{RuleID: rp.Rule.ID, Path: rp.Command.Command, Err: err})
+		put(model.ItemFailed{RuleID: id, Path: rp.Command.Command, Err: err})
 		return err
 	}
+	put(model.CommandRan{RuleID: id, Command: rp.Command.Command})
 	return nil
 }

@@ -6,15 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/webcartel/sweep/internal/guard"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/platform/fake"
 )
-
-var _ = time.Now
 
 // cleanExec builds an executor over a fake tree: the guard sits over the same
 // fake, so what the test adds or denies after the scan shows up to it.

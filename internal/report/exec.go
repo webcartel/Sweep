@@ -17,11 +17,14 @@ type execDocument struct {
 	Finished  string      `json:"finished_at"`
 	Summary   execSummary `json:"summary"`
 	Rules     []execRule  `json:"rules"`
-	OutOfTime []string    `json:"pending_reboot,omitempty"`
+	OutOfTime []string    `json:"pending_reboot"`
 }
 
 type execSummary struct {
 	Rules        int   `json:"rules"`
+	Items        int   `json:"items"`
+	Files        int64 `json:"files"`
+	BytesFound   int64 `json:"bytes_found"`
 	Removed      int   `json:"removed"`
 	Skipped      int   `json:"skipped"`
 	Failed       int   `json:"failed"`
@@ -73,6 +76,9 @@ func ExecJSON(w io.Writer, r *model.Result) error {
 		document.Rules = append(document.Rules, entry)
 	}
 	document.Summary.Rules = len(document.Rules)
+	document.Summary.Items = r.Items
+	document.Summary.Files = r.Files
+	document.Summary.BytesFound = r.BytesFound
 	document.Summary.Removed = r.Removed
 	document.Summary.Skipped = r.Skipped
 	document.Summary.Failed = r.Failed

@@ -20,4 +20,8 @@ const (
 	ReasonOSTooOld SkipReason = "os_too_old"
 	// ReasonNotFound marks a path that is not there.
 	ReasonNotFound SkipReason = "not_found"
+	// ReasonSystemUnknown marks a rule that could not be asked what stands
+	// in its way: a snapshot of the machine did not come through, and the
+	// safe side of an unreadable machine is not to run.
+	ReasonSystemUnknown SkipReason = "system_unknown"
 )

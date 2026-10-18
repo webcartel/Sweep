@@ -2,6 +2,7 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -10,6 +11,12 @@ import (
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform/fake"
 )
+
+// errorProcs is a process list that cannot be read: the machine did not
+// give its answer.
+type errorProcs struct{ err error }
+
+func (e errorProcs) Running([]string) ([]string, error) { return nil, e.err }
 
 // osErrPermission names the refusal Windows books under access denied.
 func osErrPermission() error { return os.ErrPermission }
@@ -165,6 +172,99 @@ func TestExecuteLeavesAnUnselectedRuleOutOfEverything(t *testing.T) {
 	}
 	if done.Result.Removed != 1 {
 		t.Errorf("Removed = %d, want one", done.Result.Removed)
+	}
+}
+
+func TestExecuteSkipsARuleWhoseProgramsCannotBeAsked(t *testing.T) {
+	x, fsys := execOver(t, func(fsys *fake.FS) {
+		addFile(t, fsys, `C:\Users\probe\AppData\Local\a.cas`, 100)
+	})
+	held := errorProcs{err: errors.New("the snapshot did not come through")}
+	x.procs = held
+	plan := &model.Plan{Rules: []model.RulePlan{
+		{Rule: &model.Rule{ID: "one", Risk: model.RiskSafe, RequiresClosed: []string{"studio"}},
+			Items: []model.Item{
+				{Path: `C:\Users\probe\AppData\Local\a.cas`, Size: 100, Mode: model.ModeContents},
+			}},
+	}}
+
+	stream := x.Execute(t.Context(), plan, model.Selection{}, model.ExecOptions{Workers: 1})
+	seen := drainTake(t, stream)
+
+	if len(fsys.Removed()) != 0 {
+		t.Errorf("Removed() = %v, want nothing", fsys.Removed())
+	}
+	var warned model.Event
+	done := seen[len(seen)-1].(model.ExecDone)
+	for _, event := range seen {
+		if _, ok := event.(model.Warning); ok {
+			warned = event
+		}
+	}
+	if warned == nil {
+		t.Error("the unreadable snapshot said nothing")
+	}
+	if got := done.Result.PerRule[0].Skipped[0].Reason; got != model.ReasonSystemUnknown {
+		t.Errorf("reason = %s, want system_unknown", got)
+	}
+	if status := done.Result.PerRule[0].Status; status != model.StatusSkipped {
+		t.Errorf("status = %s, want skipped", status)
+	}
+}
+
+func TestExecuteLeavesACommandToItsSkips(t *testing.T) {
+	x, _ := cleanExec(t)
+	procs := fake.NewProcs()
+	procs.Set("studio")
+	x.procs = procs
+	plan := &model.Plan{Rules: []model.RulePlan{
+		{Rule: &model.Rule{ID: "one", Risk: model.RiskSafe, RequiresClosed: []string{"studio"}},
+			Command: &model.CommandPlan{Command: "cmd", Args: []string{"/c", "exit", "0"}}},
+	}}
+
+	stream := x.Execute(t.Context(), plan, model.Selection{}, model.ExecOptions{Workers: 1})
+	seen := drainTake(t, stream)
+
+	for _, event := range seen {
+		switch one := event.(type) {
+		case model.CommandRan:
+			t.Errorf("the command ran while its program was up: %+v", one)
+		case model.ExecDone:
+			if status := one.Result.PerRule[0].Status; status != model.StatusSkipped {
+				t.Errorf("status = %s, want skipped", status)
+			}
+		}
+	}
+}
+
+func TestExecuteTellsHowEachRuleFaredWhileTheOthersRunOn(t *testing.T) {
+	x, _ := execOver(t, func(fsys *fake.FS) {
+		addFile(t, fsys, `C:\Users\probe\AppData\Local\a.cas`, 100)
+		addFile(t, fsys, `C:\Users\probe\AppData\Local\b.cas`, 250)
+	})
+	plan := &model.Plan{Rules: []model.RulePlan{
+		{Rule: rule("one"), Items: []model.Item{
+			{Path: `C:\Users\probe\AppData\Local\a.cas`, Size: 100, Mode: model.ModeContents},
+		}},
+		{Rule: rule("two"), Items: []model.Item{
+			{Path: `C:\Users\probe\AppData\Local\b.cas`, Size: 250, Mode: model.ModeContents},
+		}},
+	}}
+
+	stream := x.Execute(t.Context(), plan, model.Selection{}, model.ExecOptions{Workers: 2})
+	seen := drainTake(t, stream)
+
+	finished := 0
+	for _, event := range seen {
+		if per, ok := event.(model.RuleFinished); ok {
+			finished++
+			if per.Result.Rule == nil {
+				t.Error("a RuleFinished with no rule in it")
+			}
+		}
+	}
+	if finished != 2 {
+		t.Errorf("RuleFinished = %d events, want one per rule", finished)
 	}
 }
 

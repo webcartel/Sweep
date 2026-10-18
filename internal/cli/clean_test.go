@@ -72,6 +72,20 @@ func logDir(t *testing.T, d deps) string {
 	return filepath.Join(d.LogDir, "sweep", "logs")
 }
 
+// lastDocument answers the last JSON object the output holds: `sweep clean
+// --json` prints the plan first and the answer of the run second.
+func lastDocument(out string) string {
+	at := strings.Index(out, `"started_at"`)
+	if at < 0 {
+		return out
+	}
+	start := strings.LastIndex(out[:at], "\n{")
+	if start < 0 {
+		return out
+	}
+	return out[start+1:]
+}
+
 func TestCleanRunsAndTellsTheTally(t *testing.T) {
 	d := cleanDeps(t)
 
@@ -135,7 +149,7 @@ func TestCleanJSONIsTheAnswerOfTheRun(t *testing.T) {
 			Status string `json:"status"`
 		} `json:"rules"`
 	}
-	if err := json.Unmarshal([]byte(out), &document); err != nil {
+	if err := json.Unmarshal([]byte(lastDocument(out)), &document); err != nil {
 		t.Fatalf("the answer is not JSON: %v", err)
 	}
 	if document.Schema != 1 || document.DryRun || document.Finished == "" {

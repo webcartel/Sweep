@@ -10,6 +10,8 @@ func (RuleProgress) isEvent() {}
 func (RuleScanned) isEvent()  {}
 func (ScanDone) isEvent()     {}
 func (RuleFinished) isEvent() {}
+func (CommandRan) isEvent()   {}
+func (ItemPending) isEvent()  {}
 func (ItemSkipped) isEvent()  {}
 func (ItemFailed) isEvent()   {}
 func (Warning) isEvent()      {}
@@ -36,6 +38,20 @@ type ScanDone struct{ Plan *Plan }
 type ItemSkipped struct {
 	RuleID string
 	Skip   Skip
+}
+
+// ItemPending reports one path whose holding process could not be got rid
+// of, so that the removal waits for the next start of Windows.
+type ItemPending struct {
+	RuleID string
+	Path   string
+}
+
+// CommandRan says a command rule ran to its own success: the paths of the
+// rule were none of the executor's, so the run of it is the only news.
+type CommandRan struct {
+	RuleID  string
+	Command string
 }
 
 // ItemFailed reports one path whose removal went wrong.

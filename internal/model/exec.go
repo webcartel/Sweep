@@ -42,9 +42,14 @@ type RuleResult struct {
 // Result is what one execution leaves behind. In a dry run the counters mean
 // the amount that would be freed, and the tree stays untouched.
 type Result struct {
-	StartedAt     time.Time
-	FinishedAt    time.Time
-	DryRun        bool
+	StartedAt  time.Time
+	FinishedAt time.Time
+	DryRun     bool
+	// Items, Files and BytesFound come from the plan the run came out of:
+	// what was on offer, as its scan counted it.
+	Items         int
+	Files         int64
+	BytesFound    int64
 	FreedBytes    int64
 	TrashBytes    int64
 	Removed       int
@@ -73,12 +78,3 @@ type RuleFinished struct{ Result RuleResult }
 
 func (ItemRemoved) isEvent() {}
 func (ExecDone) isEvent()    {}
-
-// ItemPending reports one path whose holding process could not be got rid
-// of, so that the removal waits for the next start of Windows.
-type ItemPending struct {
-	RuleID string
-	Path   string
-}
-
-func (ItemPending) isEvent() {}
