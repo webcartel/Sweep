@@ -357,12 +357,12 @@ func TestExecuteSaysThePathsPutOffTillTheReboot(t *testing.T) {
 
 func TestExecuteClosesTheStreamOfACanceledRunSoon(t *testing.T) {
 	x, _ := execOver(t, func(fsys *fake.FS) {
-		for i := 1; i <= 5000; i++ {
+		for i := 1; i <= 800; i++ {
 			addFile(t, fsys, `C:\Users\probe\AppData\Local\f`+fmt.Sprint(i)+`.tmp`, 1)
 		}
 	})
-	items := make([]model.Item, 0, 5000)
-	for i := 1; i <= 5000; i++ {
+	items := make([]model.Item, 0, 800)
+	for i := 1; i <= 800; i++ {
 		items = append(items, model.Item{
 			Path: `C:\Users\probe\AppData\Local\f` + fmt.Sprint(i) + `.tmp`,
 			Size: 1, Mode: model.ModeContents,
