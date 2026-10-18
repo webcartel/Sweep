@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/model"
+	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/scan"
 )
 
@@ -20,6 +21,11 @@ const (
 // Deps collects what the TUI reaches the machine through; the frontend that
 // builds it is the root command of the CLI.
 type Deps struct {
+	// Env is the environment of the machine, for the say of --ascii and
+	// the terminal that screens draw in.
+	Env platform.Env
+	// AsciiFlag and NoASCIIFlag are the say of the command line.
+	AsciiFlag, NoASCIIFlag bool
 	// Profiles names every profile of the rules, in the order the TUI
 	// lists them.
 	Profiles []profileRow
@@ -33,8 +39,10 @@ type Deps struct {
 // state of it.
 type Model struct {
 	screen int
+	skin   skin
 	profileState
 	scanState
+	listState
 }
 
 // scanState is what the screen of the scan and its neighbours read and
@@ -58,6 +66,12 @@ func New(d Deps) *Model {
 	m.profiles = d.Profiles
 	m.scanner = d.Scanner
 	m.rulesFor = d.RulesFor
+	env := d.Env
+	if env == nil {
+		env = envMap{}
+	}
+	m.skin = newSkin(env, d.AsciiFlag, d.NoASCIIFlag)
+	m.sort = "size"
 	return m
 }
 
@@ -73,6 +87,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateProfile(msg)
 	case screenScanning:
 		cmd, _ = m.updateScanning(msg)
+	case screenList:
+		cmd, _ = m.updateList(msg)
 	}
 	return m, cmd
 }
@@ -82,6 +98,8 @@ func (m *Model) View() string {
 	switch m.screen {
 	case screenProfile:
 		return m.viewProfile()
+	case screenList:
+		return m.viewList(80)
 	}
 	return ""
 }
