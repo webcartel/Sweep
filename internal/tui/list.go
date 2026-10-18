@@ -165,6 +165,8 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 	case "d":
 		m.screen = screenConfirm
 		return nil, true
+	case "enter":
+		return m.openDetail()
 	case "r":
 		m.upkeepAfterScan()
 		m.screen = screenScanning
