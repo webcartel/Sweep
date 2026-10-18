@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
+	"sync"
+	"time"
 
 	"github.com/webcartel/sweep/internal/guard"
 	"github.com/webcartel/sweep/internal/model"
@@ -19,11 +22,134 @@ type Scanner struct {
 	sys   platform.System
 }
 
+// Deps collects what a scanner reaches the machine through. Every part of it
+// is what a frontend builds once and hands down.
+type Deps struct {
+	FS     platform.FS
+	Env    platform.Env
+	System platform.System
+	Guard  *guard.Guard
+}
+
+// New puts the parts together.
+func New(d Deps) *Scanner {
+	return &Scanner{fs: d.FS, env: d.Env, guard: d.Guard, sys: d.System}
+}
+
+// Scan turns the rules into one plan, telling about its work as it goes. The
+// stream is buffered, closed by the scanner itself, and the plan it hands over
+// in ScanDone stays the same from then on. A scan of a context that is gone
+// closes the stream without a plan.
+func (s *Scanner) Scan(ctx context.Context, rules []*model.Rule, opt model.ScanOptions) <-chan model.Event {
+	if opt.Throttle <= 0 {
+		opt.Throttle = 100 * time.Millisecond
+	}
+	if opt.Workers <= 0 {
+		opt.Workers = runtime.NumCPU()
+	}
+	now := opt.Now
+	if now == nil {
+		now = time.Now
+	}
+	if workers := opt.Workers; workers > len(rules) {
+		opt.Workers = len(rules)
+	}
+
+	out := make(chan model.Event, 256)
+	go s.scan(ctx, rules, opt, now, out)
+	return out
+}
+
+// scan runs the worker pool behind Scan and owns the stream: every send and
+// the final close happen here and nowhere else.
+func (s *Scanner) scan(ctx context.Context, rules []*model.Rule, opt model.ScanOptions, now func() time.Time, out chan<- model.Event) {
+	defer close(out)
+
+	var (
+		wg    sync.WaitGroup
+		slots = make(chan struct{}, opt.Workers)
+		plans = make([]model.RulePlan, len(rules))
+	)
+	done := ctx.Done()
+
+	for i, rule := range rules {
+		select {
+		case <-done:
+			wg.Wait()
+			return
+		case slots <- struct{}{}:
+		}
+		wg.Add(1)
+		go func(place int, rule *model.Rule) {
+			defer wg.Done()
+			defer func() { <-slots }()
+
+			// The rule is spoken about before the disk is touched: a frontend
+			// knows it is being read from the first event on.
+			select {
+			case out <- model.RuleStarted{RuleID: rule.ID}:
+			case <-done:
+				return
+			}
+
+			// Progress goes out no more often than the throttle allows, and a
+			// stream nobody reads does not hold the rule back.
+			last := now()
+			report := func(files int, bytes int64) {
+				if point := now(); point.Sub(last) < opt.Throttle {
+					return
+				}
+				last = now()
+				select {
+				case out <- model.RuleProgress{RuleID: rule.ID, Files: files, Bytes: bytes}:
+				case <-done:
+				}
+			}
+
+			plan, warnings, err := s.planFor(ctx, rule, report)
+			plans[place] = plan
+			if err != nil && ctx.Err() != nil {
+				return
+			}
+			for _, message := range warnings {
+				select {
+				case out <- model.Warning{RuleID: rule.ID, Message: message}:
+				case <-done:
+					return
+				}
+			}
+			if err != nil {
+				select {
+				case out <- model.Warning{RuleID: rule.ID,
+					Message: fmt.Sprintf("the rule could not be walked: %v", err)}:
+				case <-done:
+				}
+				return
+			}
+			select {
+			case out <- model.RuleScanned{Plan: plan}:
+			case <-done:
+			}
+		}(i, rule)
+	}
+	wg.Wait()
+
+	if ctx.Err() != nil {
+		return
+	}
+	plan := &model.Plan{CreatedAt: now()}
+	plan.Rules = append(plan.Rules, plans...)
+	select {
+	case out <- model.ScanDone{Plan: plan}:
+	case <-done:
+	}
+}
+
 // planFor builds the plan of one rule: what its targets hold, why a path was
 // left out, and what is worth saying before the plan is shown. It is the one
 // place the guard is asked about a path: nothing enters the plan it has not
 // been asked about.
-func (s *Scanner) planFor(ctx context.Context, rule *model.Rule) (model.RulePlan, []string, error) {
+func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(files int, bytes int64)) (model.RulePlan, []string, error) {
 	if s.sys != nil {
 		if build, err := s.sys.OSBuild(); err == nil && rule.OSMinBuild > build {
 			var skipped []model.Skip
@@ -58,7 +184,13 @@ func (s *Scanner) planFor(ctx context.Context, rule *model.Rule) (model.RulePlan
 			return model.RulePlan{}, warnings, err
 		}
 		if err := s.target(ctx, target,
-			func(item model.Item) { s.takeItem(&plan, target, item) },
+			func(item model.Item) {
+				files := plan.Files
+				s.takeItem(&plan, target, item)
+				if report != nil && plan.Files != files {
+					report(plan.Files, plan.Bytes)
+				}
+			},
 			func(reason model.Skip) { plan.Skipped = append(plan.Skipped, reason) },
 			&warnings); err != nil {
 			return model.RulePlan{Rule: rule}, warnings, err

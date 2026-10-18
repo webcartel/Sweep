@@ -5,6 +5,14 @@ package model
 // closes.
 type Event interface{ isEvent() }
 
+func (RuleStarted) isEvent()  {}
+func (RuleProgress) isEvent() {}
+func (RuleScanned) isEvent()  {}
+func (ScanDone) isEvent()     {}
+func (ItemSkipped) isEvent()  {}
+func (ItemFailed) isEvent()   {}
+func (Warning) isEvent()      {}
+
 // RuleStarted comes before the scanner touches a rule.
 type RuleStarted struct{ RuleID string }
 

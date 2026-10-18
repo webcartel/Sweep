@@ -55,7 +55,7 @@ func TestPlanForCommand(t *testing.T) {
 		Targets: []model.Target{{Kind: model.KindCommand, Cmd: "npm", Args: []string{"cache", "clean"}}},
 	}
 
-	plan, warnings, err := s.planFor(context.Background(), rule)
+	plan, warnings, err := s.planFor(context.Background(), rule, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestPlanSkipsProtected(t *testing.T) {
 		{Kind: model.KindPath, Path: `%LOCALAPPDATA%\app\cache`, Mode: model.ModeContents},
 	}}
 
-	plan, warnings, err := s.planFor(context.Background(), rule)
+	plan, warnings, err := s.planFor(context.Background(), rule, nil)
 	if err != nil {
 		t.Fatalf("planFor: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestPlanSkipsOSMinBuild(t *testing.T) {
 		s, _ := probeScanner(t, fake.NewSystem())
 		s.sys.(*fake.System).SetBuild(19045)
 
-		plan, warnings, err := s.planFor(context.Background(), rule)
+		plan, warnings, err := s.planFor(context.Background(), rule, nil)
 		if err != nil {
 			t.Fatalf("planFor: %v", err)
 		}
@@ -137,7 +137,7 @@ func TestPlanSkipsOSMinBuild(t *testing.T) {
 
 	t.Run("the rule of this build is scanned", func(t *testing.T) {
 		s, _ := probeScanner(t, newer)
-		plan, warnings, err := s.planFor(context.Background(), rule)
+		plan, warnings, err := s.planFor(context.Background(), rule, nil)
 		if err != nil {
 			t.Fatalf("planFor: %v", err)
 		}
