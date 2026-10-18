@@ -1,0 +1,79 @@
+package tui
+
+import (
+	"runtime"
+
+	"github.com/webcartel/sweep/internal/platform"
+)
+
+// pickASCII answers whether the screens draw with the plain characters of
+// ASCII. The environment says first (SWEEP_ASCII=1 over everything), then
+// the flags --ascii and --no-ascii, and what is left is the terminal
+// itself: Windows Terminal names itself in WT_SESSION and draws every
+// character, while a conhost on a Windows without it falls short of the
+// frames, so ASCII stands in. A terminal on another system never asks.
+func pickASCII(env platform.Env, asciiFlag, noASCIIFlag, windows bool) bool {
+	if value, ok := env.Get("SWEEP_ASCII"); ok && value == "1" {
+		return true
+	}
+	switch {
+	case asciiFlag:
+		return true
+	case noASCIIFlag:
+		return false
+	}
+	_, advanced := env.Get("WT_SESSION")
+	return windows && !advanced
+}
+
+// skin is the set of characters one skin of the screens draws with. The
+// plain skin keeps to ASCII the way the spec's --ascii asks; the rich one
+// draws full blocks.
+type skin struct {
+	checkOn  string
+	checkOff string
+	barCell  string
+	barBare  string
+}
+
+// newSkin puts a skin together. The flags and the environment that named
+// ASCII answer once; the skins differ in nothing else.
+func newSkin(env platform.Env, asciiFlag, noASCIIFlag bool) skin {
+	if pickASCII(env, asciiFlag, noASCIIFlag, runtime.GOOS == "windows") {
+		return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "#", barBare: "-"}
+	}
+	return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "█", barBare: "─"}
+}
+
+// checkbox draws the mark of a chosen rule or item.
+func (s skin) checkbox(on bool) string {
+	if on {
+		return s.checkOn
+	}
+	return s.checkOff
+}
+
+// bar fills width cells by portion; what the work did not reach stays of
+// the bare filler.
+func (s skin) bar(width int, portion float64) string {
+	if width <= 0 {
+		return ""
+	}
+	if portion < 0 {
+		portion = 0
+	}
+	if portion > 1 {
+		portion = 1
+	}
+	filled := int(portion*float64(width) + 0.5)
+	var out []rune
+	for range width {
+		if filled > 0 {
+			out = append(out, []rune(s.barCell)...)
+			filled--
+			continue
+		}
+		out = append(out, []rune(s.barBare)...)
+	}
+	return string(out)
+}
