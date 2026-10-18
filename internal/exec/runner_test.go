@@ -88,7 +88,7 @@ func TestRunItemSendsToTrashWhenTheRuleAndTheOptionsAsk(t *testing.T) {
 	rule := &model.Rule{ID: "test", Trash: true, Risk: model.RiskModerate}
 	item := model.Item{Path: path, Size: 512, Mode: model.ModeContents}
 
-	got, saw := runItem(x, rule, item, model.ExecOptions{})
+	_, saw := runItem(x, rule, item, model.ExecOptions{})
 	if len(fsys.Trashed()) != 1 || len(fsys.Removed()) != 0 {
 		t.Errorf("trashed %v removed %v, want only trashed", fsys.Trashed(), fsys.Removed())
 	}
@@ -100,7 +100,10 @@ func TestRunItemSendsToTrashWhenTheRuleAndTheOptionsAsk(t *testing.T) {
 	// The path is back, as a fresh copy for the next step.
 	fsys.Add(platform.Info{Path: path, Size: 512})
 	needDelete := false
-	got, _ = runItem(x, rule, item, model.ExecOptions{Trash: &needDelete})
+	got, _ := runItem(x, rule, item, model.ExecOptions{Trash: &needDelete})
+	if got.skip != nil || got.freed != 512 {
+		t.Errorf("outcome = %+v, want the file deleted", got)
+	}
 	if len(fsys.Removed()) != 1 || len(fsys.Trashed()) != 1 {
 		t.Errorf("removed %v trashed %v, want one of each", fsys.Removed(), fsys.Trashed())
 	}
@@ -110,7 +113,6 @@ func TestRunItemSendsToTrashWhenTheRuleAndTheOptionsAsk(t *testing.T) {
 	if len(fsys.Trashed()) != 2 {
 		t.Errorf("Trashed() = %v, want two", fsys.Trashed())
 	}
-	_ = got
 }
 
 func TestRunItemDryRunCountsButTouchesNothing(t *testing.T) {
