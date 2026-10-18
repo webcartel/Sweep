@@ -7,9 +7,33 @@ and `sweep clean` work in scripts and in Task Scheduler.
 
 ## Status
 
-**Stage 3 of 8 — the scanner.** Everything the previous stages built now
-answers a real question: `sweep scan` reads the disk and prints what would be
-cleaned, without changing anything. The scanner walks each target of a rule —
+**Stage 4 of 8 — the executor and `sweep clean`.** On top of the scanner,
+`sweep clean` runs the plan it is agreed to: it scans, prints the plan, and
+after `--yes` (or an answer at the prompt of a real terminal) takes every
+selected path away — a file alone, the contents of a directory or its files,
+one last guard check before every deletion, and dangerous rules excluded
+unless `--include-dangerous` names them, in which case their data goes to the
+recycle bin. `--dry-run` tallies what would have gone without touching the
+disk; `--no-trash` prefers real deletion to the bin; `--on-reboot` postpones
+the paths of busy files to the next start of Windows; a run whose log cannot
+be opened does not start at all.
+
+```sh
+.\sweep.exe clean --dry-run
+.\sweep.exe clean --yes --json
+.\sweep.exe clean --yes --include-dangerous --no-trash=false
+```
+
+`clean` answers with the same versioned JSON as `scan` (or writes it to
+`--report <file>`): what went, what stayed, why, and what waits for the next
+start of Windows. The exit codes: 0 a full run, 1 an internal error or an
+unopenable log, 2 a misuse of flags, 3 a confirmation that no terminal can
+give, 4 a run that finished with paths left behind. Every operation is
+appended to one JSONL per day under `%LOCALAPPDATA%\sweep\logs\`.
+
+**Stages 1–3** built the grounding: `sweep scan` reads the disk and prints
+what would be cleaned, without changing anything. The scanner walks each
+target of a rule —
 the directory itself, its contents or its files — respects the includes, the
 age filters and the `min_age_days` of the rules, aggregates a directory into
 one entry with the counts of what is below and never enters a reparse point.
@@ -34,8 +58,9 @@ and the tests run against an in-memory one, so the same cases run on either
 machine.
 `internal/guard` decides what may be touched: a path is normalized — variables,
 `..`, either separator, `\\?\`, trailing dots and spaces, 8.3 names, links — and
-compared against a protected list that no rule can widen. There is no cleaner
-and no TUI yet.
+compared against a protected list that no rule can widen. The executor holds
+the same promise: it asks the guard again right before it deletes, because the
+machine had time to change between the scan and the run. There is no TUI yet.
 
 ```sh
 .\sweep.exe list
