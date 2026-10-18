@@ -29,6 +29,12 @@ func (s *Scanner) collect(ctx context.Context, t model.Target, add func(model.It
 			return err
 		}
 		sort.Strings(names)
+		if len(names) == 0 {
+			// A mask that names no path is a path that is not there.
+			skip(model.Skip{Path: t.Path, Reason: model.ReasonNotFound,
+				Detail: "no path the mask names is on the disk"})
+			return nil
+		}
 		candidates = names
 	} else {
 		if _, err := s.fs.Lstat(expanded); err != nil {
@@ -110,6 +116,11 @@ func (s *Scanner) candidate(ctx context.Context, path string, mode model.Mode,
 func (s *Scanner) walk(ctx context.Context, root string, info platform.Info,
 	keep filters, add func(model.Item), skip func(model.Skip)) error {
 
+	if info.Reparse {
+		// A junction or a link is not walked into: what is below belongs to
+		// the place it points at, not here.
+		return nil
+	}
 	if info.IsDir {
 		entries, err := s.children(ctx, info.Path, skip)
 		if err != nil {

@@ -16,6 +16,10 @@ import (
 // them: without case, and with either separator.
 type FS struct {
 	entries map[string]platform.Info
+	// kids holds the entries of a directory by the folded path of that
+	// directory, so that ReadDir looks up its few instead of walking all the
+	// entries of the file system for them.
+	kids    map[string][]platform.Info
 	long    map[string]string
 	drives  map[string]platform.DriveKind
 	removed []string
@@ -27,6 +31,7 @@ type FS struct {
 func NewFS() *FS {
 	return &FS{
 		entries: map[string]platform.Info{},
+		kids:    map[string][]platform.Info{},
 		long:    map[string]string{},
 		drives:  map[string]platform.DriveKind{},
 	}
@@ -39,6 +44,10 @@ func (f *FS) Add(info platform.Info) {
 		info.Name = lastElement(info.Path)
 	}
 	f.entries[fold(info.Path)] = info
+	if parent := parentOf(info.Path); parent != "" {
+		key := fold(parent)
+		f.kids[key] = append(f.kids[key], info)
+	}
 }
 
 // MapLong teaches LongPath that short is spelled long.
@@ -77,12 +86,8 @@ func (f *FS) ReadDir(path string) ([]platform.Info, error) {
 	}
 
 	dir := fold(path)
-	var entries []platform.Info
-	for key, entry := range f.entries {
-		if key != dir && fold(parentOf(entry.Path)) == dir {
-			entries = append(entries, entry)
-		}
-	}
+	entries := make([]platform.Info, len(f.kids[dir]))
+	copy(entries, f.kids[dir])
 	sort.Slice(entries, func(i, j int) bool {
 		a, b := strings.ToLower(entries[i].Name), strings.ToLower(entries[j].Name)
 		if a == b {
@@ -153,14 +158,25 @@ func (f *FS) delete(path string, log *[]string) error {
 	if _, ok := f.entries[key]; !ok {
 		return &fs.PathError{Op: "remove", Path: path, Err: fs.ErrNotExist}
 	}
-	for other := range f.entries {
-		if other != key && fold(parentOf(f.entries[other].Path)) == key {
-			return fmt.Errorf("remove %s: the directory is not empty", path)
-		}
+	if len(f.kids[key]) != 0 {
+		return fmt.Errorf("remove %s: the directory is not empty", path)
 	}
+	f.unhook(key)
 	delete(f.entries, key)
 	*log = append(*log, path)
 	return nil
+}
+
+// unhook takes one entry out of the list of children its directory holds.
+func (f *FS) unhook(key string) {
+	parent := fold(parentOf(f.entries[key].Path))
+	kept := f.kids[parent][:0]
+	for _, entry := range f.kids[parent] {
+		if fold(entry.Path) != key {
+			kept = append(kept, entry)
+		}
+	}
+	f.kids[parent] = kept
 }
 
 // drop takes an entry and everything below it out of the file system.
@@ -169,6 +185,19 @@ func (f *FS) drop(key string) {
 		if other == key || strings.HasPrefix(other, key+`\`) {
 			delete(f.entries, other)
 		}
+	}
+	for dir, list := range f.kids {
+		if dir == key || strings.HasPrefix(dir, key+`\`) {
+			delete(f.kids, dir)
+			continue
+		}
+		kept := list[:0]
+		for _, entry := range list {
+			if _, held := f.entries[fold(entry.Path)]; held {
+				kept = append(kept, entry)
+			}
+		}
+		f.kids[dir] = kept
 	}
 }
 
