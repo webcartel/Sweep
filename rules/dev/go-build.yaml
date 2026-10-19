@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: dev.go-build-cache
+    name: Go build cache
+    description: The object code of your past builds. The next build of the same tree fetches none of it from the cache, so it is slower by minutes.
+    category: dev
+    risk: safe
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\go-build'
+        mode: contents

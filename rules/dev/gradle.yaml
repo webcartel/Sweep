@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: dev.gradle-caches
+    name: Gradle caches
+    description: Gradle's downloaded artifacts and transform cache. The next build climbs the repositories again by default.
+    category: dev
+    risk: moderate
+    tags: [dev]
+    targets:
+      - path: '%USERPROFILE%\.gradle\caches'
+        mode: contents

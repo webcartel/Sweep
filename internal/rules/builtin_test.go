@@ -17,6 +17,7 @@ var builtinEnv = fakeEnv{
 	"LOCALAPPDATA": `C:\Users\probe\AppData\Local`,
 	"SystemRoot":   `C:\Windows`,
 	"ProgramData":  `C:\ProgramData`,
+	"USERPROFILE":  `C:\Users\probe`,
 }
 
 // builtinFiles reads the built-in rules and fails the test if they do not read.
@@ -187,6 +188,112 @@ func checkTargetPaths(t *testing.T, id string, targets []model.Target, modes map
 		if !slices.Contains(seen, path) {
 			t.Errorf("%s: no target for %q", id, path)
 		}
+	}
+}
+
+// TestSystemCommandAndDevRules pins the command rules of the system group and
+// the dev caches: the process and arguments the two commands name, the dev tag
+// every cache carries, and the risks the spec gives.
+func TestSystemCommandAndDevRules(t *testing.T) {
+	byID := map[string]*model.Rule{}
+	for _, file := range builtinFiles(t) {
+		for _, parsed := range file.Rules {
+			byID[parsed.Rule.ID] = parsed.Rule
+		}
+	}
+	type want struct {
+		risk  model.Risk
+		admin bool
+		cmd   string
+		args  []string
+	}
+	spec := map[string]want{
+		"system.recycle-bin": {
+			risk: model.RiskModerate,
+			cmd:  "powershell.exe",
+			args: []string{"-NoProfile", "-Command", "Clear-RecycleBin -Force"},
+		},
+		"system.component-cleanup": {
+			risk:  model.RiskModerate,
+			admin: true,
+			cmd:   "dism.exe",
+			args:  []string{"/Online", "/Cleanup-Image", "/StartComponentCleanup"},
+		},
+	}
+	for id, spec := range spec {
+		rule, ok := byID[id]
+		if !ok {
+			t.Errorf("%s is not among the built-in rules", id)
+			continue
+		}
+		if rule.Risk != spec.risk {
+			t.Errorf("%s: risk = %q, want %q", id, rule.Risk, spec.risk)
+		}
+		if rule.DefaultEnabled {
+			t.Errorf("%s: DefaultEnabled = true, want it out of the default profile", id)
+		}
+		if rule.RequiresAdmin != spec.admin {
+			t.Errorf("%s: requires_admin = %v, want %v", id, rule.RequiresAdmin, spec.admin)
+		}
+		if len(rule.Targets) != 1 {
+			t.Fatalf("%s: got %d targets, want the one command", id, len(rule.Targets))
+		}
+		target := rule.Targets[0]
+		if target.Kind != model.KindCommand {
+			t.Fatalf("%s: kind = %q, want command", id, target.Kind)
+		}
+		if target.Cmd != spec.cmd {
+			t.Errorf("%s: cmd = %q, want %q", id, target.Cmd, spec.cmd)
+		}
+		if !slices.Equal(target.Args, spec.args) {
+			t.Errorf("%s: args = %q, want %q", id, target.Args, spec.args)
+		}
+	}
+	dev := map[string]struct {
+		risk model.Risk
+	}{
+		"dev.npm-cache":      {model.RiskSafe},
+		"dev.pnpm-store":     {model.RiskModerate},
+		"dev.yarn-cache":     {model.RiskSafe},
+		"dev.pip-cache":      {model.RiskSafe},
+		"dev.go-build-cache": {model.RiskSafe},
+		"dev.nuget-cache":    {model.RiskSafe},
+		"dev.gradle-caches":  {model.RiskModerate},
+		"dev.docker-prune":   {model.RiskDangerous},
+	}
+	for _, id := range []string{"dev.pnpm-store", "dev.yarn-cache", "dev.pip-cache",
+		"dev.go-build-cache", "dev.nuget-cache", "dev.gradle-caches", "dev.docker-prune"} {
+		rule, ok := byID[id]
+		if !ok {
+			t.Errorf("%s is not among the built-in rules", id)
+			continue
+		}
+		if rule.Risk != dev[id].risk {
+			t.Errorf("%s: risk = %q, want %q", id, rule.Risk, dev[id].risk)
+		}
+		if !slices.Equal(rule.Tags, []string{"dev"}) {
+			t.Errorf("%s: tags = %v, want [dev]", id, rule.Tags)
+		}
+		if rule.DefaultEnabled {
+			t.Errorf("%s: DefaultEnabled = true, want it out of the default profile", id)
+		}
+	}
+	docker, ok := byID["dev.docker-prune"]
+	if !ok {
+		t.Fatal("dev.docker-prune is not among the built-in rules")
+	}
+	if len(docker.Targets) != 1 || docker.Targets[0].Kind != model.KindCommand || docker.Targets[0].Cmd != "docker" ||
+		!slices.Equal(docker.Targets[0].Args, []string{"system", "prune", "-f"}) {
+		t.Errorf("dev.docker-prune: targets = %+v, want one command docker system prune -f", docker.Targets)
+	}
+
+	// nuget names two targets, gradle keeps the whole caches folder.
+	nuget, ok := byID["dev.nuget-cache"]
+	if !ok {
+		t.Fatal("dev.nuget-cache is not among the built-in rules")
+	}
+	if len(nuget.Targets) != 2 {
+		t.Errorf("dev.nuget-cache holds %d targets, want the store and the scratch", len(nuget.Targets))
 	}
 }
 

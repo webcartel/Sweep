@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: dev.yarn-cache
+    name: Yarn cache
+    description: Yarn's download cache. The next install fetches the packages again.
+    category: dev
+    risk: safe
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\Yarn\Cache'
+        mode: contents

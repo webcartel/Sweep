@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: system.recycle-bin
+    name: Recycle bin
+    description: Empties the recycle bin of the machine. What is not there cannot be brought back, so ask for it by name.
+    category: system
+    risk: moderate
+    targets:
+      - kind: command
+        cmd: powershell.exe
+        args: ['-NoProfile', '-Command', 'Clear-RecycleBin -Force']

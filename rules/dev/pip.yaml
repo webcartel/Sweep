@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: dev.pip-cache
+    name: pip cache
+    description: pip's wheel cache. The next install climbs to the index again.
+    category: dev
+    risk: safe
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\pip\Cache'
+        mode: contents

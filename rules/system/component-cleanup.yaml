@@ -1,0 +1,12 @@
+schema: 1
+rules:
+  - id: system.component-cleanup
+    name: Windows component cleanup
+    description: DISM removes superseded copies of servicing components. Takes minutes, frees gigabytes; the image cannot go back.
+    category: system
+    risk: moderate
+    requires_admin: true
+    targets:
+      - kind: command
+        cmd: dism.exe
+        args: ['/Online', '/Cleanup-Image', '/StartComponentCleanup']

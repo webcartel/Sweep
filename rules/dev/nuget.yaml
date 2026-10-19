@@ -1,0 +1,13 @@
+schema: 1
+rules:
+  - id: dev.nuget-cache
+    name: NuGet caches
+    description: NuGet's http cache and the scratch folder package installation leaves. The next restore climbs the feeds again.
+    category: dev
+    risk: safe
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\NuGet\v3-cache'
+        mode: contents
+      - path: '%TEMP%\NuGetScratch'
+        mode: contents

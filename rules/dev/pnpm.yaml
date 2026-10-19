@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: dev.pnpm-store
+    name: pnpm store
+    description: pnpm's content-addressed store. The next install fetches the packages again; the store grows without a floor.
+    category: dev
+    risk: moderate
+    tags: [dev]
+    targets:
+      - path: '%LOCALAPPDATA%\pnpm\store'
+        mode: contents
