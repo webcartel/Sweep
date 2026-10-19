@@ -15,6 +15,22 @@ import (
 // scan and one modal to the screen of the run.
 func runMachine(t *testing.T) (*fake.FS, *Model) {
 	t.Helper()
+	fsys, _, m := withLogMachine(t, "")
+	return fsys, m
+}
+
+// doneMachine drives a machine the same way, with a log directory the
+// answer of the run can be saved next to.
+func doneMachine(t *testing.T, logDir string) *Model {
+	_, _, m := withLogMachine(t, logDir)
+	return m
+}
+
+// withLogMachine builds the whole machine of a run - the fake of the disk,
+// the guard, the scanner and the executor that all know it - and drives one
+// scan and one modal to the screen of the run.
+func withLogMachine(t *testing.T, logDir string) (*fake.FS, *fake.Env, *Model) {
+	t.Helper()
 	fsys, env, scanner := machineParts(t)
 	guarded, err := guard.New(fsys, env, `C:\Users\probe`, nil)
 	if err != nil {
@@ -22,7 +38,7 @@ func runMachine(t *testing.T) (*fake.FS, *Model) {
 	}
 	executor := exec.New(exec.Deps{FS: fsys, Guard: guarded, System: fake.NewSystem()})
 	m := New(Deps{
-		Profiles: testProfiles, Scanner: scanner, Executor: executor,
+		Profiles: testProfiles, Scanner: scanner, Executor: executor, LogDir: logDir,
 		RulesFor: func(string) ([]*model.Rule, error) { return twoScanRules(`%LOCALAPPDATA%\big`), nil },
 	})
 	// A scan to the plan: the loop of bubble tea, one message at a time.
@@ -48,7 +64,7 @@ func runMachine(t *testing.T) (*fake.FS, *Model) {
 	if m.screen != screenRunning {
 		t.Fatalf("screen = %d, want screenRunning", m.screen)
 	}
-	return fsys, m
+	return fsys, env, m
 }
 
 // The run at work: the events add up, and the done screen answers at the

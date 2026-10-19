@@ -29,6 +29,9 @@ type Deps struct {
 	AsciiFlag, NoASCIIFlag bool
 	// Executor is the executor of the core the run works through.
 	Executor *exec.Executor
+	// LogDir is where the log of the run goes, and next to it the answer
+	// it can leave behind.
+	LogDir string
 	// Profiles names every profile of the rules, in the order the TUI
 	// lists them.
 	Profiles []profileRow
@@ -48,7 +51,8 @@ type Model struct {
 	listState
 	detailState
 	confirmState
-	run runState
+	logDir string
+	run    runState
 }
 
 // scanState is what the screen of the scan and its neighbours read and
@@ -74,6 +78,7 @@ func New(d Deps) *Model {
 	m.scanner = d.Scanner
 	m.executor = d.Executor
 	m.rulesFor = d.RulesFor
+	m.logDir = d.LogDir
 	env := d.Env
 	if env == nil {
 		env = envMap{}
@@ -103,6 +108,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateConfirm(msg)
 	case screenRunning:
 		cmd, _ = m.updateRunning(msg)
+	case screenDone:
+		cmd, _ = m.updateDone(msg)
 	}
 	return m, cmd
 }
@@ -120,6 +127,8 @@ func (m *Model) View() string {
 		return m.viewConfirm()
 	case screenRunning:
 		return m.viewRunning()
+	case screenDone:
+		return m.viewDone()
 	}
 	return ""
 }
