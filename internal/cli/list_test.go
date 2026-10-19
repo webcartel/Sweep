@@ -116,8 +116,9 @@ func TestListCommandFiltersByCategory(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 
 	doc := readList(t, "--category", "dev")
-	if got := listedIDs(doc); !slices.Equal(got, []string{"dev.npm-cache"}) {
-		t.Errorf("listed %v, want the dev rule alone", got)
+	got := listedIDs(doc)
+	if len(got) != 8 || !strings.Contains(strings.Join(got, ","), "dev.npm-cache") {
+		t.Errorf("listed %v, want the dev rules of the v1 set (npm among them)", got)
 	}
 
 	empty := readList(t, "--category", "nope")

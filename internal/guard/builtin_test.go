@@ -34,6 +34,9 @@ func TestBuiltinRulesPassTheGuard(t *testing.T) {
 				continue
 			}
 			for _, target := range rule.Targets {
+				if target.Kind != model.KindPath {
+					continue // the command rules have no path to pre-check
+				}
 				targets++
 				verdict, err := g.Check(target.Path, target.Mode, target.Include, target.MinAgeDays)
 				if err != nil {
