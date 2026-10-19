@@ -5,7 +5,19 @@ rules are data, and the Go core only scans and executes them. One binary, two
 frontends вЂ” running `sweep` with no arguments opens a TUI, while `sweep scan`
 and `sweep clean` work in scripts and in Task Scheduler.
 
-## Status
+**Stage 6 of 8 вЂ” the v1 rule set.** The built-in set carries 26 rules: the
+caches of the three browsers and of VS Code, Discord, Slack; the system paths
+(temp folders, Windows Error Reporting, servicing logs, crash and kernel
+dumps, Windows Update's download cache, Delivery Optimization, thumbnails);
+two command rules (`system.recycle-bin` and a careful `dism` component
+cleanup); and eight tagged `dev` caches, from npm to Docker. Each path was
+probed on a real Windows 10 22H2 machine, read-only; the table of what was
+verified, what was absent, and what cannot be verified here lives in
+[`docs/rules.md`](docs/rules.md), the rule format itself in
+[`docs/format.md`](docs/format.md), and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) says what a new rule answers to.
+
+## Status (earlier stages)
 
 **Stage 5 of 8 вЂ” the TUI.** Running `sweep` with no arguments opens the
 screens: first the choice of the profile, then the scan, then one screen
