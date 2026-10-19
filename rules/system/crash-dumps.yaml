@@ -1,0 +1,10 @@
+schema: 1
+rules:
+  - id: system.crash-dumps
+    name: Crash dumps of your programs
+    description: The .dmp files a stopped program leaves for debugging. Useful only while the bug is open.
+    category: system
+    risk: moderate
+    targets:
+      - path: '%LOCALAPPDATA%\CrashDumps'
+        mode: contents

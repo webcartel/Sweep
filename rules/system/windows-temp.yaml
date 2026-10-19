@@ -1,0 +1,13 @@
+schema: 1
+rules:
+  - id: system.windows-temp
+    name: Windows temp folder
+    description: Files in the system-wide temp folder nothing has touched for a day. Parts belong to running installers, so the age keeps them out.
+    category: system
+    risk: safe
+    default_enabled: true
+    requires_admin: true
+    targets:
+      - path: '%SystemRoot%\Temp'
+        mode: contents
+        min_age_days: 1

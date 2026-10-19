@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: system.wer-user
+    name: Windows Error Reporting (user)
+    description: Dump and report files Windows writes when a program stops, under your own account. Sending nothing, holding nothing you need.
+    category: system
+    risk: safe
+    default_enabled: true
+    targets:
+      - path: '%LOCALAPPDATA%\Microsoft\Windows\WER'
+        mode: contents

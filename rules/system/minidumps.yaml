@@ -1,0 +1,13 @@
+schema: 1
+rules:
+  - id: system.minidumps
+    name: Kernel crash dumps
+    description: The minidump folder and the full memory dump of a stopped Windows. Useful only while a driver bug is open.
+    category: system
+    risk: moderate
+    requires_admin: true
+    targets:
+      - path: '%SystemRoot%\Minidump'
+        mode: contents
+      - path: '%SystemRoot%\MEMORY.DMP'
+        mode: self

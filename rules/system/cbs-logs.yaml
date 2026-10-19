@@ -1,0 +1,14 @@
+schema: 1
+rules:
+  - id: system.cbs-logs
+    name: Component-based servicing logs
+    description: Windows Update and servicing logs older than two weeks. The current one stays, its shape is what a support engineer reads first.
+    category: system
+    risk: safe
+    default_enabled: true
+    requires_admin: true
+    targets:
+      - path: '%SystemRoot%\Logs\CBS'
+        mode: files
+        include: ['*.log']
+        min_age_days: 14

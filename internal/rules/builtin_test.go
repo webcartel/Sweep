@@ -15,6 +15,8 @@ var builtinEnv = fakeEnv{
 	"APPDATA":      `C:\Users\probe\AppData\Roaming`,
 	"TEMP":         `C:\Users\probe\AppData\Local\Temp`,
 	"LOCALAPPDATA": `C:\Users\probe\AppData\Local`,
+	"SystemRoot":   `C:\Windows`,
+	"ProgramData":  `C:\ProgramData`,
 }
 
 // builtinFiles reads the built-in rules and fails the test if they do not read.
@@ -75,6 +77,117 @@ func builtinIDs(t *testing.T) []string {
 		}
 	}
 	return ids
+}
+
+// TestSystemPathRules pins the nine path rules of the system group: the risk,
+// the profile membership (with the admin flag) and the shape of each target.
+func TestSystemPathRules(t *testing.T) {
+	byID := map[string]*model.Rule{}
+	for _, file := range builtinFiles(t) {
+		for _, parsed := range file.Rules {
+			byID[parsed.Rule.ID] = parsed.Rule
+		}
+	}
+	type want struct {
+		admin bool
+		risk  model.Risk
+		modes map[string]model.Mode // path -> mode
+		age   map[string]int        // path -> min_age_days
+	}
+	spec := map[string]want{
+		"system.user-temp": {risk: model.RiskSafe, modes: map[string]model.Mode{`%TEMP%`: ""}},
+		"system.windows-temp": {
+			admin: true, risk: model.RiskSafe,
+			modes: map[string]model.Mode{`%SystemRoot%\Temp`: ""},
+			age:   map[string]int{`%SystemRoot%\Temp`: 1},
+		},
+		"system.wer-user": {risk: model.RiskSafe, modes: map[string]model.Mode{`%LOCALAPPDATA%\Microsoft\Windows\WER`: ""}},
+		"system.wer-machine": {
+			admin: true, risk: model.RiskSafe,
+			modes: map[string]model.Mode{
+				`%ProgramData%\Microsoft\Windows\WER\ReportArchive`: "",
+				`%ProgramData%\Microsoft\Windows\WER\ReportQueue`:   "",
+			},
+		},
+		"system.cbs-logs": {
+			admin: true, risk: model.RiskSafe,
+			modes: map[string]model.Mode{`%SystemRoot%\Logs\CBS`: model.ModeFiles},
+			age:   map[string]int{`%SystemRoot%\Logs\CBS`: 14},
+		},
+		"system.crash-dumps": {risk: model.RiskModerate,
+			modes: map[string]model.Mode{`%LOCALAPPDATA%\CrashDumps`: ""}},
+		"system.minidumps": {
+			admin: true, risk: model.RiskModerate,
+			modes: map[string]model.Mode{
+				`%SystemRoot%\Minidump`:   "",
+				`%SystemRoot%\MEMORY.DMP`: model.ModeSelf,
+			},
+		},
+		"system.windows-update-cache": {
+			admin: true, risk: model.RiskModerate,
+			modes: map[string]model.Mode{`%SystemRoot%\SoftwareDistribution\Download`: ""},
+		},
+		"system.delivery-optimization": {
+			admin: true, risk: model.RiskSafe,
+			modes: map[string]model.Mode{`%SystemRoot%\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache`: ""},
+		},
+		"system.thumbnail-cache": {
+			risk:  model.RiskSafe,
+			modes: map[string]model.Mode{`%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*.db`: model.ModeFiles},
+		},
+	}
+	profileMembership := map[string]bool{
+		"system.user-temp": true, "system.windows-temp": true,
+		"system.wer-user": true, "system.wer-machine": true,
+		"system.cbs-logs": true,
+	}
+	for _, id := range []string{"system.user-temp", "system.windows-temp", "system.wer-user",
+		"system.wer-machine", "system.cbs-logs", "system.crash-dumps", "system.minidumps",
+		"system.windows-update-cache", "system.delivery-optimization", "system.thumbnail-cache"} {
+		rule, ok := byID[id]
+		if !ok {
+			t.Errorf("%s is not among the built-in rules", id)
+			continue
+		}
+		spec := spec[id]
+		if rule.Risk != spec.risk {
+			t.Errorf("%s: risk = %q, want %q", id, rule.Risk, spec.risk)
+		}
+		if rule.DefaultEnabled != profileMembership[id] {
+			t.Errorf("%s: DefaultEnabled = %v", id, rule.DefaultEnabled)
+		}
+		if rule.RequiresAdmin != spec.admin {
+			t.Errorf("%s: requires_admin = %v, want %v", id, rule.RequiresAdmin, spec.admin)
+		}
+		checkTargetPaths(t, id, ruleTargets(rule), spec.modes, spec.age)
+	}
+}
+
+// ruleTargets returns the target of the rule at every index.
+func ruleTargets(rule *model.Rule) []model.Target { return rule.Targets }
+
+// checkTargetPaths pins the modes and ages of the paths a rule names.
+func checkTargetPaths(t *testing.T, id string, targets []model.Target, modes map[string]model.Mode, ages map[string]int) {
+	t.Helper()
+	var seen []string
+	for _, target := range targets {
+		if target.Kind != model.KindPath {
+			t.Errorf("%s: %q is not a path target but %q", id, target.Path, target.Kind)
+			continue
+		}
+		seen = append(seen, target.Path)
+		if wantMode, named := modes[target.Path]; named && target.Mode != wantMode && wantMode != "" {
+			t.Errorf("%s: %q mode = %q, want %q", id, target.Path, target.Mode, wantMode)
+		}
+		if wantAge, named := ages[target.Path]; named && target.MinAgeDays != wantAge {
+			t.Errorf("%s: %q min_age_days = %d, want %d", id, target.Path, target.MinAgeDays, wantAge)
+		}
+	}
+	for path := range modes {
+		if !slices.Contains(seen, path) {
+			t.Errorf("%s: no target for %q", id, path)
+		}
+	}
 }
 
 // TestBrowsersAndAppsRules pins the browsers and Electron apps of the v1 set:

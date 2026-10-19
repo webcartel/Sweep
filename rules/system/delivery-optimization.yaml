@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: system.delivery-optimization
+    name: Delivery Optimization cache
+    description: The parts of Windows Update files your machine cached for other machines of the network. Windows fetches them again on demand.
+    category: system
+    risk: safe
+    requires_admin: true
+    targets:
+      - path: '%SystemRoot%\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache'
+        mode: contents

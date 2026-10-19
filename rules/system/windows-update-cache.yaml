@@ -1,0 +1,11 @@
+schema: 1
+rules:
+  - id: system.windows-update-cache
+    name: Windows Update download cache
+    description: The installers Windows Update already downloaded. Running services are not stopped, so files in use stay this run and go the next one.
+    category: system
+    risk: moderate
+    requires_admin: true
+    targets:
+      - path: '%SystemRoot%\SoftwareDistribution\Download'
+        mode: contents

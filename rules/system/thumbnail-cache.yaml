@@ -1,0 +1,10 @@
+schema: 1
+rules:
+  - id: system.thumbnail-cache
+    name: Thumbnail cache
+    description: The databases explorer keeps pictures of your folders in. Rebuilt on demand, but explorer holds some while it runs.
+    category: system
+    risk: safe
+    targets:
+      - path: '%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*.db'
+        mode: files

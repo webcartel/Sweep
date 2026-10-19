@@ -1,0 +1,14 @@
+schema: 1
+rules:
+  - id: system.wer-machine
+    name: Windows Error Reporting (machine)
+    description: Dump and report files Windows writes when a system service stops, in the queues of the machine.
+    category: system
+    risk: safe
+    default_enabled: true
+    requires_admin: true
+    targets:
+      - path: '%ProgramData%\Microsoft\Windows\WER\ReportArchive'
+        mode: contents
+      - path: '%ProgramData%\Microsoft\Windows\WER\ReportQueue'
+        mode: contents
