@@ -217,3 +217,12 @@
 | Вопрос | Решение |
 | --- | --- |
 | Зависимость | bubbletea + bubbles + lipgloss: единственный зрелый Model-Update-View стек для Go; спека называет именно его |
+| ASCII-детект | SWEEP_ASCII=1 > --ascii > --no-ascii > авто: WT_SESSION = Windows Terminal (юникод), иначе на Windows — ASCII; вне Windows — юникод |
+| Дефолтная сортировка | по размеру вниз (o меняет на имя); фильтр / ищет по ID+имени |
+| q/Esc во время clean | не выход: отмена чистки (cancel контекста) и назад в модалку подтверждения |
+| Тумблер dangerous | разрешён в списке; запуск без слова yes в модалке не идёт |
+| Отчёт по s | sweep-report-YYYYMMDD-HHMMSS.json рядом с дневным логом, содержимое — ExecJSON |
+| Мышь | клики по строкам и чекбоксам, колесо скроллят; включена всегда (WithMouseCellMotion) |
+| UAC | кнопка <Restart as administrator> в модалке: ShellExecuteW runas + --preselect id1,...; отказ UAC снимает admin-правила, остаёмся в модалке |
+| Цвет | только смысловой (риск SAFE/MOD/DANGER, ошибки); кнопки/курсор — > и [x]/[ ], они же в ASCII |
+| teatest | тестовая зависимость charmbracelet/x/exp/teatest (только internal/tui тесты) |
