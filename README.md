@@ -21,6 +21,9 @@ Mouse, arrows, the space bar and the keys of the spec (`a`, `n`, `o`, `/`,
 for the frames a Windows 10 conhost cannot draw. There is no editing of the
 config or the rules in the TUI вЂ” the screen only shows and runs.
 
+![The list screen of the TUI after a real scan](.github/tui.png)
+
+
 **Stage 4 of 8 вЂ” the executor and `sweep clean`.** On top of the scanner,
 `sweep clean` runs the plan it is agreed to: it scans, prints the plan, and
 after `--yes` (or an answer at the prompt of a real terminal) takes every
