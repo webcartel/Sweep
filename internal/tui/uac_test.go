@@ -1,4 +1,4 @@
-package tui
+﻿package tui
 
 import (
 	"strings"
@@ -63,7 +63,7 @@ func buildAdminMachine(t *testing.T) *Model {
 // process does not have, and Enter does not start the run.
 func TestConfirmOffersRestart(t *testing.T) {
 	m := buildAdminMachine(t)
-	m = stepIn(m, 0, 'd')
+	m = stepIn(m, 0, 'c')
 	if !m.adminNeeded() {
 		t.Fatalf("the run does not ask for the elevation")
 	}
@@ -80,7 +80,7 @@ func TestConfirmOffersRestart(t *testing.T) {
 // The restart names the rules the choice holds, under the preselect.
 func TestRestartPreselects(t *testing.T) {
 	m := buildAdminMachine(t)
-	m = stepIn(m, 0, 'd')
+	m = stepIn(m, 0, 'c')
 	var taken []string
 	m.restart = func(preselect []string) error {
 		taken = preselect
@@ -95,7 +95,7 @@ func TestRestartPreselects(t *testing.T) {
 // The user's no to the elevation takes the admin rules out of the choice.
 func TestUACRefusalDeselects(t *testing.T) {
 	m := buildAdminMachine(t)
-	m = stepIn(m, 0, 'd')
+	m = stepIn(m, 0, 'c')
 	m.restart = func([]string) error { return errRefused }
 	cur, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = cur.(*Model)
@@ -112,3 +112,5 @@ var errRefused = errorString{"the user said no"}
 type errorString struct{ s string }
 
 func (e errorString) Error() string { return e.s }
+
+

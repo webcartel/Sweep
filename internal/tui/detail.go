@@ -70,6 +70,9 @@ func (m *Model) updateDetail(msg tea.Msg) (tea.Cmd, bool) {
 				m.row = i
 			}
 		}
+	case "?":
+		m.openHelp()
+		return nil, true
 	default:
 		return nil, false
 	}

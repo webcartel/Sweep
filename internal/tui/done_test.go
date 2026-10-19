@@ -2,6 +2,7 @@ package tui
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -42,7 +43,7 @@ func TestDoneSavesReport(t *testing.T) {
 	logDir := m.logDir
 	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 	found := false
-	answers, err := os.ReadDir(logDir)
+	answers, err := os.ReadDir(filepath.Join(logDir, "sweep", "logs"))
 	if err != nil {
 		t.Fatalf("the log directory went away: %v", err)
 	}

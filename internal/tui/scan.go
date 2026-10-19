@@ -23,6 +23,7 @@ func (m *Model) startScan() tea.Cmd {
 	if m.scanner == nil || m.rulesFor == nil {
 		return nil
 	}
+	m.pickedProfile = m.profiles[m.cursor].Name
 	rules, err := m.rulesFor(m.profiles[m.cursor].Name)
 	if err != nil {
 		m.scanError = err

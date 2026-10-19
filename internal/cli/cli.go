@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -89,8 +90,7 @@ func newRootCmd(d deps) *cobra.Command {
 
 	root.RunE = func(c *cobra.Command, args []string) error {
 		if len(args) != 0 {
-			_ = c.Help()
-			return nil
+			return usageError(fmt.Errorf("%q names nothing the run has", args[0]))
 		}
 		return openTUI(d, c)
 	}
@@ -110,16 +110,17 @@ func asciiFlags(c *cobra.Command) (ascii bool, noASCII bool, err error) {
 	return ascii, noASCII, err
 }
 
-// preselectFlag reads the rules a run was already agreed to.
+// preselectFlag reads the rules a run was already agreed to: one flag,
+// the ids set apart by commas.
 func preselectFlag(c *cobra.Command) []string {
 	preselect, err := c.Flags().GetString("preselect")
 	if err != nil || preselect == "" {
 		return nil
 	}
 	var ids []string
-	for _, id := range filepath.SplitList(preselect) {
-		if id != "" {
-			ids = append(ids, id)
+	for _, id := range strings.FieldsFunc(preselect, func(r rune) bool { return r == ',' || r == ';' }) {
+		if strings.TrimSpace(id) != "" {
+			ids = append(ids, strings.TrimSpace(id))
 		}
 	}
 	return ids
@@ -152,16 +153,19 @@ func openTUI(d deps, c *cobra.Command) error {
 	}
 	sort.Strings(names)
 	rows := make([]tui.ProfileRow, 0, len(set.Profiles)+1)
+	countOf := func(name string) int {
+		chosen, _, err := chooseRules(set, name, nil)
+		if err != nil {
+			return 0
+		}
+		return len(chosen)
+	}
 	if _, ok := set.Profiles["default"]; ok {
-		rows = append(rows, tui.ProfileRow{Name: "default", Rules: len(set.Rules), MaxRisk: set.Profiles["default"].MaxRisk})
+		rows = append(rows, tui.ProfileRow{Name: "default", Rules: countOf("default"), MaxRisk: set.Profiles["default"].MaxRisk})
 	}
 	for _, name := range names {
 		profile := set.Profiles[name]
-		chosen, _, err := chooseRules(set, name, nil)
-		if err != nil {
-			return usageError(err)
-		}
-		rows = append(rows, tui.ProfileRow{Name: name, Rules: len(chosen), MaxRisk: profile.MaxRisk})
+		rows = append(rows, tui.ProfileRow{Name: name, Rules: countOf(name), MaxRisk: profile.MaxRisk})
 	}
 
 	guarded, err := guard.New(d.FS, d.Env, d.Cwd, set.Config.ExcludePaths)

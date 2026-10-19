@@ -1,4 +1,4 @@
-package tui
+﻿package tui
 
 import (
 	"strings"
@@ -19,7 +19,7 @@ func chosenDangerous(m *Model) *Model {
 // the run takes, and from there back to the list stands on esc.
 func TestConfirmModal(t *testing.T) {
 	m := chomped(t)
-	m = stepIn(m, 0, 'd')
+	m = stepIn(m, 0, 'c')
 	if m.screen != screenConfirm {
 		t.Fatalf("screen = %d, want screenConfirm (%d)", m.screen, screenConfirm)
 	}
@@ -36,7 +36,7 @@ func TestConfirmModal(t *testing.T) {
 // A run without dangerous rules starts on Enter.
 func TestConfirmStartsRun(t *testing.T) {
 	m := chomped(t)
-	m = stepIn(m, 0, 'd')
+	m = stepIn(m, 0, 'c')
 	cur, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = cur.(*Model)
 	if m.screen != screenRunning {
@@ -48,7 +48,7 @@ func TestConfirmStartsRun(t *testing.T) {
 // screen.
 func TestConfirmDangerousNeedsYes(t *testing.T) {
 	m := chosenDangerous(chomped(t))
-	m = stepIn(m, 0, 'd')
+	m = stepIn(m, 0, 'c')
 	m = stepIn(m, tea.KeyEnter) // no word yet
 	if m.screen != screenConfirm {
 		t.Fatalf("the run started without the word, screen = %d", m.screen)
@@ -64,3 +64,5 @@ func TestConfirmDangerousNeedsYes(t *testing.T) {
 		t.Fatalf("the word did not start the run, screen = %d", m.screen)
 	}
 }
+
+

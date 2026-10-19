@@ -54,8 +54,10 @@ type Deps struct {
 // Model is the one Bubble Tea model of the TUI. Every screen of the run is a
 // state of it.
 type Model struct {
-	screen int
-	skin   skin
+	screen        int
+	screenBehind  int
+	width, height int
+	skin          skin
 	profileState
 	scanState
 	listState
@@ -102,12 +104,27 @@ func New(d Deps) *Model {
 	return m
 }
 
-// Init starts the first command of the program; none yet.
-func (m *Model) Init() tea.Cmd { return nil }
+// Init starts the first command of the program: a run whose preselect
+// named the rules goes straight to the scan.
+func (m *Model) Init() tea.Cmd {
+	if len(m.preselect) != 0 && m.scanner != nil && m.rulesFor != nil {
+		m.screen = screenScanning
+		return m.startScan()
+	}
+	return nil
+}
 
 // Update handles one message and answers with the model and the next
 // command.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width, m.height = size.Width, size.Height
+		return m, nil
+	}
+	if m.screen == screenHelp {
+		cmd, _ := m.updateHelp(msg)
+		return m, cmd
+	}
 	var cmd tea.Cmd
 	switch m.screen {
 	case screenProfile:
@@ -133,8 +150,10 @@ func (m *Model) View() string {
 	switch m.screen {
 	case screenProfile:
 		return m.viewProfile()
+	case screenScanning:
+		return m.viewScanning()
 	case screenList:
-		return m.viewList(80)
+		return m.viewList(m.width)
 	case screenDetail:
 		return m.viewDetail()
 	case screenConfirm:
@@ -143,6 +162,8 @@ func (m *Model) View() string {
 		return m.viewRunning()
 	case screenDone:
 		return m.viewDone()
+	case screenHelp:
+		return m.viewHelp()
 	}
 	return ""
 }

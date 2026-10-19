@@ -1,4 +1,4 @@
-package tui
+﻿package tui
 
 import (
 	"testing"
@@ -51,7 +51,7 @@ func withLogMachine(t *testing.T, logDir string) (*fake.FS, *fake.Env, *Model) {
 	for _, key := range []struct {
 		typ  tea.KeyType
 		text string
-	}{{0, "d"}, {tea.KeyEnter, ""}} {
+	}{{0, "c"}, {tea.KeyEnter, ""}} {
 		var msg tea.Msg
 		if key.text != "" {
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key.text)}
@@ -128,3 +128,5 @@ func TestRunningRemovesFromDisk(t *testing.T) {
 		t.Fatalf("the run removed %v, want the one file", removed)
 	}
 }
+
+

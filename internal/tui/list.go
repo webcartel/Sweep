@@ -6,8 +6,17 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
+)
+
+// The colors the run spends: the ones of the risk, and the rest is
+// monochrome with a dim for the keys at the bottom.
+var (
+	safeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	moderateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	dangerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 )
 
 // The screens confirm opens.
@@ -91,6 +100,9 @@ func (m *Model) totals() (rules int, files int64, bytes int64) {
 
 // updateList, the part of the main screen.
 func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
+	if cmd, took := m.updateListMouse(msg); took {
+		return cmd, took
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return nil, false
@@ -138,7 +150,7 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 			if rp.Rule == nil {
 				continue
 			}
-			if rp.Rule.Risk != model.RiskDangerous {
+			if rp.Rule.Risk == model.RiskSafe {
 				m.selection.Rules[rp.Rule.ID] = true
 			}
 		}
@@ -160,12 +172,15 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		m.filtering = true
 		m.filter = ""
 		m.row = 0
+	case "?":
+		m.openHelp()
+		return nil, true
 	case "t":
 		m.trash = !m.trash
-	case "d":
+	case "c":
 		m.screen = screenConfirm
 		return nil, true
-	case "enter":
+	case "d", "enter":
 		return m.openDetail()
 	case "r":
 		m.upkeepAfterScan()
@@ -175,6 +190,51 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		return tea.Quit, true
 	}
 	return nil, true
+}
+
+// updateListMouse, the part of the list the mouse speaks: a press with the
+// left button on the mark of a rule turns the rule in or out, a press
+// anywhere else on a row moves the cursor there, and the wheel of the mouse
+// moves one row at a time.
+func (m *Model) updateListMouse(msg tea.Msg) (tea.Cmd, bool) {
+	click, ok := msg.(tea.MouseMsg)
+	if !ok {
+		return nil, false
+	}
+	switch click.Button {
+	case tea.MouseButtonWheelUp:
+		return m.updateListKey("up")
+	case tea.MouseButtonWheelDown:
+		return m.updateListKey("down")
+	}
+	if click.Action != tea.MouseActionPress || click.Button != tea.MouseButtonLeft {
+		return nil, true
+	}
+	rows := m.visibleRows()
+	high := click.Y - listRowsOffset(m)
+	if high < 0 || high >= len(rows) {
+		return nil, true
+	}
+	if click.X < 4 {
+		id := ruleIDOf(rows[high])
+		m.selection.Rules[id] = !m.selection.Rules[id]
+	}
+	m.row = high
+	return nil, true
+}
+
+// listRowsOffset counts the lines the screen holds above the rows.
+func listRowsOffset(m *Model) int {
+	if m.filtering {
+		return 1
+	}
+	return 0
+}
+
+// updateListKey feeds one key name into the list, so the wheel and the
+// clicks answer the same way the keys do.
+func (m *Model) updateListKey(name string) (tea.Cmd, bool) {
+	return m.updateList(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(name)})
 }
 
 // upkeepAfterScan wipes what the run held of the scan before, so a rescan
@@ -194,16 +254,18 @@ func ruleIDOf(rp model.RulePlan) string {
 	return rp.Rule.ID
 }
 
-// riskMark is what the cell of the risk says.
+// riskMark is what the cell of the risk says, in the only color the run
+// spends: the one of the risk itself.
 func riskMark(rp model.RulePlan) string {
+	mark := "SAFE"
+	style := safeStyle
 	switch riskOf(rp) {
 	case model.RiskDangerous:
-		return "DANGER"
+		mark, style = "DANGER", dangerStyle
 	case model.RiskModerate:
-		return "MOD"
-	default:
-		return "SAFE"
+		mark, style = "MOD", moderateStyle
 	}
+	return style.Render(mark)
 }
 
 // riskOf names the risk of a rule of a plan line.
@@ -218,9 +280,7 @@ func riskOf(rp model.RulePlan) model.Risk {
 // rules and the line of the keys at the bottom.
 func (m *Model) viewList(width int) string {
 	rows := m.visibleRows()
-	var rules int
-	var files int64
-	var bytes int64
+	rules, files, bytes := m.totals()
 	var lines []string
 	if m.filtering {
 		lines = append(lines, "search: "+m.filter)
@@ -234,10 +294,19 @@ func (m *Model) viewList(width int) string {
 		lines = append(lines, fmt.Sprintf("%s %s %-14s %-6s files %-6d %8s",
 			pick, mark, ruleIDOf(rp), riskMark(rp), rp.Files, report.FormatBytes(rp.Bytes)))
 	}
-	_, files, bytes = m.totals()
-	rules, _, _ = m.totals()
-	lines = append(lines, fmt.Sprintf("profile %s: %d rules, %d files, %s", m.profiles[m.row].Name, rules, files, report.FormatBytes(bytes)))
-	lines = append(lines, "space choice  a safe  n none  / filter  o sort  d confirm  t bin  r rescan  q quit")
-	_ = width
+	lines = append(lines, fmt.Sprintf("profile %s: %d rules, %d files, %s", m.profileOfHeader(), rules, files, report.FormatBytes(bytes)))
+	lines = append(lines, "space choice  a safe  n none  / filter  o sort  c confirm  d detail  t bin  ? help  r rescan  q quit")
 	return strings.Join(lines, "\n")
+}
+
+// profileOfHeader names the profile the run came out of; a scan that has
+// not picked yet asks for the profile under the cursor.
+func (m *Model) profileOfHeader() string {
+	if m.pickedProfile != "" {
+		return m.pickedProfile
+	}
+	if m.cursor < len(m.profiles) {
+		return m.profiles[m.cursor].Name
+	}
+	return ""
 }

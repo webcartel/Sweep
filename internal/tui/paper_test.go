@@ -1,4 +1,4 @@
-package tui
+﻿package tui
 
 import (
 	"strings"
@@ -33,7 +33,7 @@ func TestPaperListToConfirmAndBack(t *testing.T) {
 		return strings.Contains(string(bts), "safe.rule")
 	}, teatest.WithDuration(5*time.Second), teatest.WithCheckInterval(50*time.Millisecond))
 
-	tm.Type("d")
+	tm.Type("c")
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return strings.Contains(string(bts), "clean 1 rules, 1 B")
 	}, teatest.WithDuration(5*time.Second), teatest.WithCheckInterval(50*time.Millisecond))
@@ -56,7 +56,7 @@ func TestPaperConfirmDangerousAsksTheWord(t *testing.T) {
 	m.selection.Rules["danger.rule"] = true
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(100, 30))
 
-	tm.Type("d")
+	tm.Type("c")
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return strings.Contains(string(bts), "dangerous: danger.rule")
 	}, teatest.WithDuration(5*time.Second), teatest.WithCheckInterval(50*time.Millisecond))
@@ -74,3 +74,4 @@ func TestPaperConfirmDangerousAsksTheWord(t *testing.T) {
 	}
 	tm.WaitFinished(t, teatest.WithFinalTimeout(5*time.Second))
 }
+

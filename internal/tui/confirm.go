@@ -44,6 +44,11 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Cmd, bool) {
 		m.screen = screenList
 		m.confirmText = ""
 		return nil, true
+	case "t":
+		m.trash = !m.trash
+	case "?":
+		m.openHelp()
+		return nil, true
 	case "enter":
 		if m.selectedDangerous() && m.confirmText != "yes" {
 			return nil, true

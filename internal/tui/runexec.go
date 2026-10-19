@@ -2,6 +2,10 @@ package tui
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/exec"
@@ -21,7 +25,10 @@ type runState struct {
 	removed    int
 	skipped    int
 	failed     int
+	rulesDone  int
 	feed       []string
+	logSink    report.LogSink
+	logClose   func()
 	result     *model.Result
 	cancelExec context.CancelFunc
 	execEvents <-chan model.Event
@@ -37,6 +44,14 @@ func (m *Model) startRun() tea.Cmd {
 		return nil
 	}
 	m.run = runState{executor: m.executor}
+	if m.logDir != "" {
+		// The log is on before the first path goes, the way the clean of
+		// the CLI keeps its promise.
+		sink, closeLog, err := openRunLog(m.logDir)
+		if err == nil {
+			m.run.logSink, m.run.logClose = sink, closeLog
+		}
+	}
 	var ctx context.Context
 	ctx, m.run.cancelExec = context.WithCancel(context.Background())
 	options := model.ExecOptions{}
@@ -47,6 +62,37 @@ func (m *Model) startRun() tea.Cmd {
 	m.run.execEvents = m.run.executor.Execute(ctx, m.plan, m.selection, options)
 	m.run.execCmd = waitExecEvent(m.run.execEvents)
 	return m.run.execCmd
+}
+
+// openRunLog opens today's JSONL log of the directory the machine keeps
+// them in, and hands the sink and its closing back.
+func openRunLog(dir string) (report.LogSink, func(), error) {
+	at := time.Now()
+	log := report.LogFile(dir, at)
+	if err := os.MkdirAll(filepath.Dir(log), 0o700); err != nil {
+		return nil, nil, fmt.Errorf("open the log: %v", err)
+	}
+	file, err := os.OpenFile(log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open the log %s: %w", log, err)
+	}
+	return report.LogTo(file), func() { _ = file.Close() }, nil
+}
+
+// logEntry appends what one event did to the log, when a log is kept.
+func (m *Model) logEntry(entry report.Entry) {
+	if m.run.logSink != nil {
+		_ = m.run.logSink.Append(entry)
+	}
+}
+
+// closeLog puts the log down, once.
+func (m *Model) closeLog() {
+	if m.run.logClose != nil {
+		m.run.logClose()
+		m.run.logClose = nil
+		m.run.logSink = nil
+	}
 }
 
 // waitExecEvent turns the next event of the run into a message.
@@ -76,6 +122,7 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 			}
 			m.run.execEvents = nil
 			m.run.execCmd = nil
+			m.closeLog()
 			m.screen = screenConfirm
 			return nil, true
 		}
@@ -88,24 +135,42 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 			m.run.removed++
 			m.run.feed = append(m.run.feed, "removed: "+one.Path)
 		}
+		action := "removed"
+		if one.ToTrash {
+			action = "trashed"
+		}
+		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
+			Path: one.Path, Action: action, Size: one.Bytes, Result: "ok"})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	case model.ItemFailed:
 		m.run.failed++
 		m.run.feed = append(m.run.feed, "failed: "+one.Path)
+		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
+			Path: one.Path, Action: "failed", Result: one.Err.Error()})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	case model.ItemSkipped:
 		m.run.skipped++
 		m.run.feed = append(m.run.feed, "skipped: "+one.Skip.Path+" ("+string(one.Skip.Reason)+")")
+		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
+			Path: one.Skip.Path, Action: "skipped", Result: string(one.Skip.Reason)})
+		m.run.execCmd = waitExecEvent(m.run.execEvents)
+		return m.run.execCmd, true
+	case model.ItemPending:
+		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
+			Path: one.Path, Action: "pending", Result: "ok"})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	case model.CommandRan:
 		m.run.feed = append(m.run.feed, "ran: "+one.Command)
+		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
+			Path: one.Command, Action: "ran", Result: "ok"})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	case model.ExecDone:
 		m.run.result = one.Result
+		m.closeLog()
 		m.screen = screenDone
 		return nil, true
 	case execStreamEnded:
@@ -115,23 +180,38 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case model.RuleFinished:
-		// The run names the rule it closed; the counters said the rest.
+		m.run.rulesDone++
+		m.run.feed = append(m.run.feed, fmt.Sprintf("rule %s: %s",
+			rpRuleID(one.Result), one.Result.Status))
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	}
 	return nil, true
 }
 
-// viewRunning draws the run at work: the counts, the last lines of the
-// events and what the keys still stand for.
+// viewRunning draws the run at work: what the rules closed so far, the
+// counts, the last lines of the events and what the keys still stand for.
 func (m *Model) viewRunning() string {
-	lines := []string{
-		"cleaning...",
-		"freed " + report.FormatBytes(m.run.freed),
+	total := 0
+	if m.plan != nil {
+		total = len(m.plan.Rules)
 	}
+	lines := []string{"cleaning...", fmt.Sprintf("rules %d of %d", m.run.rulesDone, total)}
+	if m.run.trashed != 0 {
+		lines = append(lines, report.FormatBytes(m.run.trashed)+" to the bin")
+	}
+	lines = append(lines, "freed "+report.FormatBytes(m.run.freed))
 	lines = append(lines, m.run.feed...)
 	lines = append(lines, "esc stand back to the word")
 	return lines[0] + "\n" + joinFeed(lines[1:])
+}
+
+// rpRuleID names the rule a result answers with.
+func rpRuleID(r model.RuleResult) string {
+	if r.Rule == nil {
+		return ""
+	}
+	return r.Rule.ID
 }
 
 // joinFeed keeps the last lines the screen holds.

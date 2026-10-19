@@ -34,7 +34,9 @@ func (m *Model) saveReport() error {
 		return nil
 	}
 	name := "sweep-report-" + time.Now().Format("20060102-150405") + ".json"
-	file, err := os.Create(filepath.Join(m.logDir, name))
+	// Next to the day's log, the way the ruling of the run keeps it.
+	next := filepath.Join(filepath.Dir(report.LogFile(m.logDir, time.Now())), name)
+	file, err := os.Create(next)
 	if err != nil {
 		return err
 	}
