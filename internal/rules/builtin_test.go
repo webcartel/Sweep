@@ -297,6 +297,40 @@ func TestSystemCommandAndDevRules(t *testing.T) {
 	}
 }
 
+// specV1IDs is the built-in rule set of v1, from the table of the spec. The
+// set-shape test holds this list against whatever files the embed carries, so
+// a typo in one yaml id or a lost file shows up by name.
+var specV1IDs = []string{
+	"browsers.chrome.cache", "browsers.edge.cache", "browsers.firefox.cache",
+	"system.user-temp", "system.windows-temp", "system.wer-user", "system.wer-machine",
+	"system.cbs-logs", "system.crash-dumps", "system.minidumps",
+	"system.windows-update-cache", "system.delivery-optimization", "system.thumbnail-cache",
+	"system.recycle-bin", "system.component-cleanup",
+	"dev.npm-cache", "dev.pnpm-store", "dev.yarn-cache", "dev.pip-cache",
+	"dev.go-build-cache", "dev.nuget-cache", "dev.gradle-caches", "dev.docker-prune",
+	"apps.vscode.cache", "apps.discord.cache", "apps.slack.cache",
+}
+
+// TestBuiltinSetShape pins the whole built-in set: one rule per spec id, no
+// more and none lost.
+func TestBuiltinSetShape(t *testing.T) {
+	ids := builtinIDs(t)
+	sorted := slices.Clone(ids)
+	slices.Sort(sorted)
+	seen := map[string]bool{}
+	for _, id := range sorted {
+		if seen[id] {
+			t.Errorf("the built-in set holds %s twice", id)
+		}
+		seen[id] = true
+	}
+	want := slices.Clone(specV1IDs)
+	slices.Sort(want)
+	if !slices.Equal(sorted, want) {
+		t.Errorf("the built-in set = %v, want the 26 ids of the spec %v", sorted, want)
+	}
+}
+
 // TestBrowsersAndAppsRules pins the browsers and Electron apps of the v1 set:
 // the closed process each names, the risk the spec gives, and the cache
 // directories each target asks for. The chrome rule the set already holds
