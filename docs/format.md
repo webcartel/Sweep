@@ -72,10 +72,12 @@ cannot opt out of this.
 
 ### Commands
 
-`kind: command` names a binary and its argv, no shell in between. The command
-rule is skipped with a reason when the binary is not on PATH; the reason shows
-in `sweep scan` and in the TUI feed. A `requires_admin` command rule is left
-for the run the user elevates.
+`kind: command` names a binary and its argv, no shell in between. If the
+binary is not on PATH, the run ends the rule as `failed` with the
+`executable file not found` error — a rule that does not always have its tool
+on the machine is better off at `moderate` risk and out of the default
+profile. A `requires_admin` command rule is left for the run the user
+elevates.
 
 ## Where rules live
 

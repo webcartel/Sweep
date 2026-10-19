@@ -160,12 +160,10 @@ func TestSystemPathRules(t *testing.T) {
 		if rule.RequiresAdmin != spec.admin {
 			t.Errorf("%s: requires_admin = %v, want %v", id, rule.RequiresAdmin, spec.admin)
 		}
-		checkTargetPaths(t, id, ruleTargets(rule), spec.modes, spec.age)
+		checkTargetPaths(t, id, rule.Targets, spec.modes, spec.age)
+
 	}
 }
-
-// ruleTargets returns the target of the rule at every index.
-func ruleTargets(rule *model.Rule) []model.Target { return rule.Targets }
 
 // checkTargetPaths pins the modes and ages of the paths a rule names.
 func checkTargetPaths(t *testing.T, id string, targets []model.Target, modes map[string]model.Mode, ages map[string]int) {
@@ -177,12 +175,16 @@ func checkTargetPaths(t *testing.T, id string, targets []model.Target, modes map
 			continue
 		}
 		seen = append(seen, target.Path)
-		if wantMode, named := modes[target.Path]; named && target.Mode != wantMode && wantMode != "" {
-			t.Errorf("%s: %q mode = %q, want %q", id, target.Path, target.Mode, wantMode)
+		if want, named := modes[target.Path]; named && target.Mode != want &&
+			(want != "" || target.Mode != model.ModeContents) {
+			t.Errorf("%s: %q mode = %q, want %q", id, target.Path, target.Mode, want)
 		}
 		if wantAge, named := ages[target.Path]; named && target.MinAgeDays != wantAge {
 			t.Errorf("%s: %q min_age_days = %d, want %d", id, target.Path, target.MinAgeDays, wantAge)
 		}
+	}
+	if len(seen) != len(modes) {
+		t.Errorf("%s: holds %d targets, want the %d named", id, len(seen), len(modes))
 	}
 	for path := range modes {
 		if !slices.Contains(seen, path) {
@@ -261,7 +263,7 @@ func TestSystemCommandAndDevRules(t *testing.T) {
 		"dev.gradle-caches":  {model.RiskModerate},
 		"dev.docker-prune":   {model.RiskDangerous},
 	}
-	for _, id := range []string{"dev.pnpm-store", "dev.yarn-cache", "dev.pip-cache",
+	for _, id := range []string{"dev.npm-cache", "dev.pnpm-store", "dev.yarn-cache", "dev.pip-cache",
 		"dev.go-build-cache", "dev.nuget-cache", "dev.gradle-caches", "dev.docker-prune"} {
 		rule, ok := byID[id]
 		if !ok {
