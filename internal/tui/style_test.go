@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-type envMap map[string]string
+type fakeEnv map[string]string
 
-func (e envMap) Get(key string) (string, bool) {
+func (e fakeEnv) Get(key string) (string, bool) {
 	value, ok := e[key]
 	return value, ok
 }
@@ -17,19 +17,19 @@ func (e envMap) Get(key string) (string, bool) {
 func TestPickASCII(t *testing.T) {
 	cases := []struct {
 		name    string
-		env     envMap
+		env     fakeEnv
 		ascii   bool
 		noASCII bool
 		want    bool
 		windows bool // the default the auto answer depends on
 	}{
-		{"SWEEP_ASCII forces on", envMap{"SWEEP_ASCII": "1"}, false, false, true, true},
-		{"SWEEP_ASCII wins over --no-ascii", envMap{"SWEEP_ASCII": "1"}, false, true, true, true},
-		{"--ascii forces on", envMap{}, true, false, true, true},
-		{"--no-ascii forces off", envMap{}, false, true, false, true},
-		{"Windows Terminal auto off", envMap{"WT_SESSION": "x"}, false, false, false, true},
-		{"conhost on Windows auto on", envMap{}, false, false, true, true},
-		{"other systems auto off", envMap{}, false, false, false, false},
+		{"SWEEP_ASCII forces on", fakeEnv{"SWEEP_ASCII": "1"}, false, false, true, true},
+		{"SWEEP_ASCII wins over --no-ascii", fakeEnv{"SWEEP_ASCII": "1"}, false, true, true, true},
+		{"--ascii forces on", fakeEnv{}, true, false, true, true},
+		{"--no-ascii forces off", fakeEnv{}, false, true, false, true},
+		{"Windows Terminal auto off", fakeEnv{"WT_SESSION": "x"}, false, false, false, true},
+		{"conhost on Windows auto on", fakeEnv{}, false, false, true, true},
+		{"other systems auto off", fakeEnv{}, false, false, false, false},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestPickASCII(t *testing.T) {
 
 // A checkbox reads the same in both skins: brackets the screen always draws.
 func TestCheckbox(t *testing.T) {
-	for _, skin := range []skin{newSkin(envMap{}, false, true), newSkin(envMap{}, true, true)} {
+	for _, skin := range []skin{newSkin(fakeEnv{}, false, true), newSkin(fakeEnv{}, true, true)} {
 		if got := skin.checkbox(true); got != "[x]" {
 			t.Fatalf("checkbox(on) = %q, want [x]", got)
 		}
@@ -56,7 +56,7 @@ func TestCheckbox(t *testing.T) {
 // The bar fills by its portion: full answers the whole width, and the cells
 // it did not reach stay of the skin's background.
 func TestBar(t *testing.T) {
-	skin := newSkin(envMap{}, true, true) // ASCII: the cell of work is '#'
+	skin := newSkin(fakeEnv{}, true, true) // ASCII: the cell of work is '#'
 	bar := skin.bar(10, 0.4)
 	if strings.Count(bar, "#") != 4 {
 		t.Fatalf("bar(%d, 0.4) = %q, want 4 cells of work", 10, bar)

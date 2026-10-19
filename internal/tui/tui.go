@@ -25,6 +25,8 @@ type Deps struct {
 	// Env is the environment of the machine, for the say of --ascii and
 	// the terminal that screens draw in.
 	Env platform.Env
+	// FS is what the scanner and the executor read and change.
+	FS platform.FS
 	// AsciiFlag and NoASCIIFlag are the say of the command line.
 	AsciiFlag, NoASCIIFlag bool
 	// Executor is the executor of the core the run works through.
@@ -34,9 +36,17 @@ type Deps struct {
 	LogDir string
 	// Profiles names every profile of the rules, in the order the TUI
 	// lists them.
-	Profiles []profileRow
+	Profiles []ProfileRow
 	// Scanner is the scanner of the core the run reads the disk through.
 	Scanner *scan.Scanner
+	// System is the machine, for the say of the elevation.
+	System platform.System
+	// Preselect names the rules a run were already agreed to: they land
+	// in the choice once the plan does.
+	Preselect []string
+	// Restart restarts the whole run as the administrator, with the
+	// rules named in the choice.
+	Restart func(preselect []string) error
 	// RulesFor answers the rules of one profile of the set.
 	RulesFor func(profile string) ([]*model.Rule, error)
 }
@@ -51,6 +61,7 @@ type Model struct {
 	listState
 	detailState
 	confirmState
+	uacState
 	logDir string
 	run    runState
 }
@@ -78,6 +89,9 @@ func New(d Deps) *Model {
 	m.scanner = d.Scanner
 	m.executor = d.Executor
 	m.rulesFor = d.RulesFor
+	m.system = d.System
+	m.preselect = d.Preselect
+	m.restart = d.Restart
 	m.logDir = d.LogDir
 	env := d.Env
 	if env == nil {

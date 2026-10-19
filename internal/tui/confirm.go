@@ -48,8 +48,7 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Cmd, bool) {
 		if m.selectedDangerous() && m.confirmText != "yes" {
 			return nil, true
 		}
-		m.screen = screenRunning
-		return m.startRun(), true
+		return m.confirmEnter(), true
 	}
 	runes := key.Runes
 	if len(runes) != 0 && runes[0] >= 'a' && runes[0] <= 'z' {
@@ -78,6 +77,9 @@ func (m *Model) viewConfirm() string {
 	if len(danger) != 0 {
 		lines = append(lines, "dangerous: "+strings.Join(danger, ", ")+" - type yes to run")
 		lines = append(lines, "> "+m.confirmText)
+	}
+	if m.adminNeeded() {
+		lines = append(lines, "<Restart as administrator>")
 	}
 	lines = append(lines, "enter go  esc back")
 	return strings.Join(lines, "\n")

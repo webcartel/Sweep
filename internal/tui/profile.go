@@ -13,9 +13,9 @@ const (
 	screenScanning = iota + 1
 )
 
-// profileRow is one line of the screen of the profile: what a profile of
+// ProfileRow is one line of the screen of the profile: what a profile of
 // the set is named and what watching it promises.
-type profileRow struct {
+type ProfileRow struct {
 	Name    string
 	Rules   int
 	MaxRisk model.Risk
@@ -24,7 +24,7 @@ type profileRow struct {
 // Model additions: the profiles of the machine and where the cursor of the
 // profile screen stands.
 type profileState struct {
-	profiles []profileRow
+	profiles []ProfileRow
 	cursor   int
 }
 

@@ -5,6 +5,10 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/webcartel/sweep/internal/platform"
+	"github.com/webcartel/sweep/internal/platform/fake"
+	"github.com/webcartel/sweep/internal/tui"
 )
 
 // execute runs the root command with the given arguments and returns what it
@@ -60,15 +64,60 @@ func TestUnknownFlagIsAUsageError(t *testing.T) {
 	}
 }
 
-func TestRootWithoutArgsPrintsHelp(t *testing.T) {
-	out, errOut, err := execute(t)
+func TestRootWithoutArgsRunsTUI(t *testing.T) {
+	env := fake.NewEnv()
+	env.Set("APPDATA", t.TempDir())
+	env.Set("LOCALAPPDATA", t.TempDir())
+	env.Set("TEMP", t.TempDir())
+	var got tui.Deps
+	var called bool
+	d := deps{
+		FS:     mustFS(t),
+		Env:    env,
+		System: fake.NewSystem(),
+		Cwd:    t.TempDir(),
+		TUI:    func(u tui.Deps) error { called = true; got = u; return nil },
+	}
+	root := newRootCmd(d)
+	root.SetArgs([]string{"--ascii"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("sweep without arguments returned %v", err)
+	}
+	if !called {
+		t.Fatal("sweep without arguments did not open the TUI")
+	}
+	if !got.AsciiFlag {
+		t.Fatal("the say of --ascii did not reach the TUI")
+	}
+	if got.Scanner == nil || got.Executor == nil || got.System == nil {
+		t.Fatal("the TUI went without the cores of the run")
+	}
+	if len(got.Profiles) == 0 {
+		t.Fatal("the TUI went without the profiles of the rules")
+	}
+	if got.RulesFor == nil {
+		t.Fatal("the TUI went without the rules of a profile")
+	}
+	rules, err := got.RulesFor("default")
 	if err != nil {
-		t.Fatalf("sweep without arguments returned an error: %v", err)
+		t.Fatalf("the rules of the default profile: %v", err)
 	}
-	if !strings.Contains(out, "Usage:") {
-		t.Errorf("sweep without arguments printed %q to stdout, want the help text", out)
+	if len(rules) == 0 {
+		t.Fatal("the default profile holds no rule")
 	}
-	if errOut != "" {
-		t.Errorf("sweep without arguments wrote %q to stderr, want nothing", errOut)
+	if got.LogDir == "" {
+		t.Fatal("the TUI went nowhere to keep its log")
 	}
 }
+
+// mustFS gives the real filesystem of the machine, once.
+func mustFS(t *testing.T) platform.FS {
+	t.Helper()
+	fsys, err := platform.NewFS()
+	if err != nil {
+		t.Fatalf("the filesystem failed: %v", err)
+	}
+	return fsys
+}
+
+// mustFS gives the real filesystem of the machine, once.

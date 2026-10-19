@@ -8,7 +8,7 @@ import (
 	"github.com/webcartel/sweep/internal/model"
 )
 
-var testProfiles = []profileRow{
+var testProfiles = []ProfileRow{
 	{Name: "default", Rules: 5, MaxRisk: model.RiskSafe},
 	{Name: "aggressive", Rules: 12, MaxRisk: model.RiskDangerous},
 }

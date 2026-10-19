@@ -40,7 +40,7 @@ func TestDoneSummary(t *testing.T) {
 func TestDoneSavesReport(t *testing.T) {
 	m := doneFromRun(t)
 	logDir := m.logDir
-	cur, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 	found := false
 	answers, err := os.ReadDir(logDir)
 	if err != nil {

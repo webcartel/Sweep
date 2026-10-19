@@ -111,11 +111,21 @@ func (m *Model) updateScanning(msg tea.Msg) (tea.Cmd, bool) {
 // the dangerous ones.
 func (m *Model) adoptPlan() {
 	m.selection = model.Selection{Rules: map[string]bool{}, Exclude: map[string]bool{}}
+	picked := map[string]bool{}
+	for _, id := range m.preselect {
+		picked[id] = true
+	}
 	for _, rp := range m.plan.Rules {
 		if rp.Rule == nil {
 			m.selection.Rules[""] = true
 			continue
 		}
-		m.selection.Rules[rp.Rule.ID] = rp.Rule.Risk != model.RiskDangerous
+		id := rp.Rule.ID
+		switch {
+		case picked[id]:
+			m.selection.Rules[id] = true
+		default:
+			m.selection.Rules[id] = rp.Rule.Risk != model.RiskDangerous
+		}
 	}
 }

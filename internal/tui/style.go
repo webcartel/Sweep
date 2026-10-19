@@ -6,6 +6,15 @@ import (
 	"github.com/webcartel/sweep/internal/platform"
 )
 
+// envMap stands for an environment the tests and the fallback of New answer
+// through.
+type envMap map[string]string
+
+func (e envMap) Get(key string) (string, bool) {
+	value, ok := e[key]
+	return value, ok
+}
+
 // pickASCII answers whether the screens draw with the plain characters of
 // ASCII. The environment says first (SWEEP_ASCII=1 over everything), then
 // the flags --ascii and --no-ascii, and what is left is the terminal
@@ -42,7 +51,7 @@ func newSkin(env platform.Env, asciiFlag, noASCIIFlag bool) skin {
 	if pickASCII(env, asciiFlag, noASCIIFlag, runtime.GOOS == "windows") {
 		return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "#", barBare: "-"}
 	}
-	return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "█", barBare: "─"}
+	return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "в–€", barBare: "в”Ђ"}
 }
 
 // checkbox draws the mark of a chosen rule or item.
