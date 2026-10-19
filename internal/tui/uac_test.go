@@ -1,4 +1,4 @@
-﻿package tui
+package tui
 
 import (
 	"strings"
@@ -112,5 +112,3 @@ var errRefused = errorString{"the user said no"}
 type errorString struct{ s string }
 
 func (e errorString) Error() string { return e.s }
-
-

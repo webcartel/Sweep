@@ -1,4 +1,4 @@
-﻿package tui
+package tui
 
 import (
 	"strings"
@@ -64,5 +64,3 @@ func TestConfirmDangerousNeedsYes(t *testing.T) {
 		t.Fatalf("the word did not start the run, screen = %d", m.screen)
 	}
 }
-
-

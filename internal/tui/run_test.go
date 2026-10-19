@@ -1,4 +1,4 @@
-﻿package tui
+package tui
 
 import (
 	"testing"
@@ -128,5 +128,3 @@ func TestRunningRemovesFromDisk(t *testing.T) {
 		t.Fatalf("the run removed %v, want the one file", removed)
 	}
 }
-
-

@@ -291,8 +291,12 @@ func (m *Model) viewList(width int) string {
 		if i == m.row {
 			pick = ">"
 		}
+		admin := ""
+		if rp.Rule != nil && rp.Rule.RequiresAdmin {
+			admin = " [A]"
+		}
 		lines = append(lines, fmt.Sprintf("%s %s %-14s %-6s files %-6d %8s",
-			pick, mark, ruleIDOf(rp), riskMark(rp), rp.Files, report.FormatBytes(rp.Bytes)))
+			pick, mark, ruleIDOf(rp), riskMark(rp)+admin, rp.Files, report.FormatBytes(rp.Bytes)))
 	}
 	lines = append(lines, fmt.Sprintf("profile %s: %d rules, %d files, %s", m.profileOfHeader(), rules, files, report.FormatBytes(bytes)))
 	lines = append(lines, "space choice  a safe  n none  / filter  o sort  c confirm  d detail  t bin  ? help  r rescan  q quit")

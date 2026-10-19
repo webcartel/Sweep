@@ -56,8 +56,7 @@ func realDeps() deps {
 // flags, assembles the rules and the profile and prints events; the work
 // itself belongs to the core packages.
 //
-// Running `sweep` with no arguments in a terminal opens the TUI. Until the TUI
-// lands (stage 5) cobra prints this help text instead.
+// Running `sweep` with no arguments in a terminal opens the TUI.
 func NewRootCmd() *cobra.Command { return newRootCmd(realDeps()) }
 
 func newRootCmd(d deps) *cobra.Command {

@@ -1,4 +1,4 @@
-﻿package tui
+package tui
 
 import (
 	"strings"
@@ -74,4 +74,3 @@ func TestPaperConfirmDangerousAsksTheWord(t *testing.T) {
 	}
 	tm.WaitFinished(t, teatest.WithFinalTimeout(5*time.Second))
 }
-
