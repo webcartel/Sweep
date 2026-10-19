@@ -1,0 +1,12 @@
+schema: 1
+rules:
+  - id: browsers.firefox.cache
+    name: Firefox cache
+    description: Firefox's disk-level (cache2) cache. Firefox rebuilds it, so pages load slower once.
+    category: browsers
+    risk: safe
+    default_enabled: true
+    requires_closed: [firefox.exe]
+    targets:
+      - path: '%LOCALAPPDATA%\Mozilla\Firefox\Profiles\*\cache2'
+        mode: contents

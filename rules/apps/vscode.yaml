@@ -1,0 +1,20 @@
+schema: 1
+rules:
+  - id: apps.vscode.cache
+    name: VS Code caches
+    description: VS Code's caches of scripts and extension archives. The editor rebuilds them, so its first start is slower once.
+    category: apps
+    risk: safe
+    default_enabled: true
+    requires_closed: [Code.exe]
+    targets:
+      - path: '%APPDATA%\Code\Cache'
+        mode: contents
+      - path: '%APPDATA%\Code\CachedData'
+        mode: contents
+      - path: '%APPDATA%\Code\CachedExtensionVSIXs'
+        mode: contents
+      - path: '%APPDATA%\Code\Code Cache'
+        mode: contents
+      - path: '%APPDATA%\Code\GPUCache'
+        mode: contents

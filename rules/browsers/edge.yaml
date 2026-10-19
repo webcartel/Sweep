@@ -1,0 +1,16 @@
+schema: 1
+rules:
+  - id: browsers.edge.cache
+    name: Microsoft Edge cache
+    description: Edge's on-disk cache of pages and scripts. Edge rebuilds it, so pages load slower once.
+    category: browsers
+    risk: safe
+    default_enabled: true
+    requires_closed: [msedge.exe]
+    targets:
+      - path: '%LOCALAPPDATA%\Microsoft\Edge\User Data\*\Cache'
+        mode: contents
+      - path: '%LOCALAPPDATA%\Microsoft\Edge\User Data\*\Code Cache'
+        mode: contents
+      - path: '%LOCALAPPDATA%\Microsoft\Edge\User Data\*\GPUCache'
+        mode: contents

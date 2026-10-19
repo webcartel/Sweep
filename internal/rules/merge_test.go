@@ -107,8 +107,8 @@ func TestLoaderUserRuleReplacesBuiltinWithWarning(t *testing.T) {
 	if len(chrome.Targets) != 1 {
 		t.Errorf("got %d targets, want the user's single target, not a merged pair", len(chrome.Targets))
 	}
-	if got := len(set.Rules); got != 4 {
-		t.Errorf("the set holds %d rules, want 4: the three built-in ids and the user's command rule", got)
+	if got := len(set.Rules); got != builtinRuleCount(t)+1 {
+		t.Errorf("the set holds %d rules, want %d: the built-in ids and the user's command rule", got, builtinRuleCount(t)+1)
 	}
 }
 
@@ -121,13 +121,10 @@ func TestLoaderKeepsFirstAppearanceOrder(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	want := []string{
-		"browsers.chrome.cache", // the built-in place, taken over by the user's rule
-		"dev.npm-cache",
-		"system.user-temp",
-		"user.probe-command", // where the user's directory defines it
-		"extra.probe",        // after the user's directory
-	}
+	// The embed's order first (the user's override keeps
+	// browsers.chrome.cache in its built-in place), then the user's
+	// directory, then the extra one.
+	want := slices.Concat(builtinIDs(t), []string{"user.probe-command", "extra.probe"})
 	if got := idsOf(set); !slices.Equal(got, want) {
 		t.Errorf("rule order = %v, want %v", got, want)
 	}
@@ -238,8 +235,8 @@ func TestLoaderReadsExtraDirs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Load: %v", err)
 		}
-		if got := len(set.Rules); got != 3 {
-			t.Errorf("the set holds %d rules, want the three built-in ones", got)
+		if got := len(set.Rules); got != builtinRuleCount(t) {
+			t.Errorf("the set holds %d rules, want the %d built-in ones", got, builtinRuleCount(t))
 		}
 	})
 }
