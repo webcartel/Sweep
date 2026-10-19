@@ -48,6 +48,21 @@ func userRulesDir(t *testing.T, source string) string {
 	return dir
 }
 
+// skipWarnings asserts that the stderr a throwaway scan holds nothing but the
+// not_found skips of the built-in rules whose folders the fake machine does
+// not have: the set grows, the fake tree does not have to grow with it.
+func skipWarnings(t *testing.T, errOut string) {
+	t.Helper()
+	if errOut == "" {
+		return
+	}
+	for _, line := range strings.Split(strings.TrimSuffix(errOut, "\n"), "\n") {
+		if !strings.Contains(line, ": not_found") {
+			t.Errorf("stderr holds more than an absent folder: %q", line)
+		}
+	}
+}
+
 func TestCleanWithoutATerminalWantsTheAgreementOnTheCommandLine(t *testing.T) {
 	d := cleanDeps(t)
 
@@ -93,9 +108,7 @@ func TestCleanRunsAndTellsTheTally(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sweep clean --yes: %v", err)
 	}
-	if errOut != "" {
-		t.Errorf("stderr = %q, want nothing", errOut)
-	}
+	skipWarnings(t, errOut)
 	fsys := d.FS.(*fake.FS)
 	if _, err := fsys.Lstat(`C:\Users\probe\AppData\Local\Temp\old.log`); !os.IsNotExist(err) {
 		t.Errorf("the old log survived: %v", err)

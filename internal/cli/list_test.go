@@ -67,11 +67,32 @@ func TestListCommandPrintsBuiltinRules(t *testing.T) {
 		t.Errorf("profile = %q, want default", doc.Profile)
 	}
 	want := []string{"browsers.chrome.cache", "dev.npm-cache", "system.user-temp"}
-	if got := listedIDs(doc); !slices.Equal(got, want) {
-		t.Fatalf("listed %v, want the three built-in rules %v", got, want)
+	for _, id := range want {
+		if !slices.Contains(listedIDs(doc), id) {
+			t.Errorf("the three pioneers are not all there: %s is not in %v", id, listedIDs(doc))
+		}
 	}
 
-	chrome := doc.Rules[0]
+	var chrome struct {
+		Risk          string
+		Source        string
+		RequiresAdmin bool
+		InProfile     bool
+	}
+	var foundChrome bool
+	for _, rule := range doc.Rules {
+		if rule.ID == "browsers.chrome.cache" {
+			chrome.Risk = rule.Risk
+			chrome.Source = rule.Source
+			chrome.RequiresAdmin = rule.RequiresAdmin
+			chrome.InProfile = rule.InProfile
+			foundChrome = true
+			break
+		}
+	}
+	if !foundChrome {
+		t.Fatal("the Chrome cache is not in the list")
+	}
 	if chrome.Risk != "safe" {
 		t.Errorf("browsers.chrome.cache: risk = %q, want safe", chrome.Risk)
 	}
@@ -84,8 +105,10 @@ func TestListCommandPrintsBuiltinRules(t *testing.T) {
 	if !chrome.InProfile {
 		t.Error("browsers.chrome.cache: in_profile = false, want it in the default profile")
 	}
-	if doc.Rules[1].InProfile {
-		t.Error("dev.npm-cache: in_profile = true, want it out of the default profile")
+	for _, rule := range doc.Rules {
+		if rule.ID == "dev.npm-cache" && rule.InProfile {
+			t.Error("dev.npm-cache: in_profile = true, want it out of the default profile")
+		}
 	}
 }
 
