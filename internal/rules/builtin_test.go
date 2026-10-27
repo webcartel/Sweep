@@ -2,8 +2,8 @@ package rules
 
 import (
 	"io/fs"
-	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/webcartel/sweep/internal/model"
@@ -379,17 +379,27 @@ func TestBrowsersAndAppsRules(t *testing.T) {
 	}
 }
 
-// ruleTargetPaths collects the last path segment of each path target, the
-// piece the closed-app overlay table above compares against.
+// ruleTargetPaths collects the last segment of each path target, the piece
+// the closed-app overlay table above compares against. Windows paths are
+// split by hand: filepath.Base reads a backslash as a plain letter away from
+// Windows, and the CI runs these tests on Linux too.
 func ruleTargetPaths(t *testing.T, rule *model.Rule) []string {
 	t.Helper()
 	var out []string
 	for i := range rule.Targets {
 		if rule.Targets[i].Kind == model.KindPath {
-			out = append(out, filepath.Base(rule.Targets[i].Path))
+			out = append(out, winBase(rule.Targets[i].Path))
 		}
 	}
 	return out
+}
+
+// winBase answers the last segment of a path written with either separator.
+func winBase(path string) string {
+	if i := strings.LastIndexAny(path, `\\/`); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }
 
 // TestBuiltinRulesFeedTheProfiles pins what the profiles of stage 1 read: which

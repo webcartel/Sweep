@@ -58,6 +58,11 @@ func stripDevicePrefix(path string) string {
 	if !ok {
 		return path
 	}
+	if rest == "UNC" {
+		// `\\.\UNC` names the UNC namespace itself, without a share: it is
+		// no place at all, and the empty `\\` says so to the cleaner.
+		return `\\`
+	}
 	if unc, ok := strings.CutPrefix(rest, `UNC\`); ok {
 		return `\\` + unc
 	}

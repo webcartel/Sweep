@@ -72,7 +72,7 @@ func TestNormalizeShape(t *testing.T) {
 func TestNormalizeRefusesWhatHasNoPathAtAll(t *testing.T) {
 	g, _ := newGuard(t)
 
-	for _, path := range []string{``, `\`, `.`} {
+	for _, path := range []string{``, `\`, `.`, `\\.\UNC`, `\\.\UNC\`} {
 		_, err := g.Normalize(path)
 		refusal := refusalOf(t, err)
 		if refusal.Reason != model.ReasonProtected {
