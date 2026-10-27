@@ -125,6 +125,32 @@ func TestListMouseButtons(t *testing.T) {
 	}
 }
 
+// The safe button leaves only safe rules chosen, and says so: with the
+// profile default the button used to change nothing visible.
+func TestChooseSafeOnlyLeavesNothingElse(t *testing.T) {
+	m := aPaperModel(true)
+	m.selection.Rules["danger.rule"] = true
+	m.selection.Rules["safe.rule"] = true
+
+	m = clickAction(t, m, actSelectSafe)
+	if m.selection.Rules["danger.rule"] {
+		t.Fatalf("the safe button left the dangerous rule chosen: %+v", m.selection.Rules)
+	}
+	if !m.selection.Rules["safe.rule"] {
+		t.Fatalf("the safe button took the safe rule out")
+	}
+	if m.notice == "" {
+		t.Fatalf("the safe button said nothing about what it did")
+	}
+
+	// The same promise on the keyboard.
+	m.selection.Rules["danger.rule"] = true
+	m = stepIn(m, 0, 'a')
+	if m.selection.Rules["danger.rule"] {
+		t.Fatalf("a left the dangerous rule chosen: %+v", m.selection.Rules)
+	}
+}
+
 // The start screen answers a press on a profile card and the start button.
 func TestProfileMouse(t *testing.T) {
 	m := New(Deps{Profiles: testProfiles, AsciiFlag: true, NoASCIIFlag: false})

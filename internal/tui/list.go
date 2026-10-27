@@ -35,7 +35,8 @@ type listState struct {
 	filtering bool
 	sort      string // "size" or "name"; it starts named after the size
 	trash     bool
-	showEmpty bool // show the rules that found nothing
+	showEmpty bool   // show the rules that found nothing
+	notice    string // what the last choice of many rules did
 }
 
 // visibleRows answers the rows the filter leaves, in the order of the sort.
@@ -100,6 +101,33 @@ func (m *Model) totals() (rules int, files int64, bytes int64) {
 	return rules, files, bytes
 }
 
+// chooseSafeOnly clears the choice and ticks every safe rule: the button
+// says "only", so a dangerous rule ticked before must go out.
+func (m *Model) chooseSafeOnly() {
+	safe := 0
+	for _, rp := range m.plan.Rules {
+		if rp.Rule == nil {
+			continue
+		}
+		on := rp.Rule.Risk == model.RiskSafe
+		m.selection.Rules[rp.Rule.ID] = on
+		if on {
+			safe++
+		}
+	}
+	m.notice = fmt.Sprintf("Only safe rules are chosen: %s.", ruleCount(safe))
+}
+
+// chooseNone takes every rule out of the choice.
+func (m *Model) chooseNone() {
+	for _, rp := range m.plan.Rules {
+		if rp.Rule != nil {
+			m.selection.Rules[rp.Rule.ID] = false
+		}
+	}
+	m.notice = "Every rule is out of the choice."
+}
+
 // updateList, the part of the main screen.
 func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 	if wheel, ok := msg.(tea.MouseMsg); ok {
@@ -151,19 +179,12 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		if m.row < len(rows) {
 			id := ruleIDOf(rows[m.row])
 			m.selection.Rules[id] = !m.selection.Rules[id]
+			m.notice = ""
 		}
 	case "a":
-		for _, rp := range m.plan.Rules {
-			if rp.Rule != nil && rp.Rule.Risk == model.RiskSafe {
-				m.selection.Rules[rp.Rule.ID] = true
-			}
-		}
+		m.chooseSafeOnly()
 	case "n":
-		for _, rp := range m.plan.Rules {
-			if rp.Rule != nil {
-				m.selection.Rules[rp.Rule.ID] = false
-			}
-		}
+		m.chooseNone()
 	case "o":
 		if m.sort == "size" {
 			m.sort = "name"
@@ -355,12 +376,15 @@ func (m *Model) viewList() string {
 	}
 	b.add(mutedStyle.Render("Recycle Bin: " + binState))
 	b.add(mutedStyle.Render("Nothing is removed until you press Clean up."))
+	if m.notice != "" {
+		b.add(successStyle.Render(m.notice))
+	}
 
 	cleanLabel := fmt.Sprintf("Clean up %s", report.FormatBytes(bytes))
 	if bytes == 0 {
 		cleanLabel = "Nothing chosen"
 	}
-	hint := "Space toggle" + m.skin.sep() + "A choose safe" + m.skin.sep() + "N choose none" +
+	hint := "Space toggle" + m.skin.sep() + "A safe only" + m.skin.sep() + "N choose none" +
 		m.skin.sep() + "/ find" + m.skin.sep() + "O sort" + m.skin.sep() + "Enter details" + m.skin.sep() + "? help"
 	return m.renderFrame("Step 3 of 4", *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: cleanLabel, primary: true, action: actConfirm},

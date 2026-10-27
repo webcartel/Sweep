@@ -115,23 +115,16 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		return tea.Quit, true
 	case actToggleRule:
 		m.selection.Rules[box.arg] = !m.selection.Rules[box.arg]
+		m.notice = ""
 		return nil, true
 	case actOpenDetail:
 		m.row = atoiOrZero(box.arg)
 		return m.openDetail()
 	case actSelectSafe:
-		for _, rp := range m.plan.Rules {
-			if rp.Rule != nil && rp.Rule.Risk == model.RiskSafe {
-				m.selection.Rules[rp.Rule.ID] = true
-			}
-		}
+		m.chooseSafeOnly()
 		return nil, true
 	case actSelectNone:
-		for _, rp := range m.plan.Rules {
-			if rp.Rule != nil {
-				m.selection.Rules[rp.Rule.ID] = false
-			}
-		}
+		m.chooseNone()
 		return nil, true
 	case actToggleBin:
 		m.trash = !m.trash
@@ -180,7 +173,7 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		m.screen = screenConfirm
 		return nil, true
 	case actSaveReport:
-		_ = m.saveReport()
+		m.saveNoteReport()
 		return nil, true
 	case actToggleItem:
 		m.selection.Exclude[box.arg] = !m.selection.Exclude[box.arg]

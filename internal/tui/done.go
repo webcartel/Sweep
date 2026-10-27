@@ -20,7 +20,7 @@ func (m *Model) updateDone(msg tea.Msg) (tea.Cmd, bool) {
 	}
 	switch key.String() {
 	case "s":
-		_ = m.saveReport()
+		m.saveNoteReport()
 		return nil, true
 	case "q", "esc", "ctrl+c":
 		return tea.Quit, true
@@ -28,21 +28,38 @@ func (m *Model) updateDone(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, false
 }
 
+// saveNoteReport saves the answer and keeps a note of what happened for the
+// screen: a silent save read as a button that does nothing.
+func (m *Model) saveNoteReport() {
+	path, err := m.saveReport()
+	switch {
+	case err != nil:
+		m.run.saveNote = "The report was not saved: " + err.Error()
+	case path == "":
+		m.run.saveNote = "There is no log directory to save the report in."
+	default:
+		m.run.saveNote = "Report saved: " + path
+	}
+}
+
 // saveReport writes the answer of the run into one file of the log
-// directory, named after the hour it was saved in.
-func (m *Model) saveReport() error {
+// directory, named after the hour it was saved in, and answers the path.
+func (m *Model) saveReport() (string, error) {
 	if m.run.result == nil || m.logDir == "" {
-		return nil
+		return "", nil
 	}
 	name := "sweep-report-" + time.Now().Format("20060102-150405") + ".json"
 	// Next to the day's log, the way the ruling of the run keeps it.
 	next := filepath.Join(filepath.Dir(report.LogFile(m.logDir, time.Now())), name)
 	file, err := os.Create(next)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() { _ = file.Close() }()
-	return report.ExecJSON(file, m.run.result)
+	if err := report.ExecJSON(file, m.run.result); err != nil {
+		return "", err
+	}
+	return next, nil
 }
 
 // viewDone draws the answer of the run the way a person reads it: the space
@@ -94,6 +111,9 @@ func (m *Model) viewDone() string {
 	}
 	b.add("")
 	b.add(mutedStyle.Render("Every action is in the log. Press S to save a JSON report."))
+	if m.run.saveNote != "" {
+		b.add(successStyle.Render(m.run.saveNote))
+	}
 
 	hint := "S save report" + m.skin.sep() + "Q quit"
 	return m.renderFrame("Done", *b, mutedStyle.Render(hint), makeButtons(

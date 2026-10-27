@@ -119,7 +119,7 @@ allowed; give your own rule the same id to override it.
 | --- | --- |
 | `Up` `Down` or `k` `j` | move |
 | `Space` | tick or untick a rule, or flip a choice in the form |
-| `a` | tick every `SAFE` rule |
+| `a` | leave only the `SAFE` rules ticked |
 | `n` | clear the choice |
 | `/` | find a rule by name |
 | `o` | sort by size or name |

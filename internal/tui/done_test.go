@@ -57,6 +57,18 @@ func TestDoneSavesReport(t *testing.T) {
 	}
 }
 
+// The save button of the result screen writes the report and says where.
+func TestDoneSaveButtonSaysWhere(t *testing.T) {
+	m := doneFromRun(t)
+	m = clickAction(t, m, actSaveReport)
+	if !strings.Contains(m.run.saveNote, "Report saved:") {
+		t.Fatalf("the save button said %q", m.run.saveNote)
+	}
+	if !strings.Contains(m.View(), "Report saved:") {
+		t.Fatalf("the result screen hides the note: %q", m.View())
+	}
+}
+
 // q leaves the run on the way out.
 func TestDoneQuits(t *testing.T) {
 	m := doneFromRun(t)

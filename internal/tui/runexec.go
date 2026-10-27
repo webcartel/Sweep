@@ -34,6 +34,8 @@ type runState struct {
 	execEvents <-chan model.Event
 	execCmd    tea.Cmd
 	executor   *exec.Executor
+	// saveNote says what the last save of the report did.
+	saveNote string
 }
 
 // startRun, the run the modal agrees to: the executor takes the plan with
