@@ -1,148 +1,281 @@
-﻿?# sweep
+﻿# Sweep
 
-`sweep` cleans a Windows 10/11 machine according to a set of YAML rules: the
-rules are data, and the Go core only scans and executes them. One binary, two
-frontends — running `sweep` with no arguments opens a TUI, while `sweep scan`
-and `sweep clean` work in scripts and in Task Scheduler.
+Sweep frees space on Windows 10 and 11 by rules written in YAML. The Go core
+scans the disk, shows a plan, and deletes only what you approve. One binary
+gives you both a terminal interface and scriptable commands.
 
-**Stage 6 of 8 — the v1 rule set.** The built-in set carries 26 rules: the
-caches of the three browsers and of VS Code, Discord, Slack; the system paths
-(temp folders, Windows Error Reporting, servicing logs, crash and kernel
-dumps, Windows Update's download cache, Delivery Optimization, thumbnails);
-two command rules (`system.recycle-bin` and a careful `dism` component
-cleanup); and eight tagged `dev` caches, from npm to Docker. Each path was
-probed on a real Windows 10 22H2 machine, read-only; the table of what was
-verified, what was absent, and what cannot be verified here lives in
-[`docs/rules.md`](docs/rules.md), the rule format itself in
-[`docs/format.md`](docs/format.md), and
-[`CONTRIBUTING.md`](CONTRIBUTING.md) says what a new rule answers to.
-
-## Status (earlier stages)
-
-**Stage 5 of 8 — the TUI.** Running `sweep` with no arguments opens a
-framed, step-by-step screen: first a start page that says in plain words what
-sweep does and offers three named ways to clean (Everyday, Deep, Developer),
-then a live scan with a progress bar and a running total, then the review
-table of found rules with a plain risk word (`Safe`, `Careful`, `Risky`), a
-size, and the rule's own explanation under the cursor; rules that found
-nothing stay hidden until asked for. Every row and every button answers the
-mouse; the keys of the spec still work. The confirmation restates the amount,
-says whether files go to the Recycle Bin or are deleted for good, and asks
-for the word `yes` only for risky rules; a rule wanting elevation offers
-`Restart as administrator`. The run shows a progress bar and the latest
-actions; the result leads with the space freed and explains skipped files.
-`s` saves the run's JSON answer next to the day's log. `--ascii` (or
-`SWEEP_ASCII=1`) keeps the same layout in plain characters for a Windows 10
-conhost. There is no editing of the config or the rules in the TUI — the
-screen only shows and runs.
-
-![The list screen of the TUI after a real scan](.github/tui.png)
-
-
-**Stage 4 of 8 — the executor and `sweep clean`.** On top of the scanner,
-`sweep clean` runs the plan it is agreed to: it scans, prints the plan, and
-after `--yes` (or an answer at the prompt of a real terminal) takes every
-selected path away — a file alone, the contents of a directory or its files,
-one last guard check before every deletion, and dangerous rules excluded
-unless `--include-dangerous` names them, in which case their data goes to the
-recycle bin. `--dry-run` tallies what would have gone without touching the
-disk; `--no-trash` prefers real deletion to the bin; `--on-reboot` postpones
-the paths of busy files to the next start of Windows; a run whose log cannot
-be opened does not start at all.
-
-```sh
-.\sweep.exe clean --dry-run
-.\sweep.exe clean --yes --json
-.\sweep.exe clean --yes --include-dangerous --no-trash=false
+```
+sweep              # the terminal interface
+sweep scan         # what would be cleaned, without changes
+sweep clean        # the run itself
+sweep list         # the rules and the profiles
+sweep rules ...    # check, show and validate rules
 ```
 
-`clean` answers with the same versioned JSON as `scan` (or writes it to
-`--report <file>`): what went, what stayed, why, and what waits for the next
-start of Windows. The exit codes: 0 a full run, 1 an internal error or an
-unopenable log, 2 a misuse of flags, 3 a confirmation that no terminal can
-give, 4 a run that finished with paths left behind. Every operation is
-appended to one JSONL per day under `%LOCALAPPDATA%\sweep\logs\`.
+## Status
 
-**Stages 1–3** built the grounding: `sweep scan` reads the disk and prints
-what would be cleaned, without changing anything. The scanner walks each
-target of a rule —
-the directory itself, its contents or its files — respects the includes, the
-age filters and the `min_age_days` of the rules, aggregates a directory into
-one entry with the counts of what is below and never enters a reparse point.
-The rules run side by side in a worker pool, the progress is throttled, and
-Ctrl+C closes the stream within the second and without a plan.
-```sh
-.\sweep.exe scan
-.\sweep.exe scan --json
-.\sweep.exe scan --rule dev.*
-```
+The eight stages of the specification: stages 0-6 are done.
 
-`scan` prints a table (ID, items, files, size, skipped, with a TOTAL row);
-`--json` prints one versioned document instead, with the whole plan of every
-rule, and `--rule` takes an id or a mask of rules wherever they came from,
-repeated as often as needed, taking the place of the profile.
+| Stage | State |
+| --- | --- |
+| 0. Skeleton | done |
+| 1. Rules and config | done |
+| 2. Guard and platform | done |
+| 3. Scanner | done |
+| 4. Executor and `clean` | done |
+| 5. Terminal interface | done |
+| 6. Rule set and documentation | done |
+| 7. Extensions after the first release | in progress: the rule browser, the config viewer and the user-rule editor are here; the rest is listed below |
 
-Everything that touches WinAPI sits behind `internal/platform`: the file
-system (reparse points, 8.3 names, drive kinds, the recycle bin), the process
-list and the environment. The Windows side is a pair of files under a build tag,
-and the tests run against an in-memory one, so the same cases run on either
-machine.
-`internal/guard` decides what may be touched: a path is normalized — variables,
-`..`, either separator, `\\?\`, trailing dots and spaces, 8.3 names, links — and
-compared against a protected list that no rule can widen. The executor holds
-the same promise: it asks the guard again right before it deletes, because the
-machine had time to change between the scan and the run.
+The built-in set has 26 rules: browser and app caches, system temp folders,
+Error Reporting, servicing logs, crash dumps, update leftovers, and developer
+caches. Every path was probed on a real Windows 10 22H2 machine; the table of
+what was checked, and what could not be checked here, is in
+[`docs/rules.md`](docs/rules.md). Windows 11 is marked `not verified`.
 
-```sh
-.\sweep.exe list
-.\sweep.exe list --json --profile dev
-.\sweep.exe rules validate
-.\sweep.exe rules show browsers.chrome.cache
-```
+![The review screen after a real scan](.github/tui.png)
 
-The rules and the config live in `%APPDATA%\sweep`: `rules\*.yaml` and
-`config.yaml`; `--rules-dir` adds a directory of rule files and `--config`
-points the config elsewhere.
-
-The specification lives in [`docs/sweep-spec.md`](docs/sweep-spec.md) (Russian).
-It is the authority on behaviour; its «Этапы реализации» section lists the
-eight stages and the "done when" criterion of each.
-
-## Build and test
+## Quick start
 
 Requires Go 1.27 or newer.
+
+```sh
+go build -o sweep.exe ./cmd/sweep
+.\sweep.exe
+```
+
+The first screen offers three ways to clean. Choose one, press Enter, wait for
+the scan, review the list, and press `c` to continue. Nothing is removed until
+you confirm.
+
+To see the plan without opening the interface:
+
+```sh
+.\sweep.exe scan
+.\sweep.exe clean --dry-run
+```
+
+## The terminal interface
+
+The interface is built for people who have never cleaned a disk by hand. It
+has four steps: choose, scan, review, confirm. Every row and every button
+answers the mouse; every action also has a key.
+
+**Start.** Three named profiles explain themselves in one line:
+
+- `default` - Everyday cleanup: caches and temp files that Windows rebuilds.
+- `dev` - Developer cleanup: build caches of npm, Go, Docker and other tools.
+- `aggressive` - Deep cleanup: everything above, plus crash dumps and update
+  leftovers.
+
+**Scan.** A progress bar, the rule in progress, and the space found so far.
+Rules that find nothing are not noise: the review hides them until asked.
+
+**Review.** One row per rule: checkbox, name, risk badge, file count, size, and
+a chevron that opens the rule's paths. Under the cursor, the rule explains
+itself. A legend spells the badges out: `SAFE` comes back on its own, `MOD`
+slows the next start or build, `DANGER` may lose data you still want.
+
+**Confirm.** The screen restates the amount, says whether files go to the
+Recycle Bin or are deleted for good, and asks for the word `yes` only when a
+`DANGER` rule is chosen. A rule that needs administrator rights offers
+`Restart as administrator`; the restart keeps your choice.
+
+**Result.** The space freed leads, followed by removed, binned, skipped and
+failed counts. Skipped files were in use: close the app and run again. `s`
+writes the JSON answer next to the day's log.
+
+### Rules and settings
+
+Press `g` on the start screen, or use the `Rules & settings` button:
+
+- **Browse rules** - every rule, its paths, risk, profile membership and the
+  file it came from. Built-in rules open read-only.
+- **View config** - the effective config: profiles, rule switches, excluded
+  paths and whether user commands may run.
+- **My rules** - your own files in `%APPDATA%\sweep\rules`.
+
+### The rule editor
+
+Press `n` in `My rules` to make a rule. The form covers the common case: id,
+name, description, category, risk, profile membership, admin rights, tags,
+path, mode, age, include and exclude masks.
+
+- `Enter` edits a value; `Space` flips a toggle or cycles a choice.
+- `p` or `Preview YAML` shows the whole file before it is written.
+- `Ctrl+S` or `Save` writes it, then reloads the rules without a restart.
+- A save leaves `.yaml.bak` next to the old version; a delete leaves it too.
+- The file passes the same schema and semantic checks the CLI runs.
+
+Rules with several targets or a command do not fit the form: the editor opens
+them in Notepad and reloads when it closes. Editing a built-in rule is not
+allowed; give your own rule the same id to override it.
+
+### Keys
+
+| Key | Action |
+| --- | --- |
+| `Up` `Down` or `k` `j` | move |
+| `Space` | tick or untick a rule, or flip a choice in the form |
+| `a` | tick every `SAFE` rule |
+| `n` | clear the choice |
+| `/` | find a rule by name |
+| `o` | sort by size or name |
+| `Enter` or `d` | details of a rule |
+| `c` | continue to the confirmation |
+| `t` | send files to the Recycle Bin instead of deleting |
+| `e` | show or hide rules that found nothing |
+| `r` | scan again |
+| `g` | rules and settings |
+| `s` | save the report on the result screen |
+| `?` | help |
+| `Esc` | back |
+| `q` | quit |
+
+`--ascii` (or `SWEEP_ASCII=1`) draws the same layout in plain characters for
+an old console. The interface needs at least 80 x 24 cells.
+
+## Commands
+
+### `sweep scan`
+
+Reads the disk and prints what would be cleaned. It changes nothing.
+
+```sh
+sweep scan
+sweep scan --json
+sweep scan --rule dev.*
+```
+
+The table holds ID, items, files, size and skipped, with a TOTAL row. `--json`
+prints one versioned document with the whole plan. `--rule` takes an id or a
+mask and may be repeated; it replaces the profile.
+
+### `sweep clean`
+
+Runs the plan it is given.
+
+```sh
+sweep clean --dry-run
+sweep clean --yes
+sweep clean --yes --json
+sweep clean --yes --include-dangerous
+```
+
+`--dry-run` counts what would go and touches nothing. Without `--yes` and
+without a terminal, the command stops with exit code 3. Dangerous rules stay
+out unless `--include-dangerous` names them, and their data goes to the
+Recycle Bin. `--no-trash` prefers real deletion to the bin; `--on-reboot`
+postpones busy files to the next start of Windows.
+
+Exit codes: `0` a full run, `1` an internal error or an unopenable log, `2` a
+misuse of flags, `3` a confirmation no terminal can give, `4` a run that
+finished with paths left behind.
+
+### `sweep list`
+
+Prints the rules and the profiles; `--json` prints the same as a document.
+`--profile` chooses the profile, `--category` filters by category.
+
+### `sweep rules`
+
+```sh
+sweep rules validate            # the built-in rules and yours
+sweep rules validate <path>     # a directory of rule files
+sweep rules show <id>           # one rule, with its paths expanded
+```
+
+## Rules and config
+
+Rules are data. A new cleanup is a new YAML file, not a change in Go code.
+
+```
+rules/
+  browsers/*.yaml
+  apps/*.yaml
+  system/*.yaml
+  dev/*.yaml
+```
+
+The binary embeds the same files the repository publishes. Your own rules live
+in `%APPDATA%\sweep\rules\*.yaml`; a user rule with the same id replaces the
+built-in one and prints a warning. `--rules-dir` adds a directory that wins
+over both.
+
+The format is documented field by field in [`docs/format.md`](docs/format.md),
+the JSON schema is [`schema/rule.schema.json`](schema/rule.schema.json), and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) is the checklist for a new rule.
+
+The config lives in `%APPDATA%\sweep\config.yaml` and can switch rules off,
+list paths never to touch, allow commands in user rules, and define profiles.
+
+## Safety
+
+- **A plan always comes first.** `scan`, `clean --dry-run` and the review
+  screen all answer what would go before anything goes.
+- **The guard decides.** Before every deletion the path is normalized
+  (variables, `..`, either separator, `\\?\`, 8.3 names, links) and compared
+  against a protected list that no rule can widen. A second check runs right
+  before each removal.
+- **Risk is honest.** `safe` data comes back on its own, `moderate` comes back
+  at a cost, `dangerous` may hold what you still need. Only `safe` rules are on
+  by default.
+- **Busy files are skipped, never forced.** Sweep does not stop services or
+  close applications.
+
+## Build and test
 
 ```sh
 go build ./...
 go vet ./...
 go test ./...
+golangci-lint run
 ```
 
-The rule and config parsers and the guard carry fuzz targets; a short local run
-is:
+The scanners, the parsers and the guard carry fuzz targets:
 
 ```sh
 go test ./internal/rules/ -run '^$' -fuzz FuzzLoadFile -fuzztime 30s
-go test ./internal/guard/ -run '^$' -fuzz FuzzNormalize -fuzztime 60s
+go test ./internal/guard/ -run '^$' -fuzz FuzzNormalize -fuzztime 30s
 ```
 
-Build the binary and print its version:
+The Linux job runs the portable core with the race detector; the Windows job
+runs the whole suite and the linter. A weekly job fuzzes for ten minutes.
 
-```sh
-go build -o sweep.exe ./cmd/sweep
-.\sweep.exe version
-```
+## Project layout
 
-## Design in one paragraph
+| Path | What lives there |
+| --- | --- |
+| `cmd/sweep` | the binary |
+| `internal/cli` | commands, flags and the exit codes |
+| `internal/rules` | parsing, merging, profiles and the built-in set |
+| `internal/model` | the types shared by every package |
+| `internal/guard` | what may be touched |
+| `internal/scan` | the walk of the disk |
+| `internal/exec` | deletions, the bin, commands and the log |
+| `internal/tui` | the terminal interface |
+| `internal/platform` | WinAPI behind interfaces, and the in-memory fake |
+| `rules/`, `schema/` | the published rules and the format |
 
-Rules are data: a new cleanup is a new YAML file, not a change in Go code. A
-plan always comes before deletion, and `--dry-run` changes nothing. Safety
-lives in the core — the protected-path list is checked before every deletion
-and a rule cannot bypass it. The CLI and the TUI share one set of types and
-one event stream, and everything that touches WinAPI sits behind
-`internal/platform`, so the scanner and the executor are tested on fakes.
+## Documentation
+
+| Document | Language | What it holds |
+| --- | --- | --- |
+| [`docs/sweep-spec.md`](docs/sweep-spec.md) | Russian | the specification; the source of truth |
+| [`docs/format.md`](docs/format.md) | English | the rule format, field by field |
+| [`docs/rules.md`](docs/rules.md) | English | the on-machine verification of every path |
+| [`docs/decisions.md`](docs/decisions.md) | Russian | the decisions made along the way |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | English | how to add a rule |
+
+## Roadmap
+
+The next stage-7 items, each with its own criterion before it starts:
+
+- `kind: find` - directories found by a marker, such as `node_modules` next to
+  `package.json`, untouched for N days.
+- a "large folders" view in the spirit of ncdu, and duplicate search.
+- a rule for `Windows.old`, and a manifest for scoop.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
+MIT - see [LICENSE](LICENSE).

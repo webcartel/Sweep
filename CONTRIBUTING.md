@@ -53,3 +53,11 @@ Read [`docs/format.md`](docs/format.md) for every field before your first rule.
 Small pull requests only: one rule (or a small family) at a time, tests
 green, no code changes needed. The Go code changes behind a separate pull
 request, not inside the rules one.
+
+## Trying a rule in the interface
+
+You do not have to write YAML to test an idea. Run `sweep`, press `g`, open
+`My rules` and press `n`. The form saves the rule to
+`%APPDATA%\sweep\rules`, and sweep reloads it at once: scan and see what the
+rule finds. `Preview YAML` shows the file the form wrote, which you can paste
+into your pull request.

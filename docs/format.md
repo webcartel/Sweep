@@ -86,3 +86,20 @@ The binary carries the same files this repository publishes
 land in `%APPDATA%\sweep\rules\*.yaml` and **replace a built-in rule of the
 same id** (a warning prints); `--rules-dir` adds extra directories that win
 over both.
+
+## Editing rules in the interface
+
+Press `g` on the start screen, then `My rules`, then `n`. The form writes the
+fields above; `Preview YAML` shows the whole file before it is saved. The save
+runs `LoadFile`, `ValidateSchema` and `ValidateSemantics`, exactly the checks
+the CLI runs, so a file the interface accepts is a file `sweep validate`
+accepts too.
+
+Three limits keep the form honest:
+
+- The form holds one rule with one path target. A file with several rules or a
+  `kind: command` target opens in Notepad instead.
+- A built-in rule cannot be edited. Write your own rule with the same id to
+  override it; the merge prints a warning.
+- Every save and delete leaves a `.bak` copy next to the file.
+
