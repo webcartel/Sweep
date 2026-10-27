@@ -58,6 +58,17 @@ func TestProfileSpeaksPlainly(t *testing.T) {
 	}
 }
 
+// A window smaller than the spec's 80 x 24 asks to be enlarged instead of
+// squeezing the screens.
+func TestTinyWindowAsksToEnlarge(t *testing.T) {
+	m := aPaperModel(true)
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 60, Height: 18})
+	m = next.(*Model)
+	if !strings.Contains(m.View(), "make the window larger") {
+		t.Fatalf("a 60x18 window is not refused: %q", m.View())
+	}
+}
+
 // The done screen leads with the space it freed.
 func TestDoneLeadsWithFreedSpace(t *testing.T) {
 	m := doneFromRun(t)
