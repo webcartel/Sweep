@@ -14,3 +14,6 @@ var errNoRestart = errors.New("the restart wants a shell of Windows")
 
 // restartAsAdmin, off Windows, says the run cannot restart itself.
 func restartAsAdmin(*cobra.Command, []string) error { return errNoRestart }
+
+// restartAsAdminRegistry is the same answer for the registry choice.
+func restartAsAdminRegistry(*cobra.Command, []string) error { return errNoRestart }

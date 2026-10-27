@@ -62,6 +62,14 @@ type Deps struct {
 	// Reload reads the sources again after an edit and answers the fresh
 	// set.
 	Reload func() (*rules.Set, error)
+	// Registry is the registry the cleanup reads and changes.
+	Registry platform.Registry
+	// RegistryPreselect names the registry findings an elevated restart
+	// brought back.
+	RegistryPreselect []string
+	// RestartRegistry restarts the whole run as the administrator with the
+	// registry findings named.
+	RestartRegistry func(ids []string) error
 }
 
 // Model is the one Bubble Tea model of the TUI. Every screen of the run is a
@@ -79,8 +87,10 @@ type Model struct {
 	confirmState
 	uacState
 	rulesState
-	logDir string
-	run    runState
+	regState
+	registryPreselect []string
+	logDir            string
+	run               runState
 }
 
 // scanState is what the screen of the scan and its neighbours read and
@@ -114,11 +124,18 @@ func New(d Deps) *Model {
 	m.rulesDir = d.RulesDir
 	m.configPath = d.ConfigPath
 	m.reload = d.Reload
+	m.registryPreselect = d.RegistryPreselect
 	env := d.Env
 	if env == nil {
 		env = envMap{}
 	}
 	m.env = env
+	m.reg = d.Registry
+	m.fsys = d.FS
+	m.backup = registryBackupDir(env)
+	m.regEnv = env
+	m.regElevated = elevatedOf(d.System)
+	m.registryRestart = d.RestartRegistry
 	m.skin = newSkin(env, d.AsciiFlag, d.NoASCIIFlag)
 	m.sort = "size"
 	return m
@@ -128,6 +145,10 @@ func New(d Deps) *Model {
 // named the rules goes straight to the scan.
 func (m *Model) Init() tea.Cmd {
 	title := tea.SetWindowTitle("Sweep - free space safely")
+	if len(m.registryPreselect) != 0 && m.reg != nil {
+		m.screen = screenRegScan
+		return tea.Batch(title, m.scanRegistry())
+	}
 	if len(m.preselect) != 0 && m.scanner != nil && m.rulesFor != nil {
 		m.screen = screenScanning
 		return tea.Batch(title, m.startScan())
@@ -184,6 +205,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateEditor(msg)
 	case screenPreview:
 		cmd, _ = m.updatePreview(msg)
+	case screenRegScan:
+		cmd, _ = m.updateRegScan(msg)
+	case screenRegReview:
+		cmd, _ = m.updateRegReview(msg)
+	case screenRegConfirm:
+		cmd, _ = m.updateRegConfirm(msg)
+	case screenRegRunning:
+		cmd, _ = m.updateRegRunning(msg)
+	case screenRegDone:
+		cmd, _ = m.updateRegDone(msg)
 	}
 	return m, cmd
 }
@@ -225,6 +256,16 @@ func (m *Model) View() string {
 		return m.viewEditor()
 	case screenPreview:
 		return m.viewPreview()
+	case screenRegScan:
+		return m.viewRegScan()
+	case screenRegReview:
+		return m.viewRegReview()
+	case screenRegConfirm:
+		return m.viewRegConfirm()
+	case screenRegRunning:
+		return m.viewRegRunning()
+	case screenRegDone:
+		return m.viewRegDone()
 	}
 	return ""
 }

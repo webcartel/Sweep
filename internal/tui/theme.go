@@ -68,6 +68,12 @@ const (
 	actDeleteYes   = "delete-yes"
 	actField       = "field"
 	actPreviewBack = "preview-back"
+	actRegOpen     = "registry-open"
+	actRegToggle   = "registry-toggle"
+	actRegContinue = "registry-continue"
+	actRegClean    = "registry-clean"
+	actRegRestart  = "registry-restart"
+	actRegBack     = "registry-back"
 )
 
 // hitAt answers the box under a press.
@@ -225,6 +231,28 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		return m.previewEditor(), true
 	case actPreviewBack:
 		m.screen = screenEditor
+		return nil, true
+	case actRegOpen:
+		return m.openRegistry(), true
+	case actRegToggle:
+		m.toggleRegistryFinding(atoiOrZero(box.arg))
+		return nil, true
+	case actRegContinue:
+		if m.selectedCount() != 0 {
+			m.screen = screenRegConfirm
+		}
+		return nil, true
+	case actRegClean:
+		return m.startRegistryClean(), true
+	case actRegRestart:
+		return m.restartRegistry(), true
+	case actRegBack:
+		switch m.screen {
+		case screenRegConfirm:
+			m.screen = screenRegReview
+		case screenRegReview, screenRegScan, screenRegDone:
+			m.screen = screenProfile
+		}
 		return nil, true
 	case actNotepad:
 		return m.openInNotepad(), true

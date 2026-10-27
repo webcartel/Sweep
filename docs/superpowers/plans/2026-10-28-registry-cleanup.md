@@ -1,6 +1,6 @@
-# Registry Cleanup Implementation Plan
+﻿# Registry Cleanup Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add a separate, narrow registry cleanup (`sweep registry scan|clean` and a TUI flow) for orphaned uninstall entries, dead `Run` values and dead `App Paths` keys.
 
@@ -61,10 +61,10 @@ func NewRegistry() (Registry, error)
 ```
 `fake.Registry` also carries `FailExport map[string]error` and `ExportCalls []string`.
 
-- [ ] **Step 1: Write the failing fake test** — build a tree with `AddKey`/`AddValue`, assert `SubKeys` sorted, `Values` returns the default value as `""`, `DeleteKey` refuses a key with subkeys, `Export` records the call and writes the file.
-- [ ] **Step 2: Run it; expect undefined symbols.**
-- [ ] **Step 3: Implement the interface, the windows type (64-bit view, `WOW64_64KEY`; `Export` runs `reg.exe export <key> <path> /y`), and the fake.**
-- [ ] **Step 4: Run `go test ./internal/platform/...`; green. Commit `platform: a registry behind an interface`.**
+- [x] **Step 1: Write the failing fake test** — build a tree with `AddKey`/`AddValue`, assert `SubKeys` sorted, `Values` returns the default value as `""`, `DeleteKey` refuses a key with subkeys, `Export` records the call and writes the file.
+- [x] **Step 2: Run it; expect undefined symbols.**
+- [x] **Step 3: Implement the interface, the windows type (64-bit view, `WOW64_64KEY`; `Export` runs `reg.exe export <key> <path> /y`), and the fake.**
+- [x] **Step 4: Run `go test ./internal/platform/...`; green. Commit `platform: a registry behind an interface`.**
 
 ### Task 2: Findings, detection and the registry guard
 
@@ -95,7 +95,7 @@ func Guarded(key string) bool
 ```
 `ID` is `kind + "|" + lower(key) + "|" + lower(value)`.
 
-- [ ] **Step 1: Write failing detection tests** on `fake.Registry` plus `fake.FS`:
+- [x] **Step 1: Write failing detection tests** on `fake.Registry` plus `fake.FS`:
   - dead `UninstallString` under HKCU → one `uninstall` finding with reason `uninstall command not found: …`;
   - live path → no finding;
   - `WindowsInstaller=1`, `ParentKeyName`, `ReleaseType`, `SystemComponent=1` → no finding;
@@ -104,10 +104,10 @@ func Guarded(key string) bool
   - `%NOPE%\app.exe` → no finding, note `unknown_variable`;
   - dead `App Paths` default value → finding; key with subkeys → `HasSubkeys=true`.
   - path on `fake.FS` drive typed `DriveRemovable`/`DriveRemote` → no finding, note `not_local`; a `DriveType` error → note `unknown_drive`.
-- [ ] **Step 2: Run; red.**
-- [ ] **Step 3: Implement `Scan`** over the three branches, 64-bit paths listed verbatim, skips above, env expansion via `platform.Expand`, drive kind via `fs.DriveType`, existence via `fs.Lstat`. `Guarded` admits only keys at or below the three parents, case-insensitive, accepting `HKLM`/`HKEY_LOCAL_MACHINE`.
-- [ ] **Step 4: Guard test**: `HKCU\...\Run` and `HKLM\...\Uninstall\X` pass; `HKLM\SYSTEM\...`, `HKLM\...\Classes\...`, a key *above* `Run` fail.
-- [ ] **Step 5: Green; commit `registry: find dead entries behind a guard`.**
+- [x] **Step 2: Run; red.**
+- [x] **Step 3: Implement `Scan`** over the three branches, 64-bit paths listed verbatim, skips above, env expansion via `platform.Expand`, drive kind via `fs.DriveType`, existence via `fs.Lstat`. `Guarded` admits only keys at or below the three parents, case-insensitive, accepting `HKLM`/`HKEY_LOCAL_MACHINE`.
+- [x] **Step 4: Guard test**: `HKCU\...\Run` and `HKLM\...\Uninstall\X` pass; `HKLM\SYSTEM\...`, `HKLM\...\Classes\...`, a key *above* `Run` fail.
+- [x] **Step 5: Green; commit `registry: find dead entries behind a guard`.**
 
 ### Task 3: `sweep registry scan`
 
@@ -121,9 +121,9 @@ func Guarded(key string) bool
 - Produces: `newRegistryCmd(d deps) *cobra.Command` with `scan` and `clean` (clean is Task 4).
 - JSON: `{ "schema": 1, "findings": [ {"kind","id","name","key","value","path","reason","admin","has_subkeys"} ] }`.
 
-- [ ] **Step 1: Failing CLI test** with `fake.Registry` seeded with one dead `Run` value: `registry scan` prints a table row with `run`, the value name and the reason; `--json` parses into the document above.
-- [ ] **Step 2: Red; implement `scan`** (table columns KIND, NAME, KEY, REASON, ADMIN; notes to stderr).
-- [ ] **Step 3: Green; commit `cli: registry scan`.**
+- [x] **Step 1: Failing CLI test** with `fake.Registry` seeded with one dead `Run` value: `registry scan` prints a table row with `run`, the value name and the reason; `--json` parses into the document above.
+- [x] **Step 2: Red; implement `scan`** (table columns KIND, NAME, KEY, REASON, ADMIN; notes to stderr).
+- [x] **Step 3: Green; commit `cli: registry scan`.**
 
 ### Task 4: Backup, clean and `sweep registry clean`
 
@@ -149,17 +149,17 @@ func Clean(reg platform.Registry, findings []Finding, opts Options) (Result, err
 ```
 Backup root default `%LOCALAPPDATA%\sweep\registry-backups`, directory `YYYYMMDD-HHMMSS` (suffix `-2`, `-3` on collision), one `.reg` per key (Run value → its parent key, deduped), `manifest.json`.
 
-- [ ] **Step 1: Failing clean tests**:
+- [x] **Step 1: Failing clean tests**:
   - dry run: no `ExportCalls`, actions `planned`, no directory;
   - export error: registry untouched, action `failed`, `Failed=1`;
   - HKLM finding without elevation: `skipped`, note `needs_admin`;
   - `HasSubkeys`: `skipped`;
   - successful deletion exports first (`ExportCalls` before `DeleteValue`), report counts, manifest exists.
-- [ ] **Step 2: Red; implement `Clean`** with order: guard → admin → subkeys → export all → manifest → delete.
-- [ ] **Step 3: CLI test**: `registry clean` without `--select` exits 2; with `--select run:<key>:<value>` and `--yes` on a fake deletes one value, prints the backup dir; non-terminal without `--yes` exits 3; `--json` prints exactly one document with `backup_dir` and no table.
-- [ ] **Step 4: Log test**: each action reaches `Options.Log`, and the CLI writes `registry_delete`, `registry_skip`, `registry_failed` lines to the JSONL log next to the file-clean log.
-- [ ] **Step 5: Integration test** behind `SWEEP_REGISTRY_INTEGRATION=1`: create `HKCU\Software\sweep-test` with one dead value, scan it, export, delete, restore from the `.reg`, and remove the test key.
-- [ ] **Step 6: Green; commit `registry: clean with a .reg backup before every delete`.**
+- [x] **Step 2: Red; implement `Clean`** with order: guard → admin → subkeys → export all → manifest → delete.
+- [x] **Step 3: CLI test**: `registry clean` without `--select` exits 2; with `--select run:<key>:<value>` and `--yes` on a fake deletes one value, prints the backup dir; non-terminal without `--yes` exits 3; `--json` prints exactly one document with `backup_dir` and no table.
+- [x] **Step 4: Log test**: each action reaches `Options.Log`, and the CLI writes `registry_delete`, `registry_skip`, `registry_failed` lines to the JSONL log next to the file-clean log.
+- [x] **Step 5: Integration test** behind `SWEEP_REGISTRY_INTEGRATION=1`: create `HKCU\Software\sweep-test` with one dead value, scan it, export, delete, restore from the `.reg`, and remove the test key.
+- [x] **Step 6: Green; commit `registry: clean with a .reg backup before every delete`.**
 
 ### Task 5: The TUI flow
 
@@ -174,9 +174,9 @@ Backup root default `%LOCALAPPDATA%\sweep\registry-backups`, directory `YYYYMMDD
 - Consumes: `registry.Scan`, `registry.Clean`, existing frame helpers.
 - Produces: screens `regScan`, `regReview`, `regConfirm`, `regRunning`, `regDone`; `regState` with `findings []registry.Finding`, `selected map[string]bool`, `result registry.Result`.
 
-- [ ] **Step 1: Failing tests**: start button opens the flow; review starts with nothing selected; Space toggles a finding; confirm runs a fake clean; done shows the backup dir; `[A]` findings survive `--preselect-registry`.
-- [ ] **Step 2: Red; implement screens**: scan progress, review table (KIND, NAME, REASON, `[A]`), confirm restating counts, running, done. No "Select safe only".
-- [ ] **Step 3: Green; commit `tui: registry cleanup`.**
+- [x] **Step 1: Failing tests**: start button opens the flow; review starts with nothing selected; Space toggles a finding; confirm runs a fake clean; done shows the backup dir; `[A]` findings survive `--preselect-registry`.
+- [x] **Step 2: Red; implement screens**: scan progress, review table (KIND, NAME, REASON, `[A]`), confirm restating counts, running, done. No "Select safe only".
+- [x] **Step 3: Green; commit `tui: registry cleanup`.**
 
 ### Task 6: Documentation and the read-only check
 
@@ -185,8 +185,8 @@ Backup root default `%LOCALAPPDATA%\sweep\registry-backups`, directory `YYYYMMDD
 - Modify: `README.md` (a Registry cleanup section and command list)
 - Modify: `docs/decisions.md` (a Russian section with the calls of the design)
 
-- [ ] **Step 1: `docs/registry.md`** — what is cleaned, what is not, the backup location and restore steps, the `--select` format.
-- [ ] **Step 2: README** — commands and one screenshot of the review screen.
-- [ ] **Step 3: decisions** — narrow set, `not_local`, `--preselect-registry`, spec remains v1.
-- [ ] **Step 4: Read-only check** — `sweep registry scan` and `sweep registry scan --json` on this machine; record the counts in the ledger. No `clean` on the real machine.
-- [ ] **Step 5: Full suite, vet, lint; commit `docs: registry cleanup`.**
+- [x] **Step 1: `docs/registry.md`** — what is cleaned, what is not, the backup location and restore steps, the `--select` format.
+- [x] **Step 2: README** — commands and one screenshot of the review screen.
+- [x] **Step 3: decisions** — narrow set, `not_local`, `--preselect-registry`, spec remains v1.
+- [x] **Step 4: Read-only check** — `sweep registry scan` and `sweep registry scan --json` on this machine; record the counts in the ledger. No `clean` on the real machine.
+- [x] **Step 5: Full suite, vet, lint; commit `docs: registry cleanup`.**

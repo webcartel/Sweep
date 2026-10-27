@@ -33,13 +33,22 @@ func restartAsAdmin(c *cobra.Command, preselect []string) error {
 	if err != nil {
 		return fmt.Errorf("restart: %w", err)
 	}
-	return shellExecuteRunAs(exe, restartParams(c, preselect))
+	return shellExecuteRunAs(exe, restartParamsWith(c, "--preselect", preselect))
 }
 
-// restartParams puts the words the restarted run reads: the rules the word
-// of the old run named, and whatever named the rules and the drawing.
-func restartParams(c *cobra.Command, preselect []string) string {
-	params := "--preselect " + strings.Join(preselect, ",")
+// restartAsAdminRegistry is the same restart for a registry choice: the run
+// comes back with the findings named in --preselect-registry.
+func restartAsAdminRegistry(c *cobra.Command, preselect []string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("restart: %w", err)
+	}
+	return shellExecuteRunAs(exe, restartParamsWith(c, "--preselect-registry", preselect))
+}
+
+// restartParamsWith builds the same line for the flag that names the choice.
+func restartParamsWith(c *cobra.Command, flag string, preselect []string) string {
+	params := flag + " " + strings.Join(preselect, ",")
 	if path, _ := c.Flags().GetString("config"); path != "" {
 		params += " --config " + quote(path)
 	}

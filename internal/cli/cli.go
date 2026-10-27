@@ -92,6 +92,9 @@ func newRootCmd(d deps) *cobra.Command {
 		"draw the screens with the frames a terminal draws")
 	root.PersistentFlags().String("preselect", "",
 		"the rules a run was already agreed to; the way the restart comes back")
+	root.PersistentFlags().String("preselect-registry", "",
+		"the registry findings a run was already agreed to")
+	_ = root.PersistentFlags().MarkHidden("preselect-registry")
 
 	root.RunE = func(c *cobra.Command, args []string) error {
 		if len(args) != 0 {
@@ -118,7 +121,17 @@ func asciiFlags(c *cobra.Command) (ascii bool, noASCII bool, err error) {
 // preselectFlag reads the rules a run was already agreed to: one flag,
 // the ids set apart by commas.
 func preselectFlag(c *cobra.Command) []string {
-	preselect, err := c.Flags().GetString("preselect")
+	return idsOfFlag(c, "preselect")
+}
+
+// preselectRegistryFlag reads the registry findings a restart brought back.
+func preselectRegistryFlag(c *cobra.Command) []string {
+	return idsOfFlag(c, "preselect-registry")
+}
+
+// idsOfFlag reads one comma or semicolon separated flag.
+func idsOfFlag(c *cobra.Command, name string) []string {
+	preselect, err := c.Flags().GetString(name)
 	if err != nil || preselect == "" {
 		return nil
 	}
@@ -188,9 +201,11 @@ func openTUI(d deps, c *cobra.Command) error {
 		FS: d.FS, Env: d.Env, System: d.System,
 		Profiles: rows, Scanner: scanner, Executor: executor,
 		AsciiFlag: ascii, NoASCIIFlag: noASCII,
-		LogDir:    tuiLogDir(d),
-		Preselect: preselectFlag(c),
-		Set:       set,
+		LogDir:            tuiLogDir(d),
+		Preselect:         preselectFlag(c),
+		Set:               set,
+		Registry:          d.Registry,
+		RegistryPreselect: preselectRegistryFlag(c),
 	}
 	dir, err := dataDir(d)
 	if err != nil {
@@ -221,6 +236,7 @@ func openTUI(d deps, c *cobra.Command) error {
 		return fresh, nil
 	}
 	run.Restart = func(preselect []string) error { return restartAsAdmin(c, preselect) }
+	run.RestartRegistry = func(ids []string) error { return restartAsAdminRegistry(c, ids) }
 
 	if d.TUI != nil {
 		return d.TUI(run)

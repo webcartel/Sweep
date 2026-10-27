@@ -10,6 +10,7 @@ sweep scan         # what would be cleaned, without changes
 sweep clean        # the run itself
 sweep list         # the rules and the profiles
 sweep rules ...    # check, show and validate rules
+sweep registry ... # find and remove dead registry entries
 ```
 
 ## Status
@@ -25,7 +26,7 @@ The eight stages of the specification: stages 0-6 are done.
 | 4. Executor and `clean` | done |
 | 5. Terminal interface | done |
 | 6. Rule set and documentation | done |
-| 7. Extensions after the first release | in progress: the rule browser, the config viewer and the user-rule editor are here; the rest is listed below |
+| 7. Extensions after the first release | in progress: the rule browser, the config viewer, the user-rule editor and the registry cleanup are here; the rest is listed below |
 
 The built-in set has 26 rules: browser and app caches, system temp folders,
 Error Reporting, servicing logs, crash dumps, update leftovers, and developer
@@ -129,6 +130,7 @@ allowed; give your own rule the same id to override it.
 | `e` | show or hide rules that found nothing |
 | `r` | scan again |
 | `g` | rules and settings |
+| `r` | registry cleanup, on the start screen |
 | `s` | save the report on the result screen |
 | `?` | help |
 | `Esc` | back |
@@ -186,6 +188,26 @@ sweep rules validate            # the built-in rules and yours
 sweep rules validate <path>     # a directory of rule files
 sweep rules show <id>           # one rule, with its paths expanded
 ```
+
+### `sweep registry`
+
+A separate, narrow cleanup for dead registry entries: uninstall commands,
+`Run` values and `App Paths` that point at a program that is gone.
+
+```sh
+sweep registry scan
+sweep registry scan --json
+sweep registry clean --select "run:HKEY_CURRENT_USER\...\Run:MyApp" --yes
+sweep registry clean --dry-run
+```
+
+Nothing is selected by default, and `clean` refuses without `--select`. Every
+touched key is exported to a `.reg` file under
+`%LOCALAPPDATA%\sweep\registry-backups` before the first deletion; a failed
+export cancels that deletion. MSI entries, updates, `SystemComponent` keys,
+COM/CLSID and associations are out of scope; removable and network drives are
+left alone. TUI: the `Registry cleanup` button on the start screen. Details:
+[`docs/registry.md`](docs/registry.md).
 
 ## Rules and config
 
@@ -266,6 +288,7 @@ runs the whole suite and the linter. A weekly job fuzzes for ten minutes.
 | [`docs/sweep-spec.md`](docs/sweep-spec.md) | Russian | the specification; the source of truth |
 | [`docs/format.md`](docs/format.md) | English | the rule format, field by field |
 | [`docs/rules.md`](docs/rules.md) | English | the on-machine verification of every path |
+| [`docs/registry.md`](docs/registry.md) | English | the registry cleanup, its scope and restore steps |
 | [`docs/decisions.md`](docs/decisions.md) | Russian | the decisions made along the way |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | English | how to add a rule |
 

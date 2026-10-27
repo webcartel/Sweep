@@ -63,6 +63,8 @@ func (m *Model) updateProfile(msg tea.Msg) (tea.Cmd, bool) {
 	case "g":
 		m.openRules()
 		return nil, true
+	case "r":
+		return m.openRegistry(), true
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
@@ -114,7 +116,7 @@ func (m *Model) viewProfile() string {
 
 	b.add(mutedStyle.Render("You will see exactly what will be removed before anything is deleted."))
 
-	hint := m.skin.arrows() + " choose" + m.skin.sep() + "Enter start" + m.skin.sep() + "? help" + m.skin.sep() + "Q quit"
+	hint := m.skin.arrows() + " choose" + m.skin.sep() + "Enter start" + m.skin.sep() + "G rules" + m.skin.sep() + "R registry" + m.skin.sep() + "? help" + m.skin.sep() + "Q quit"
 	startLabel := "Start scan"
 	if m.cursor < len(m.profiles) {
 		if title, _ := humanProfile(m.profiles[m.cursor].Name); title != "" {
@@ -124,6 +126,7 @@ func (m *Model) viewProfile() string {
 	return m.renderFrame("Step 1 of 4", *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: startLabel, primary: true, action: actStart},
 		buttonSpec{label: "Rules & settings", action: actRules},
+		buttonSpec{label: "Registry cleanup", action: actRegOpen},
 		buttonSpec{label: "Help", action: actHelp},
 		buttonSpec{label: "Quit", action: actQuit},
 	))
