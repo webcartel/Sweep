@@ -26,7 +26,9 @@ type deps struct {
 	FS     platform.FS
 	Env    platform.Env
 	System platform.System
-	Cwd    string
+	// Registry is the part of the registry the cleanup reads and changes.
+	Registry platform.Registry
+	Cwd      string
 	// LogDir is where the log of a run goes. The machine reads it out of
 	// %LOCALAPPDATA% when the builder gives nothing.
 	LogDir string
@@ -45,11 +47,15 @@ func realDeps() deps {
 	if err != nil {
 		return deps{}
 	}
+	reg, err := platform.NewRegistry()
+	if err != nil {
+		return deps{}
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return deps{}
 	}
-	return deps{FS: pfs, Env: platform.OSEnv{}, System: system, Cwd: cwd}
+	return deps{FS: pfs, Env: platform.OSEnv{}, System: system, Registry: reg, Cwd: cwd}
 }
 
 // NewRootCmd returns the root command of the CLI. The frontend only parses
@@ -94,7 +100,7 @@ func newRootCmd(d deps) *cobra.Command {
 		return openTUI(d, c)
 	}
 
-	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d), newCleanCmd(d))
+	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d), newCleanCmd(d), newRegistryCmd(d))
 
 	return root
 }
