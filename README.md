@@ -95,6 +95,8 @@ Press `g` on the start screen, or use the `Rules & settings` button:
   paths and whether user commands may run.
 - **My rules** - your own files in `%APPDATA%\sweep\rules`.
 
+![The rule browser: every rule, its risk and its source](.github/rules.png)
+
 ### The rule editor
 
 Press `n` in `My rules` to make a rule. The form covers the common case: id,

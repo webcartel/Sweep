@@ -271,7 +271,7 @@ func (m *Model) viewRuleList() string {
 	if len(shown) > room {
 		shown = shown[:room]
 	}
-	b.add(mutedStyle.Render(fmt.Sprintf("    %-*s %-24s %-7s %s", nameWidth, "NAME", "PROFILE ID", "RISK", "SOURCE")))
+	b.add(mutedStyle.Render(fmt.Sprintf("    %-*s %-28s %-7s %s", nameWidth, "NAME", "PROFILE ID", "RISK", "SOURCE")))
 	for i, rule := range shown {
 		index := m.ruleOffset + i
 		pick := " "
@@ -282,8 +282,8 @@ func (m *Model) viewRuleList() string {
 		if name == "" {
 			name = rule.ID
 		}
-		line := fmt.Sprintf("%s   %-*s %-24s %-7s %s",
-			pick, nameWidth, fit(name, nameWidth), fit(rule.ID, 24),
+		line := fmt.Sprintf("%s   %-*s %-28s %-7s %s",
+			pick, nameWidth, fit(name, nameWidth), fit(rule.ID, 28),
 			riskWord(rule.Risk), sourceOf(rule))
 		if index == m.ruleCursor {
 			line = selectedStyle.Render(line)
