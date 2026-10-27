@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -70,25 +71,33 @@ func newRegistryScanCmd(d deps) *cobra.Command {
 				encoder.SetIndent("", "  ")
 				return encoder.Encode(answer)
 			}
-			tw := tabwriter.NewWriter(c.OutOrStdout(), 2, 4, 2, ' ', 0)
-			if _, err := fmt.Fprintln(tw, "KIND\tNAME\tKEY\tADMIN\tREASON"); err != nil {
+			if err := printRegistryTable(c.OutOrStdout(), findings); err != nil {
 				return err
 			}
-			for _, finding := range findings {
-				admin := "no"
-				if finding.Admin {
-					admin = "yes"
-				}
-				if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-					finding.Kind, finding.Name, keyOf(finding), admin, finding.Reason); err != nil {
-					return err
-				}
-			}
-			return tw.Flush()
+			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print one JSON document instead of a table")
 	return cmd
+}
+
+// printRegistryTable draws the findings: kind, name, key, admin and why.
+func printRegistryTable(out io.Writer, findings []registry.Finding) error {
+	tw := tabwriter.NewWriter(out, 2, 4, 2, ' ', 0)
+	if _, err := fmt.Fprintln(tw, "KIND\tNAME\tKEY\tADMIN\tREASON"); err != nil {
+		return err
+	}
+	for _, finding := range findings {
+		admin := "no"
+		if finding.Admin {
+			admin = "yes"
+		}
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+			finding.Kind, finding.Name, keyOf(finding), admin, finding.Reason); err != nil {
+			return err
+		}
+	}
+	return tw.Flush()
 }
 
 // keyOf names the key (and value, when there is one) a finding lives in.
@@ -108,16 +117,4 @@ func jsonOfFinding(finding registry.Finding) registryFinding {
 	}
 }
 
-// newRegistryCleanCmd is filled in with the cleaner; the plan keeps the
-// command declared so the help text is whole.
-func newRegistryCleanCmd(d deps) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "clean",
-		Short: "Remove the chosen dead entries, after a .reg backup",
-		Args:  cobra.NoArgs,
-		RunE: func(*cobra.Command, []string) error {
-			return usageError(fmt.Errorf("registry clean is not available yet"))
-		},
-	}
-	return cmd
-}
+// keyOf names the key (and value, when there is one) a finding lives in.
