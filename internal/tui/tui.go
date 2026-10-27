@@ -11,6 +11,7 @@ import (
 	"github.com/webcartel/sweep/internal/exec"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
+	"github.com/webcartel/sweep/internal/rules"
 	"github.com/webcartel/sweep/internal/scan"
 )
 
@@ -50,6 +51,17 @@ type Deps struct {
 	Restart func(preselect []string) error
 	// RulesFor answers the rules of one profile of the set.
 	RulesFor func(profile string) ([]*model.Rule, error)
+	// RulesDir is where the user's own rule files live.
+	RulesDir string
+	// ConfigPath is the config file the run read ("" when the machine has
+	// none).
+	ConfigPath string
+	// Set is every rule the run knows, built-in and the user's own; the
+	// rules screens read it.
+	Set *rules.Set
+	// Reload reads the sources again after an edit and answers the fresh
+	// set.
+	Reload func() (*rules.Set, error)
 }
 
 // Model is the one Bubble Tea model of the TUI. Every screen of the run is a
@@ -66,6 +78,7 @@ type Model struct {
 	detailState
 	confirmState
 	uacState
+	rulesState
 	logDir string
 	run    runState
 }
@@ -80,7 +93,7 @@ type scanState struct {
 	rulesFor   func(profile string) ([]*model.Rule, error)
 	scanEvents <-chan model.Event
 	cancelScan context.CancelFunc
-	rules      []*model.Rule
+	scanRules  []*model.Rule
 	plan       *model.Plan
 	selection  model.Selection
 	executor   *exec.Executor
@@ -97,10 +110,15 @@ func New(d Deps) *Model {
 	m.preselect = d.Preselect
 	m.restart = d.Restart
 	m.logDir = d.LogDir
+	m.set = d.Set
+	m.rulesDir = d.RulesDir
+	m.configPath = d.ConfigPath
+	m.reload = d.Reload
 	env := d.Env
 	if env == nil {
 		env = envMap{}
 	}
+	m.env = env
 	m.skin = newSkin(env, d.AsciiFlag, d.NoASCIIFlag)
 	m.sort = "size"
 	return m
@@ -129,6 +147,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	}
+	if done, ok := msg.(notepadDone); ok {
+		return m, m.afterNotepad(done)
+	}
 	if m.screen == screenHelp {
 		cmd, _ := m.updateHelp(msg)
 		return m, cmd
@@ -149,6 +170,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateRunning(msg)
 	case screenDone:
 		cmd, _ = m.updateDone(msg)
+	case screenRules:
+		cmd, _ = m.updateRules(msg)
+	case screenRuleList:
+		cmd, _ = m.updateRuleList(msg)
+	case screenRuleDetail:
+		cmd, _ = m.updateRuleDetail(msg)
+	case screenConfig:
+		cmd, _ = m.updateConfig(msg)
+	case screenUserRules:
+		cmd, _ = m.updateUserRules(msg)
+	case screenEditor:
+		cmd, _ = m.updateEditor(msg)
+	case screenPreview:
+		cmd, _ = m.updatePreview(msg)
 	}
 	return m, cmd
 }
@@ -176,6 +211,20 @@ func (m *Model) View() string {
 		return m.viewDone()
 	case screenHelp:
 		return m.viewHelp()
+	case screenRules:
+		return m.viewRules()
+	case screenRuleList:
+		return m.viewRuleList()
+	case screenRuleDetail:
+		return m.viewRuleDetail()
+	case screenConfig:
+		return m.viewConfig()
+	case screenUserRules:
+		return m.viewUserRules()
+	case screenEditor:
+		return m.viewEditor()
+	case screenPreview:
+		return m.viewPreview()
 	}
 	return ""
 }

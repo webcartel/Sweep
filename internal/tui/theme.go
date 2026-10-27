@@ -20,6 +20,7 @@ var (
 	// selectedStyle marks the row under the cursor without color, so the
 	// highlight survives the ASCII skin.
 	selectedStyle = lipgloss.NewStyle().Bold(true)
+	successStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 )
 
 // clickBox is one place of the last drawn screen the mouse can press: a row
@@ -53,6 +54,20 @@ const (
 	actToggleItem  = "toggle-item"
 	actRow         = "row"
 	actShowEmpty   = "show-empty"
+	actRules       = "rules"
+	actBrowseRules = "browse-rules"
+	actViewConfig  = "view-config"
+	actUserRules   = "user-rules"
+	actRuleOpen    = "rule-open"
+	actOpenUser    = "open-user-file"
+	actNewRule     = "new-rule"
+	actSaveRule    = "save-rule"
+	actPreviewRule = "preview-rule"
+	actNotepad     = "notepad"
+	actDeleteRule  = "delete-rule"
+	actDeleteYes   = "delete-yes"
+	actField       = "field"
+	actPreviewBack = "preview-back"
 )
 
 // hitAt answers the box under a press.
@@ -137,6 +152,19 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 			m.confirmText = ""
 		case screenHelp:
 			m.screen = m.screenBehind
+		case screenRules:
+			m.screen = screenProfile
+		case screenRuleList, screenConfig, screenUserRules:
+			m.screen = screenRules
+		case screenRuleDetail:
+			if m.detail != nil && !isBuiltinSource(m.detail.Source) {
+				m.screen = screenUserRules
+			} else {
+				m.screen = screenRuleList
+			}
+			m.pendingDelete = ""
+		case screenEditor, screenPreview:
+			m.screen = screenUserRules
 		}
 		return nil, true
 	case actRestart:
@@ -162,6 +190,58 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		m.row = 0
 		m.offset = 0
 		return nil, true
+	case actRules:
+		m.openRules()
+		return nil, true
+	case actBrowseRules:
+		m.ruleCursor, m.ruleOffset = 0, 0
+		m.screen = screenRuleList
+		return nil, true
+	case actViewConfig:
+		m.configOffset = 0
+		m.screen = screenConfig
+		return nil, true
+	case actUserRules:
+		m.refreshUserFiles()
+		m.screen = screenUserRules
+		return nil, true
+	case actRuleOpen:
+		all := m.sortedRules()
+		index := atoiOrZero(box.arg)
+		if index < len(all) {
+			m.detail = all[index]
+			m.screen = screenRuleDetail
+		}
+		return nil, true
+	case actOpenUser:
+		index := atoiOrZero(box.arg)
+		if index < len(m.userFiles) {
+			return m.openUserFile(m.userFiles[index]), true
+		}
+		return nil, true
+	case actNewRule:
+		m.startNewRule()
+		return nil, true
+	case actField:
+		m.editor.cursor = atoiOrZero(box.arg)
+		m.editor.editing = false
+		return nil, true
+	case actSaveRule:
+		return m.saveEditor(), true
+	case actPreviewRule:
+		return m.previewEditor(), true
+	case actPreviewBack:
+		m.screen = screenEditor
+		return nil, true
+	case actNotepad:
+		return m.openInNotepad(), true
+	case actDeleteRule:
+		if m.detail != nil && !isBuiltinSource(m.detail.Source) {
+			m.pendingDelete = m.detail.Source
+		}
+		return nil, true
+	case actDeleteYes:
+		return m.deleteUserRule(), true
 	}
 	return nil, false
 }

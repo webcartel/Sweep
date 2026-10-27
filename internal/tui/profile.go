@@ -60,6 +60,9 @@ func (m *Model) updateProfile(msg tea.Msg) (tea.Cmd, bool) {
 	case "?":
 		m.openHelp()
 		return nil, true
+	case "g":
+		m.openRules()
+		return nil, true
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
@@ -120,6 +123,7 @@ func (m *Model) viewProfile() string {
 	}
 	return m.renderFrame("Step 1 of 4", *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: startLabel, primary: true, action: actStart},
+		buttonSpec{label: "Rules & settings", action: actRules},
 		buttonSpec{label: "Help", action: actHelp},
 		buttonSpec{label: "Quit", action: actQuit},
 	))
@@ -130,7 +134,7 @@ func (m *Model) viewProfile() string {
 func (m *Model) viewScanning() string {
 	b := &body{}
 	b.add(titleStyle.Render("Looking for files to clean..."))
-	total := len(m.rules)
+	total := len(m.scanRules)
 	done := len(m.progress)
 	if total != 0 {
 		b.add(mutedStyle.Render(fmt.Sprintf("Rule %d of %d%skeep this window open", done, total, m.skin.sep())))

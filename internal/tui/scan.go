@@ -29,7 +29,7 @@ func (m *Model) startScan() tea.Cmd {
 		m.scanError = err
 		return nil
 	}
-	m.rules = rules
+	m.scanRules = rules
 	var ctx context.Context
 	ctx, m.cancelScan = context.WithCancel(context.Background())
 	m.scanEvents = m.scanner.Scan(ctx, rules, model.ScanOptions{Throttle: 100 * time.Millisecond})

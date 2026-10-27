@@ -184,13 +184,35 @@ func openTUI(d deps, c *cobra.Command) error {
 		AsciiFlag: ascii, NoASCIIFlag: noASCII,
 		LogDir:    tuiLogDir(d),
 		Preselect: preselectFlag(c),
+		Set:       set,
 	}
+	dir, err := dataDir(d)
+	if err != nil {
+		return usageError(err)
+	}
+	cfgPath, err := c.Flags().GetString("config")
+	if err != nil {
+		return usageError(err)
+	}
+	if cfgPath == "" {
+		cfgPath = filepath.Join(dir, "config.yaml")
+	}
+	run.RulesDir = filepath.Join(dir, "rules")
+	run.ConfigPath = cfgPath
 	run.RulesFor = func(profile string) ([]*model.Rule, error) {
 		chosen, _, err := chooseRules(set, profile, nil)
 		if err != nil {
 			return nil, err
 		}
 		return chosen, nil
+	}
+	run.Reload = func() (*rules.Set, error) {
+		fresh, err := loadSet(d, c)
+		if err != nil {
+			return nil, err
+		}
+		set = fresh
+		return fresh, nil
 	}
 	run.Restart = func(preselect []string) error { return restartAsAdmin(c, preselect) }
 
