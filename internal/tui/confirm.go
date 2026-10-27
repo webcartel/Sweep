@@ -103,7 +103,7 @@ func (m *Model) viewConfirm() string {
 	if m.adminNeeded() {
 		b.add("")
 		b.add(warningStyle().Render("Some chosen rules need administrator rights."))
-		b.add(mutedStyle.Render("Restart sweep as administrator to include them."))
+		b.add(mutedStyle.Render("Restart Sweep as administrator to include them."))
 	}
 
 	buttons := []buttonSpec{{label: "Yes, clean now", primary: true, action: actClean}}

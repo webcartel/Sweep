@@ -67,7 +67,7 @@ func (m *Model) viewDone() string {
 	}
 	if r.Skipped != 0 {
 		b.add(fmt.Sprintf("Skipped:            %s", humanCount(int64(r.Skipped))))
-		b.add(mutedStyle.Render("Skipped files were in use. Close the app and run sweep again."))
+		b.add(mutedStyle.Render("Skipped files were in use. Close the app and run Sweep again."))
 	}
 	if r.Failed != 0 {
 		b.add(fmt.Sprintf("Failed:             %s", humanCount(int64(r.Failed))))

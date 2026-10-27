@@ -57,13 +57,13 @@ type skin struct {
 func newSkin(env platform.Env, asciiFlag, noASCIIFlag bool) skin {
 	if pickASCII(env, asciiFlag, noASCIIFlag, runtime.GOOS == "windows") {
 		return skin{
-			name: "sweep", plain: true, checkOn: "[x]", checkOff: "[ ]",
+			name: "Sweep", plain: true, checkOn: "[x]", checkOff: "[ ]",
 			barCell: "#", barBare: "-",
 			tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|", teeL: "+", teeR: "+",
 		}
 	}
 	return skin{
-		name: "sweep", checkOn: "[x]", checkOff: "[ ]",
+		name: "Sweep", checkOn: "[x]", checkOff: "[ ]",
 		barCell: "█", barBare: "─",
 		tl: "╭", tr: "╮", bl: "╰", br: "╯", h: "─", v: "│", teeL: "├", teeR: "┤",
 	}

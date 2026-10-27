@@ -82,7 +82,7 @@ func (m *Model) updateProfile(msg tea.Msg) (tea.Cmd, bool) {
 func (m *Model) viewProfile() string {
 	b := &body{}
 	b.add(titleStyle.Render("Free space safely."))
-	b.add(mutedStyle.Render("sweep finds files you no longer need. Nothing goes without your approval."))
+	b.add(mutedStyle.Render("Sweep finds files you no longer need. Nothing goes without your approval."))
 	b.add("")
 	b.add(titleStyle.Render("Choose how deep to clean:"))
 	b.add("")

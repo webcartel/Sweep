@@ -109,7 +109,7 @@ func New(d Deps) *Model {
 // Init starts the first command of the program: a run whose preselect
 // named the rules goes straight to the scan.
 func (m *Model) Init() tea.Cmd {
-	title := tea.SetWindowTitle("sweep - free space safely")
+	title := tea.SetWindowTitle("Sweep - free space safely")
 	if len(m.preselect) != 0 && m.scanner != nil && m.rulesFor != nil {
 		m.screen = screenScanning
 		return tea.Batch(title, m.startScan())
@@ -156,7 +156,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View draws the screen the model is on.
 func (m *Model) View() string {
 	if m.width != 0 && (m.width < 80 || m.height < 24) {
-		return "Please make the window larger: sweep needs at least 80 x 24.\n" +
+		return "Please make the window larger: Sweep needs at least 80 x 24.\n" +
 			fmt.Sprintf("This window is %d x %d.", m.width, m.height)
 	}
 	switch m.screen {

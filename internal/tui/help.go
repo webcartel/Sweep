@@ -33,8 +33,8 @@ func (m *Model) openHelp() {
 // needs them.
 func (m *Model) viewHelp() string {
 	b := &body{}
-	b.add(titleStyle.Render("How sweep works"))
-	for _, line := range wrapText("sweep finds files that are safe to remove, shows you the list, and deletes only what you tick. It never stops your apps and never touches Windows itself.", m.screenWidth()-8) {
+	b.add(titleStyle.Render("How Sweep works"))
+	for _, line := range wrapText("Sweep finds files that are safe to remove, shows you the list, and deletes only what you tick. It never stops your apps and never touches Windows itself.", m.screenWidth()-8) {
 		b.add(line)
 	}
 	b.add("")
