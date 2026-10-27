@@ -189,21 +189,54 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, true
 }
 
-// viewRunning draws the run at work: what the rules closed so far, the
-// counts, the last lines of the events and what the keys still stand for.
+// viewRunning draws the run at work: how far it came, the space it already
+// freed, and the last few events in plain words.
 func (m *Model) viewRunning() string {
 	total := 0
 	if m.plan != nil {
 		total = len(m.plan.Rules)
 	}
-	lines := []string{"cleaning...", fmt.Sprintf("rules %d of %d", m.run.rulesDone, total)}
-	if m.run.trashed != 0 {
-		lines = append(lines, report.FormatBytes(m.run.trashed)+" to the bin")
+	b := &body{}
+	b.add(titleStyle.Render("Cleaning..."))
+	var planned int64
+	if m.plan != nil {
+		for _, rp := range m.plan.Rules {
+			planned += rp.Bytes
+		}
 	}
-	lines = append(lines, "freed "+report.FormatBytes(m.run.freed))
-	lines = append(lines, m.run.feed...)
-	lines = append(lines, "esc stand back to the word")
-	return lines[0] + "\n" + joinFeed(lines[1:])
+	portion := 0.0
+	if planned > 0 {
+		portion = float64(m.run.freed) / float64(planned)
+	} else if total != 0 {
+		portion = float64(m.run.rulesDone) / float64(total)
+	}
+	b.add(mutedStyle.Render(fmt.Sprintf("Rule %d of %d%s%d%%", m.run.rulesDone, total, m.skin.sep(), int(portion*100+0.5))))
+	b.add(m.skin.bar(48, portion))
+	b.add("")
+	if planned != 0 {
+		b.add(fmt.Sprintf("Freed %s of %s", report.FormatBytes(m.run.freed), report.FormatBytes(planned)))
+	} else {
+		b.add(fmt.Sprintf("Freed so far: %s", report.FormatBytes(m.run.freed)))
+	}
+	if m.run.trashed != 0 {
+		b.add(mutedStyle.Render(report.FormatBytes(m.run.trashed) + " of it went to the Recycle Bin"))
+	}
+	b.add("")
+	b.add(titleStyle.Render("Latest actions"))
+	feed := m.run.feed
+	if len(feed) > 8 {
+		feed = feed[len(feed)-8:]
+	}
+	if len(feed) == 0 {
+		b.add(mutedStyle.Render("Nothing yet. Windows is checking the first rule."))
+	}
+	for _, line := range feed {
+		b.add(mutedStyle.Render("  " + line))
+	}
+
+	return m.renderFrame("Cleaning", *b, mutedStyle.Render("Esc stops the run and goes back"), makeButtons(
+		buttonSpec{label: "Stop", action: actStop},
+	))
 }
 
 // rpRuleID names the rule a result answers with.
@@ -212,16 +245,4 @@ func rpRuleID(r model.RuleResult) string {
 		return ""
 	}
 	return r.Rule.ID
-}
-
-// joinFeed keeps the last lines the screen holds.
-func joinFeed(lines []string) string {
-	if len(lines) > 10 {
-		lines = lines[len(lines)-10:]
-	}
-	out := ""
-	for _, line := range lines {
-		out += line + "\n"
-	}
-	return out
 }

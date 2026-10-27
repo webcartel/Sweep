@@ -19,19 +19,22 @@ verified, what was absent, and what cannot be verified here lives in
 
 ## Status (earlier stages)
 
-**Stage 5 of 8 — the TUI.** Running `sweep` with no arguments opens the
-screens: first the choice of the profile, then the scan, then one screen
-that holds the run — the header with what the choice keeps (rules, files,
-bytes), the table of rules (ID, risk, files, size, `[x]`), the line of keys
-at the bottom — and the work goes through a confirmation modal (a dangerous
-rule in the choice asks for the word `yes`; a rule wanting elevation offers
-`Restart as administrator`). While the run works the screen shows the
-progress and a feed of what went, what was skipped and why; the end shows
-what was freed, and `s` saves the run's JSON answer next to the day's log.
-Mouse, arrows, the space bar and the keys of the spec (`a`, `n`, `o`, `/`,
-`t`, `r`, `d`, `?`) drive it all; `--ascii` (or `SWEEP_ASCII=1`) stands in
-for the frames a Windows 10 conhost cannot draw. There is no editing of the
-config or the rules in the TUI — the screen only shows and runs.
+**Stage 5 of 8 — the TUI.** Running `sweep` with no arguments opens a
+framed, step-by-step screen: first a start page that says in plain words what
+sweep does and offers three named ways to clean (Everyday, Deep, Developer),
+then a live scan with a progress bar and a running total, then the review
+table of found rules with a plain risk word (`Safe`, `Careful`, `Risky`), a
+size, and the rule's own explanation under the cursor; rules that found
+nothing stay hidden until asked for. Every row and every button answers the
+mouse; the keys of the spec still work. The confirmation restates the amount,
+says whether files go to the Recycle Bin or are deleted for good, and asks
+for the word `yes` only for risky rules; a rule wanting elevation offers
+`Restart as administrator`. The run shows a progress bar and the latest
+actions; the result leads with the space freed and explains skipped files.
+`s` saves the run's JSON answer next to the day's log. `--ascii` (or
+`SWEEP_ASCII=1`) keeps the same layout in plain characters for a Windows 10
+conhost. There is no editing of the config or the rules in the TUI — the
+screen only shows and runs.
 
 ![The list screen of the TUI after a real scan](.github/tui.png)
 

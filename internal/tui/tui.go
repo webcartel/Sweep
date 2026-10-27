@@ -5,6 +5,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/exec"
@@ -58,6 +59,7 @@ type Model struct {
 	screenBehind  int
 	width, height int
 	skin          skin
+	hits          []clickBox
 	profileState
 	scanState
 	listState
@@ -107,11 +109,12 @@ func New(d Deps) *Model {
 // Init starts the first command of the program: a run whose preselect
 // named the rules goes straight to the scan.
 func (m *Model) Init() tea.Cmd {
+	title := tea.SetWindowTitle("sweep - free space safely")
 	if len(m.preselect) != 0 && m.scanner != nil && m.rulesFor != nil {
 		m.screen = screenScanning
-		return m.startScan()
+		return tea.Batch(title, m.startScan())
 	}
-	return nil
+	return title
 }
 
 // Update handles one message and answers with the model and the next
@@ -120,6 +123,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = size.Width, size.Height
 		return m, nil
+	}
+	if click, ok := msg.(tea.MouseMsg); ok {
+		if cmd, took := m.handleClick(click); took {
+			return m, cmd
+		}
 	}
 	if m.screen == screenHelp {
 		cmd, _ := m.updateHelp(msg)
@@ -147,13 +155,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View draws the screen the model is on.
 func (m *Model) View() string {
+	if m.width != 0 && (m.width < 80 || m.height < 24) {
+		return "Please make the window larger: sweep needs at least 80 x 24.\n" +
+			fmt.Sprintf("This window is %d x %d.", m.width, m.height)
+	}
 	switch m.screen {
 	case screenProfile:
 		return m.viewProfile()
 	case screenScanning:
 		return m.viewScanning()
 	case screenList:
-		return m.viewList(m.width)
+		return m.viewList()
 	case screenDetail:
 		return m.viewDetail()
 	case screenConfirm:

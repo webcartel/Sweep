@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
 
@@ -44,29 +45,59 @@ func (m *Model) saveReport() error {
 	return report.ExecJSON(file, m.run.result)
 }
 
-// viewDone draws what the run came to: the bytes it drove off the disk,
-// what went to the bin, what stayed behind.
+// viewDone draws the answer of the run the way a person reads it: the space
+// back, what happened to the files, and the one next step.
 func (m *Model) viewDone() string {
 	r := m.run.result
 	if r == nil {
-		return "the run ended without the result"
+		b := &body{}
+		b.add(titleStyle.Render("The run ended without a result."))
+		b.add(mutedStyle.Render("Nothing was removed."))
+		return m.renderFrame("Done", *b, mutedStyle.Render("Q quit"), makeButtons(
+			buttonSpec{label: "Quit", action: actQuit},
+		))
 	}
-	lines := []string{fmt.Sprintf("cleaned: %d removed, %s freed", r.Removed, report.FormatBytes(r.FreedBytes))}
+	b := &body{}
+	b.add(bigStyle.Render("Freed " + report.FormatBytes(r.FreedBytes)))
+	b.add(mutedStyle.Render(fmt.Sprintf("%s files removed%s%d rules", humanCount(r.Files), m.skin.sep(), len(r.PerRule))))
+	b.add("")
+	b.add(fmt.Sprintf("Removed:            %s", humanCount(int64(r.Removed))))
 	if r.TrashBytes != 0 {
-		lines = append(lines, fmt.Sprintf("%s to the bin", report.FormatBytes(r.TrashBytes)))
+		b.add(fmt.Sprintf("Sent to the bin:    %s", report.FormatBytes(r.TrashBytes)))
 	}
 	if r.Skipped != 0 {
-		lines = append(lines, fmt.Sprintf("%d skipped", r.Skipped))
+		b.add(fmt.Sprintf("Skipped:            %s", humanCount(int64(r.Skipped))))
+		b.add(mutedStyle.Render("Skipped files were in use. Close the app and run sweep again."))
 	}
 	if r.Failed != 0 {
-		lines = append(lines, fmt.Sprintf("%d failed", r.Failed))
+		b.add(fmt.Sprintf("Failed:             %s", humanCount(int64(r.Failed))))
+		b.add(mutedStyle.Render("Close the apps that hold these files and try again."))
+		var failed []string
+		for _, one := range r.PerRule {
+			if one.Status == model.StatusFailed {
+				name := one.Rule.Name
+				if name == "" && one.Rule != nil {
+					name = one.Rule.ID
+				}
+				failed = append(failed, "  "+name)
+			}
+		}
+		if len(failed) > 5 {
+			failed = failed[:5]
+		}
+		for _, line := range failed {
+			b.add(mutedStyle.Render(line))
+		}
 	}
-	lines = append(lines, "s save the answer  q leave")
-	joined := ""
-	for _, line := range lines {
-		joined += line + "\n"
+	if len(r.PendingReboot) != 0 {
+		b.add(fmt.Sprintf("After a restart:    %s files", humanCount(int64(len(r.PendingReboot)))))
 	}
-	return joined
-}
+	b.add("")
+	b.add(mutedStyle.Render("Every action is in the log. Press S to save a JSON report."))
 
-//
+	hint := "S save report" + m.skin.sep() + "Q quit"
+	return m.renderFrame("Done", *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: "Save report", primary: true, action: actSaveReport},
+		buttonSpec{label: "Quit", action: actQuit},
+	))
+}

@@ -26,27 +26,29 @@ const (
 
 // listState is what the main screen remembers: where the cursor stands over
 // the rows the filter leaves, the letters of the search, the order of the
-// rows, and whether the run sends to the bin.
+// rows, whether the run sends to the bin, and the first row the screen
+// shows.
 type listState struct {
 	row       int
+	offset    int
 	filter    string
 	filtering bool
 	sort      string // "size" or "name"; it starts named after the size
 	trash     bool
+	showEmpty bool // show the rules that found nothing
 }
 
 // visibleRows answers the rows the filter leaves, in the order of the sort.
 func (m *Model) visibleRows() []model.RulePlan {
 	var rows []model.RulePlan
 	for _, rp := range m.plan.Rules {
+		if !m.showEmpty && rp.Files == 0 && rp.Bytes == 0 {
+			continue
+		}
 		if m.filter != "" {
-			name := ""
+			name, id := "", ""
 			if rp.Rule != nil {
-				name = rp.Rule.Name
-			}
-			id := ""
-			if rp.Rule != nil {
-				id = rp.Rule.ID
+				name, id = rp.Rule.Name, rp.Rule.ID
 			}
 			if !strings.Contains(strings.ToLower(id+" "+name), strings.ToLower(m.filter)) {
 				continue
@@ -100,8 +102,13 @@ func (m *Model) totals() (rules int, files int64, bytes int64) {
 
 // updateList, the part of the main screen.
 func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
-	if cmd, took := m.updateListMouse(msg); took {
-		return cmd, took
+	if wheel, ok := msg.(tea.MouseMsg); ok {
+		switch wheel.Button {
+		case tea.MouseButtonWheelUp:
+			return m.updateListKey("up")
+		case tea.MouseButtonWheelDown:
+			return m.updateListKey("down")
+		}
 	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
@@ -147,19 +154,15 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		}
 	case "a":
 		for _, rp := range m.plan.Rules {
-			if rp.Rule == nil {
-				continue
-			}
-			if rp.Rule.Risk == model.RiskSafe {
+			if rp.Rule != nil && rp.Rule.Risk == model.RiskSafe {
 				m.selection.Rules[rp.Rule.ID] = true
 			}
 		}
 	case "n":
 		for _, rp := range m.plan.Rules {
-			if rp.Rule == nil {
-				continue
+			if rp.Rule != nil {
+				m.selection.Rules[rp.Rule.ID] = false
 			}
-			m.selection.Rules[rp.Rule.ID] = false
 		}
 	case "o":
 		if m.sort == "size" {
@@ -177,8 +180,13 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case "t":
 		m.trash = !m.trash
+	case "e":
+		m.showEmpty = !m.showEmpty
+		m.row = 0
+		m.offset = 0
 	case "c":
 		m.screen = screenConfirm
+		m.confirmText = ""
 		return nil, true
 	case "d", "enter":
 		return m.openDetail()
@@ -190,45 +198,6 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		return tea.Quit, true
 	}
 	return nil, true
-}
-
-// updateListMouse, the part of the list the mouse speaks: a press with the
-// left button on the mark of a rule turns the rule in or out, a press
-// anywhere else on a row moves the cursor there, and the wheel of the mouse
-// moves one row at a time.
-func (m *Model) updateListMouse(msg tea.Msg) (tea.Cmd, bool) {
-	click, ok := msg.(tea.MouseMsg)
-	if !ok {
-		return nil, false
-	}
-	switch click.Button {
-	case tea.MouseButtonWheelUp:
-		return m.updateListKey("up")
-	case tea.MouseButtonWheelDown:
-		return m.updateListKey("down")
-	}
-	if click.Action != tea.MouseActionPress || click.Button != tea.MouseButtonLeft {
-		return nil, true
-	}
-	rows := m.visibleRows()
-	high := click.Y - listRowsOffset(m)
-	if high < 0 || high >= len(rows) {
-		return nil, true
-	}
-	if click.X < 4 {
-		id := ruleIDOf(rows[high])
-		m.selection.Rules[id] = !m.selection.Rules[id]
-	}
-	m.row = high
-	return nil, true
-}
-
-// listRowsOffset counts the lines the screen holds above the rows.
-func listRowsOffset(m *Model) int {
-	if m.filtering {
-		return 1
-	}
-	return 0
 }
 
 // updateListKey feeds one key name into the list, so the wheel and the
@@ -244,6 +213,7 @@ func (m *Model) upkeepAfterScan() {
 	m.progress = map[string]model.RulePlan{}
 	m.notes = nil
 	m.row = 0
+	m.offset = 0
 }
 
 // ruleIDOf names a rule of a plan line.
@@ -257,15 +227,7 @@ func ruleIDOf(rp model.RulePlan) string {
 // riskMark is what the cell of the risk says, in the only color the run
 // spends: the one of the risk itself.
 func riskMark(rp model.RulePlan) string {
-	mark := "SAFE"
-	style := safeStyle
-	switch riskOf(rp) {
-	case model.RiskDangerous:
-		mark, style = "DANGER", dangerStyle
-	case model.RiskModerate:
-		mark, style = "MOD", moderateStyle
-	}
-	return style.Render(mark)
+	return riskStyleOf(riskOf(rp)).Render(riskWord(riskOf(rp)))
 }
 
 // riskOf names the risk of a rule of a plan line.
@@ -276,31 +238,158 @@ func riskOf(rp model.RulePlan) model.Risk {
 	return rp.Rule.Risk
 }
 
-// viewList draws the main screen: the header of the run, the rows of the
-// rules and the line of the keys at the bottom.
-func (m *Model) viewList(width int) string {
+// viewList draws the main screen: what the scan found, one line per rule,
+// the explanation of the row under the cursor, and the buttons of the run.
+func (m *Model) viewList() string {
 	rows := m.visibleRows()
 	rules, files, bytes := m.totals()
-	var lines []string
-	if m.filtering {
-		lines = append(lines, "search: "+m.filter)
+
+	inner := m.screenWidth() - 6
+	nameWidth := 48
+	if nameWidth > inner-40 {
+		nameWidth = inner - 40
 	}
-	for i, rp := range rows {
+	if nameWidth < 20 {
+		nameWidth = 20
+	}
+
+	b := &body{}
+	if m.filtering {
+		b.add("Find: " + m.filter + m.skin.caret())
+	} else {
+		b.add(titleStyle.Render(fmt.Sprintf("Found %s you can free", report.FormatBytes(bytes))))
+		_, about := humanProfile(m.profileOfHeader())
+		b.add(mutedStyle.Render(fmt.Sprintf("%d of %s chosen%s%s files%s%s",
+			rules, ruleCount(len(m.plan.Rules)), m.skin.sep(), humanCount(files), m.skin.sep(), about)))
+	}
+	b.add("")
+
+	order := ""
+	if m.sort == "name" {
+		order = "sorted A-Z"
+	}
+	header := fmt.Sprintf("    %-*s  %-7s %8s %9s   %s", nameWidth, "ITEM", "RISK", "FILES", "SIZE", order)
+	b.add(mutedStyle.Render(mutedLine(riskLegend(), inner)))
+	b.add(mutedStyle.Render(header))
+
+	// Rows that fit between the header and the explanation lines.
+	room := m.screenHeight() - 16
+	if room < 1 {
+		room = 1
+	}
+	if m.row < m.offset {
+		m.offset = m.row
+	}
+	if m.row >= m.offset+room {
+		m.offset = m.row - room + 1
+	}
+	if m.offset < 0 {
+		m.offset = 0
+	}
+	shown := rows
+	if m.offset < len(shown) {
+		shown = shown[m.offset:]
+	} else {
+		shown = nil
+	}
+	if len(shown) > room {
+		shown = shown[:room]
+	}
+
+	for i, rp := range shown {
+		index := m.offset + i
 		mark := m.skin.checkbox(m.selection.Rules[ruleIDOf(rp)])
 		pick := " "
-		if i == m.row {
-			pick = ">"
+		if index == m.row {
+			pick = m.skin.pointer()
 		}
-		admin := ""
-		if rp.Rule != nil && rp.Rule.RequiresAdmin {
-			admin = " [A]"
+		name := ""
+		if rp.Rule != nil {
+			name = rp.Rule.Name
 		}
-		lines = append(lines, fmt.Sprintf("%s %s %-14s %-6s files %-6d %8s",
-			pick, mark, ruleIDOf(rp), riskMark(rp)+admin, rp.Files, report.FormatBytes(rp.Bytes)))
+		if name == "" {
+			name = ruleIDOf(rp)
+		}
+		sizeText := report.FormatBytes(rp.Bytes)
+		if rp.Files == 0 && rp.Bytes == 0 {
+			sizeText = "nothing"
+		}
+		line := fmt.Sprintf("%s %s %-*s  %-7s %8s %9s   %s",
+			pick, mark, nameWidth, fit(name, nameWidth),
+			riskMark(rp), humanCount(int64(rp.Files)), sizeText, m.skin.chevron())
+		if index == m.row {
+			line = selectedStyle.Render(line)
+		}
+		lineIndex := b.add(line)
+		b.hit(lineIndex, 0, inner-4, actToggleRule, ruleIDOf(rp))
+		b.boxes = append(b.boxes, clickBox{
+			y1: lineIndex, y2: lineIndex,
+			x1: lipgloss.Width(line) - 1, x2: lipgloss.Width(line),
+			action: actOpenDetail, arg: fmt.Sprint(index),
+		})
 	}
-	lines = append(lines, fmt.Sprintf("profile %s: %d rules, %d files, %s", m.profileOfHeader(), rules, files, report.FormatBytes(bytes)))
-	lines = append(lines, "space choice  a safe  n none  / filter  o sort  c confirm  d detail  t bin  ? help  r rescan  q quit")
-	return strings.Join(lines, "\n")
+
+	b.add("")
+	b.add(m.mutedRowDescription(rows))
+
+	hidden := 0
+	for _, rp := range m.plan.Rules {
+		if rp.Files == 0 && rp.Bytes == 0 {
+			hidden++
+		}
+	}
+	if hidden != 0 {
+		label := fmt.Sprintf("%d rules found nothing here (click to show)", hidden)
+		if m.showEmpty {
+			label = fmt.Sprintf("%d rules found nothing here (click to hide)", hidden)
+		}
+		index := b.add(mutedStyle.Render(label))
+		b.hit(index, 0, len(label)+2, actShowEmpty, "")
+	}
+
+	binState := "Off - files are deleted permanently"
+	binButton := "Recycle bin: Off"
+	if m.trash {
+		binState = "On - files go to the Recycle Bin"
+		binButton = "Recycle bin: On"
+	}
+	b.add(mutedStyle.Render("Recycle Bin: " + binState))
+	b.add(mutedStyle.Render("Nothing is removed until you press Clean up."))
+
+	cleanLabel := fmt.Sprintf("Clean up %s", report.FormatBytes(bytes))
+	if bytes == 0 {
+		cleanLabel = "Nothing chosen"
+	}
+	hint := "Space toggle" + m.skin.sep() + "A choose safe" + m.skin.sep() + "N choose none" +
+		m.skin.sep() + "/ find" + m.skin.sep() + "O sort" + m.skin.sep() + "Enter details" + m.skin.sep() + "? help"
+	return m.renderFrame("Step 3 of 4", *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: cleanLabel, primary: true, action: actConfirm},
+		buttonSpec{label: "Choose safe only", action: actSelectSafe},
+		buttonSpec{label: binButton, action: actToggleBin},
+		buttonSpec{label: "Help", action: actHelp},
+		buttonSpec{label: "Quit", action: actQuit},
+	))
+}
+
+// mutedRowDescription answers the one line under the rows: what the rule
+// under the cursor takes away, in the words of the rule itself.
+func (m *Model) mutedRowDescription(rows []model.RulePlan) string {
+	if m.filtering || len(rows) == 0 || m.row >= len(rows) || rows[m.row].Rule == nil {
+		return ""
+	}
+	rule := rows[m.row].Rule
+	about := rule.Description
+	if about == "" {
+		about = rule.Name
+	}
+	limit := m.screenWidth() - 12
+	if limit < 20 {
+		limit = 20
+	}
+	if len(about) > limit {
+		about = about[:limit-1] + m.skin.ellipsis()
+	}
+	return mutedStyle.Render(m.skin.pointer() + " " + about)
 }
 
 // profileOfHeader names the profile the run came out of; a scan that has

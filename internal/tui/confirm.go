@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/model"
@@ -62,30 +61,65 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, true
 }
 
-// viewConfirm draws what the run takes, the dangerous rules it asks a word
-// for, and the keys of the question.
+// viewConfirm draws the last question before the work: what goes, where it
+// goes, and the one word the risky rules ask for.
 func (m *Model) viewConfirm() string {
-	rules, _, bytes := m.totals()
-	var lines []string
-	lines = append(lines, fmt.Sprintf("clean %d rules, %s", rules, report.FormatBytes(bytes)))
-	trashWord := "deleted for good"
+	rules, files, bytes := m.totals()
+	b := &body{}
+	b.add(titleStyle.Render(fmt.Sprintf("Ready to clean %s", report.FormatBytes(bytes))))
+	_, about := humanProfile(m.profileOfHeader())
+	b.add(mutedStyle.Render(fmt.Sprintf("%s%s%s files%s%s",
+		ruleCount(rules), m.skin.sep(), humanCount(files), m.skin.sep(), about)))
+	b.add("")
+
 	if m.trash {
-		trashWord = "sent to the bin"
+		b.add("Files go to the Recycle Bin. You can restore them if you change your mind.")
+	} else {
+		b.add("Files are deleted permanently. They cannot be restored.")
 	}
-	lines = append(lines, trashWord)
-	var danger []string
-	for _, rp := range m.plan.Rules {
-		if rp.Rule != nil && rp.Rule.Risk == model.RiskDangerous && m.selection.Rules[rp.Rule.ID] {
-			danger = append(danger, rp.Rule.ID)
+	b.add(mutedStyle.Render("Safety check runs again before every deletion."))
+
+	danger := m.selectedDangerous()
+	if danger {
+		b.add("")
+		b.add(dangerStyle.Render("Some chosen rules may remove data you still want:"))
+		for _, rp := range m.plan.Rules {
+			if rp.Rule != nil && rp.Rule.Risk == model.RiskDangerous && m.selection.Rules[rp.Rule.ID] {
+				name := rp.Rule.Name
+				if name == "" {
+					name = rp.Rule.ID
+				}
+				b.add("  " + m.skin.bullet() + " " + name)
+			}
+		}
+		b.add("")
+		if m.confirmText == "yes" {
+			b.add(safeStyle.Render("Type yes to allow these rules: ") + "yes")
+		} else {
+			b.add("Type yes to allow these rules: " + m.confirmText + m.skin.caret())
 		}
 	}
-	if len(danger) != 0 {
-		lines = append(lines, "dangerous: "+strings.Join(danger, ", ")+" - type yes to run")
-		lines = append(lines, "> "+m.confirmText)
-	}
+
 	if m.adminNeeded() {
-		lines = append(lines, "<Restart as administrator>")
+		b.add("")
+		b.add(warningStyle().Render("Some chosen rules need administrator rights."))
+		b.add(mutedStyle.Render("Restart sweep as administrator to include them."))
 	}
-	lines = append(lines, "enter go  esc back")
-	return strings.Join(lines, "\n")
+
+	buttons := []buttonSpec{{label: "Yes, clean now", primary: true, action: actClean}}
+	if m.adminNeeded() {
+		buttons = append(buttons, buttonSpec{label: "Restart as administrator", action: actRestart})
+	}
+	buttons = append(buttons, buttonSpec{label: "Go back", action: actBack})
+
+	hint := "Enter clean" + m.skin.sep() + "Esc back" + m.skin.sep() + "T recycle bin"
+	return m.renderFrame("Step 4 of 4", *b, mutedStyle.Render(hint), makeButtons(buttons...))
 }
+
+// pendingWord answers whether the risky rules still wait for their word.
+func (m *Model) pendingWord() bool {
+	return m.selectedDangerous() && m.confirmText != "yes"
+}
+
+// riskySentence is the warning of the confirm screen in one line, kept for
+// the screens that name it again.

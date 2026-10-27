@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/bubbletea"
 )
 
@@ -18,7 +16,7 @@ func (m *Model) updateHelp(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	switch key.String() {
-	case "?", "esc", "q":
+	case "?", "esc", "q", "enter":
 		m.screen = m.screenBehind
 		return nil, true
 	}
@@ -31,19 +29,37 @@ func (m *Model) openHelp() {
 	m.screen = screenHelp
 }
 
-// viewHelp draws the keys.
+// viewHelp draws what sweep does and every key, in the order a newcomer
+// needs them.
 func (m *Model) viewHelp() string {
-	return strings.Join([]string{
-		"the keys of sweep",
-		"",
-		"arrows / kj  move           space  rule in or out",
-		"a  every safe rule in      n  every rule out",
-		"o  sort by size or name    /  filter by a piece of the id",
-		"enter  the items of a rule d  the items of a rule",
-		"c  the confirmation        t  the bin or delete for good",
-		"r  scan again              s  save the answer (at the end)",
-		"q  leave                   ?  this",
-		"",
-		"esc or ? back",
-	}, "\n")
+	b := &body{}
+	b.add(titleStyle.Render("How sweep works"))
+	for _, line := range wrapText("sweep finds files that are safe to remove, shows you the list, and deletes only what you tick. It never stops your apps and never touches Windows itself.", m.screenWidth()-8) {
+		b.add(line)
+	}
+	b.add("")
+	b.add(titleStyle.Render("Keys"))
+	rows := [][2]string{
+		{"Up/Down or J K", "move between rows"},
+		{"Space", "choose or unchoose a rule"},
+		{"A / N", "choose every safe rule / choose none"},
+		{"/", "find a rule by name"},
+		{"O", "sort by size or by name"},
+		{"Enter or D", "show every path of a rule"},
+		{"C", "continue to the confirmation"},
+		{"T", "send files to the Recycle Bin instead"},
+		{"R", "scan again"},
+		{"S", "save the report (on the result screen)"},
+		{"? ", "this help"},
+		{"Q / Esc", "go back or quit"},
+	}
+	for _, row := range rows {
+		b.add("  " + fit(row[0], 12) + mutedStyle.Render(row[1]))
+	}
+	b.add("")
+	b.add(mutedStyle.Render("Mouse: click a row to tick it, click a button to run it."))
+
+	return m.renderFrame("Help", *b, mutedStyle.Render("Esc or ? close"), makeButtons(
+		buttonSpec{label: "Close help", primary: true, action: actCloseHelp},
+	))
 }

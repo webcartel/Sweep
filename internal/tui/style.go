@@ -37,21 +37,92 @@ func pickASCII(env platform.Env, asciiFlag, noASCIIFlag, windows bool) bool {
 
 // skin is the set of characters one skin of the screens draws with. The
 // plain skin keeps to ASCII the way the spec's --ascii asks; the rich one
-// draws full blocks.
+// draws a rounded frame, full bars and shaded pieces.
 type skin struct {
+	name     string
+	plain    bool
 	checkOn  string
 	checkOff string
 	barCell  string
 	barBare  string
+	tl, tr   string
+	bl, br   string
+	h, v     string
+	teeL     string
+	teeR     string
 }
 
 // newSkin puts a skin together. The flags and the environment that named
 // ASCII answer once; the skins differ in nothing else.
 func newSkin(env platform.Env, asciiFlag, noASCIIFlag bool) skin {
 	if pickASCII(env, asciiFlag, noASCIIFlag, runtime.GOOS == "windows") {
-		return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "#", barBare: "-"}
+		return skin{
+			name: "sweep", plain: true, checkOn: "[x]", checkOff: "[ ]",
+			barCell: "#", barBare: "-",
+			tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|", teeL: "+", teeR: "+",
+		}
 	}
-	return skin{checkOn: "[x]", checkOff: "[ ]", barCell: "в–€", barBare: "в”Ђ"}
+	return skin{
+		name: "sweep", checkOn: "[x]", checkOff: "[ ]",
+		barCell: "█", barBare: "─",
+		tl: "╭", tr: "╮", bl: "╰", br: "╯", h: "─", v: "│", teeL: "├", teeR: "┤",
+	}
+}
+
+// pointer marks the row under the cursor.
+func (s skin) pointer() string {
+	if s.plain {
+		return ">"
+	}
+	return "▸"
+}
+
+// sep separates short facts in one line.
+func (s skin) sep() string {
+	if s.plain {
+		return " - "
+	}
+	return " · "
+}
+
+// chevron marks the way into the details of a row.
+func (s skin) chevron() string {
+	if s.plain {
+		return ">"
+	}
+	return "›"
+}
+
+// bullet marks one item of a list.
+func (s skin) bullet() string {
+	if s.plain {
+		return "*"
+	}
+	return "•"
+}
+
+// ellipsis cuts a long text.
+func (s skin) ellipsis() string {
+	if s.plain {
+		return "..."
+	}
+	return "…"
+}
+
+// arrows names the up and down keys in the hints.
+func (s skin) arrows() string {
+	if s.plain {
+		return "Up/Down"
+	}
+	return "↑↓"
+}
+
+// caret marks the place the next letter lands in.
+func (s skin) caret() string {
+	if s.plain {
+		return "_"
+	}
+	return "▌"
 }
 
 // checkbox draws the mark of a chosen rule or item.

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -41,8 +42,32 @@ func (m *Model) detailItems() []model.Item {
 	return nil
 }
 
+// detailRuleOf answers the plan line of the rule that is open.
+func (m *Model) detailRuleOf() (model.RulePlan, bool) {
+	for _, rp := range m.plan.Rules {
+		if ruleIDOf(rp) == m.detailRule {
+			return rp, true
+		}
+	}
+	return model.RulePlan{}, false
+}
+
 // updateDetail, the part of the screen of the rule.
 func (m *Model) updateDetail(msg tea.Msg) (tea.Cmd, bool) {
+	if wheel, ok := msg.(tea.MouseMsg); ok {
+		switch wheel.Button {
+		case tea.MouseButtonWheelUp:
+			if m.detailRow > 0 {
+				m.detailRow--
+			}
+			return nil, true
+		case tea.MouseButtonWheelDown:
+			if m.detailRow < len(m.detailItems())-1 {
+				m.detailRow++
+			}
+			return nil, true
+		}
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return nil, false
@@ -62,7 +87,7 @@ func (m *Model) updateDetail(msg tea.Msg) (tea.Cmd, bool) {
 			path := items[m.detailRow].Path
 			m.selection.Exclude[path] = !m.selection.Exclude[path]
 		}
-	case "esc":
+	case "esc", "q":
 		m.screen = screenList
 		m.row = 0
 		for i, rp := range m.visibleRows() {
@@ -79,20 +104,77 @@ func (m *Model) updateDetail(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, true
 }
 
-// viewDetail draws the rule: its items, one a line, with the mark of what
-// the run keeps out.
+// viewDetail draws one rule in plain words: what it removes, how much, and
+// every path the run would touch.
 func (m *Model) viewDetail() string {
-	items := m.detailItems()
-	lines := []string{fmt.Sprintf("rule %s", m.detailRule)}
-	for i, item := range items {
-		pick := " "
-		if i == m.detailRow {
-			pick = ">"
+	rp, _ := m.detailRuleOf()
+	title := m.detailRule
+	about := ""
+	if rp.Rule != nil {
+		if rp.Rule.Name != "" {
+			title = rp.Rule.Name
 		}
-		kept := m.skin.checkbox(!m.selection.Exclude[item.Path])
-		lines = append(lines, fmt.Sprintf("%s %s %-60s %8s",
-			pick, kept, item.Path, report.FormatBytes(item.Size)))
+		about = rp.Rule.Description
 	}
-	lines = append(lines, "space in or out  esc back")
-	return strings.Join(lines, "\n")
+
+	b := &body{}
+	b.add(titleStyle.Render(title))
+	b.add(mutedStyle.Render(m.detailRule))
+	if about != "" {
+		for _, line := range wrapText(about, m.screenWidth()-8) {
+			b.add(line)
+		}
+	}
+	b.add("")
+	b.add(fmt.Sprintf("This rule frees %s in %s files.",
+		report.FormatBytes(rp.Bytes), humanCount(int64(rp.Files))))
+	if rp.Rule != nil && rp.Rule.RequiresAdmin {
+		b.add(warningStyle().Render("Needs administrator rights."))
+	}
+	if rp.Rule != nil && len(rp.Rule.RequiresClosed) != 0 {
+		b.add(warningStyle().Render("Skipped while running: " + strings.Join(rp.Rule.RequiresClosed, ", ")))
+	}
+	b.add("")
+
+	items := m.detailItems()
+	if len(items) == 0 {
+		b.add(mutedStyle.Render("This rule runs a command instead of deleting paths."))
+		if rp.Rule != nil {
+			for _, target := range rp.Rule.Targets {
+				if target.Kind == model.KindCommand {
+					b.add("  $ " + target.Cmd + " " + strings.Join(target.Args, " "))
+				}
+			}
+		}
+	} else {
+		b.add(mutedStyle.Render("Untick anything you want to keep:"))
+		for i, item := range items {
+			mark := m.skin.checkbox(!m.selection.Exclude[item.Path])
+			pick := "  "
+			if i == m.detailRow {
+				pick = m.skin.pointer() + " "
+			}
+			path := item.Path
+			room := m.screenWidth() - 34
+			if room < 20 {
+				room = 20
+			}
+			if len(path) > room {
+				path = m.skin.ellipsis() + path[len(path)-room:]
+			}
+			line := fmt.Sprintf("%s%s %-*s %9s", pick, mark, room, path, report.FormatBytes(item.Size))
+			index := b.add(line)
+			b.hit(index, 0, m.screenWidth()-8, actToggleItem, item.Path)
+		}
+	}
+
+	return m.renderFrame("Details", *b, mutedStyle.Render("Space include or keep"+m.skin.sep()+"Esc back to the list"), makeButtons(
+		buttonSpec{label: "Back to the list", primary: true, action: actBack},
+		buttonSpec{label: "Help", action: actHelp},
+	))
+}
+
+// warningStyle colors a line that asks the reader to think.
+func warningStyle() lipgloss.Style {
+	return moderateStyle
 }

@@ -1,0 +1,484 @@
+package tui
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/webcartel/sweep/internal/model"
+)
+
+// The look of the screens. The TUI speaks to people who have never cleaned a
+// disk by hand, so every screen keeps one promise: a plain title, the one
+// number that matters, and buttons that say what they do.
+var (
+	titleStyle   = lipgloss.NewStyle().Bold(true)
+	bigStyle     = lipgloss.NewStyle().Bold(true)
+	mutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	primaryStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+	// selectedStyle marks the row under the cursor without color, so the
+	// highlight survives the ASCII skin.
+	selectedStyle = lipgloss.NewStyle().Bold(true)
+)
+
+// clickBox is one place of the last drawn screen the mouse can press: a row
+// or a button. The screen draws itself and remembers the boxes; the next
+// press looks itself up here.
+type clickBox struct {
+	x1, y1, x2, y2 int
+	action         string
+	arg            string
+}
+
+// The actions a press can carry.
+const (
+	actStart       = "start"
+	actPickProfile = "pick-profile"
+	actHelp        = "help"
+	actQuit        = "quit"
+	actCloseHelp   = "close-help"
+	actCancelScan  = "cancel-scan"
+	actToggleRule  = "toggle-rule"
+	actOpenDetail  = "open-detail"
+	actSelectSafe  = "select-safe"
+	actSelectNone  = "select-none"
+	actToggleBin   = "toggle-bin"
+	actConfirm     = "confirm"
+	actClean       = "clean"
+	actBack        = "back"
+	actRestart     = "restart"
+	actStop        = "stop"
+	actSaveReport  = "save-report"
+	actToggleItem  = "toggle-item"
+	actRow         = "row"
+	actShowEmpty   = "show-empty"
+)
+
+// hitAt answers the box under a press.
+func (m *Model) hitAt(x, y int) (clickBox, bool) {
+	for _, box := range m.hits {
+		if x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2 {
+			return box, true
+		}
+	}
+	return clickBox{}, false
+}
+
+// handleClick runs the action under the mouse and answers with a command when
+// the action starts work, and with the model otherwise.
+func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
+	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft {
+		return nil, false
+	}
+	box, ok := m.hitAt(msg.X, msg.Y)
+	if !ok {
+		return nil, false
+	}
+	switch box.action {
+	case actPickProfile:
+		m.cursor = atoiOrZero(box.arg)
+		return nil, true
+	case actStart:
+		if m.screen == screenProfile {
+			m.screen = screenScanning
+			return m.startScan(), true
+		}
+		return nil, true
+	case actHelp:
+		m.openHelp()
+		return nil, true
+	case actCloseHelp:
+		m.screen = m.screenBehind
+		return nil, true
+	case actQuit:
+		return tea.Quit, true
+	case actCancelScan:
+		if m.cancelScan != nil {
+			m.cancelScan()
+		}
+		return tea.Quit, true
+	case actToggleRule:
+		m.selection.Rules[box.arg] = !m.selection.Rules[box.arg]
+		return nil, true
+	case actOpenDetail:
+		m.row = atoiOrZero(box.arg)
+		return m.openDetail()
+	case actSelectSafe:
+		for _, rp := range m.plan.Rules {
+			if rp.Rule != nil && rp.Rule.Risk == model.RiskSafe {
+				m.selection.Rules[rp.Rule.ID] = true
+			}
+		}
+		return nil, true
+	case actSelectNone:
+		for _, rp := range m.plan.Rules {
+			if rp.Rule != nil {
+				m.selection.Rules[rp.Rule.ID] = false
+			}
+		}
+		return nil, true
+	case actToggleBin:
+		m.trash = !m.trash
+		return nil, true
+	case actConfirm:
+		m.screen = screenConfirm
+		m.confirmText = ""
+		return nil, true
+	case actClean:
+		if m.pendingWord() {
+			return nil, true
+		}
+		return m.confirmEnter(), true
+	case actBack:
+		switch m.screen {
+		case screenDetail, screenConfirm:
+			m.screen = screenList
+			m.confirmText = ""
+		case screenHelp:
+			m.screen = m.screenBehind
+		}
+		return nil, true
+	case actRestart:
+		return m.confirmEnter(), true
+	case actStop:
+		if m.run.cancelExec != nil {
+			m.run.cancelExec()
+			m.run.cancelExec = nil
+		}
+		m.run.execEvents = nil
+		m.run.execCmd = nil
+		m.closeLog()
+		m.screen = screenConfirm
+		return nil, true
+	case actSaveReport:
+		_ = m.saveReport()
+		return nil, true
+	case actToggleItem:
+		m.selection.Exclude[box.arg] = !m.selection.Exclude[box.arg]
+		return nil, true
+	case actShowEmpty:
+		m.showEmpty = !m.showEmpty
+		m.row = 0
+		m.offset = 0
+		return nil, true
+	}
+	return nil, false
+}
+
+// atoiOrZero reads the small numbers the boxes carry as arguments.
+func atoiOrZero(s string) int {
+	n := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return n
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n
+}
+
+// body is what one screen wants inside the frame: the lines, and the boxes of
+// the rows and buttons it drew. Y of a box counts from the first line of the
+// body; frame adds its own lines on top.
+type body struct {
+	lines []string
+	boxes []clickBox
+}
+
+// add appends a line and answers the index it took.
+func (b *body) add(line string) int {
+	b.lines = append(b.lines, line)
+	return len(b.lines) - 1
+}
+
+// hit records a pressable place of a line already added.
+func (b *body) hit(line, x1, x2 int, action, arg string) {
+	b.boxes = append(b.boxes, clickBox{y1: line, y2: line, x1: x1, x2: x2, action: action, arg: arg})
+}
+
+// screenWidth answers the width the frame draws in: one column short of the
+// terminal, so the closing border never wraps to the next line.
+func (m *Model) screenWidth() int {
+	if m.width < 40 {
+		return 90
+	}
+	return m.width - 1
+}
+
+// screenHeight answers the height of the terminal, or a sensible one.
+func (m *Model) screenHeight() int {
+	if m.height < 12 {
+		return 28
+	}
+	return m.height
+}
+
+// renderFrame draws one screen: the frame of the product, the step, the body
+// and the footer of a hint and buttons. It also stores the boxes of the body
+// and of the buttons in the model, moved to the absolute places of the
+// screen.
+func (m *Model) renderFrame(step string, b body, hint string, btns footerButtons) string {
+	width := m.screenWidth()
+	height := m.screenHeight()
+	inner := width - 2
+
+	footerLines := 0
+	if hint != "" {
+		footerLines++
+	}
+	if btns.line != "" {
+		footerLines++
+	}
+
+	// The body has to fit between the frame, the separator and the footer.
+	maxBody := height - 4 - footerLines
+	if maxBody < 1 {
+		maxBody = 1
+	}
+	lines := b.lines
+	if len(lines) > maxBody {
+		lines = lines[:maxBody]
+	}
+	// The frame takes the whole window: the space below the content stays
+	// part of the screen, not of the terminal behind it.
+	for len(lines) < maxBody {
+		lines = append(lines, "")
+	}
+
+	var out []string
+	out = append(out, m.frameTop(width, step))
+	out = append(out, m.frameLine("", inner))
+	for _, line := range lines {
+		out = append(out, m.frameLine(line, inner))
+	}
+	out = append(out, m.frameSep(width))
+	if hint != "" {
+		out = append(out, m.frameLine(hint, inner))
+	}
+	buttonsY := -1
+	if btns.line != "" {
+		buttonsY = len(out)
+		out = append(out, m.frameLine(btns.line, inner))
+	}
+	out = append(out, m.frameBottom(width))
+
+	// The body starts after the top border and one empty line.
+	top := 2
+	left := 3
+	m.hits = m.hits[:0]
+	for _, box := range b.boxes {
+		m.hits = append(m.hits, clickBox{
+			x1: box.x1 + left, x2: box.x2 + left,
+			y1: box.y1 + top, y2: box.y2 + top,
+			action: box.action, arg: box.arg,
+		})
+	}
+	if buttonsY >= 0 {
+		for i, span := range btns.spans {
+			item := btns.items[i]
+			m.hits = append(m.hits, clickBox{
+				x1: span.x1 + left, x2: span.x2 + left,
+				y1: buttonsY, y2: buttonsY,
+				action: item.action, arg: item.arg,
+			})
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// frameTop draws the line of the product name and the step.
+func (m *Model) frameTop(width int, step string) string {
+	inner := width - 2
+	left := " " + m.skin.name + " "
+	right := " " + step + " "
+	fill := inner - len(left) - len(right)
+	if fill < 0 {
+		fill = 0
+	}
+	return m.skin.tl + left + strings.Repeat(m.skin.h, fill) + right + m.skin.tr
+}
+
+// frameSep draws the line between the body and the footer.
+func (m *Model) frameSep(width int) string {
+	return m.skin.teeL + strings.Repeat(m.skin.h, width-2) + m.skin.teeR
+}
+
+// frameBottom draws the closing line.
+func (m *Model) frameBottom(width int) string {
+	return m.skin.bl + strings.Repeat(m.skin.h, width-2) + m.skin.br
+}
+
+// frameLine draws one line of the inside, padded to the inner width.
+func (m *Model) frameLine(line string, inner int) string {
+	return m.skin.v + " " + fit(line, inner-2) + " " + m.skin.v
+}
+
+// fit cuts a line to the width and pads it with spaces.
+func fit(line string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if lipgloss.Width(line) > width {
+		runes := []rune(line)
+		if len(runes) > width {
+			runes = runes[:width]
+		}
+		line = string(runes)
+	}
+	pad := width - lipgloss.Width(line)
+	if pad > 0 {
+		line += strings.Repeat(" ", pad)
+	}
+	return line
+}
+
+// buttonSpec is one button of a footer row.
+type buttonSpec struct {
+	label   string
+	primary bool
+	action  string
+	arg     string
+}
+
+// buttonsLine draws a row of buttons separated by three spaces, and answers
+// the line and the x ranges of each button.
+func buttonsLine(items ...buttonSpec) (string, []struct{ x1, x2 int }) {
+	var out strings.Builder
+	var spans []struct{ x1, x2 int }
+	for i, item := range items {
+		if i != 0 {
+			out.WriteString("   ")
+		}
+		x1 := lipgloss.Width(out.String())
+		text := "[ " + item.label + " ]"
+		if item.primary {
+			text = primaryStyle.Render(text)
+		}
+		out.WriteString(text)
+		spans = append(spans, struct{ x1, x2 int }{x1, x1 + lipgloss.Width(text) - 1})
+	}
+	return out.String(), spans
+}
+
+// footerButtons is a row of buttons of the footer.
+type footerButtons struct {
+	line  string
+	spans []struct{ x1, x2 int }
+	items []buttonSpec
+}
+
+// makeButtons builds a footer row; the frame registers its boxes.
+func makeButtons(items ...buttonSpec) footerButtons {
+	line, spans := buttonsLine(items...)
+	return footerButtons{line: line, spans: spans, items: items}
+}
+
+// humanProfile names a profile the way a person would say it, and says what
+// it does in one line.
+func humanProfile(name string) (title, about string) {
+	switch name {
+	case "default":
+		return "Everyday cleanup", "Caches and temporary files that Windows and apps rebuild."
+	case "dev":
+		return "Developer cleanup", "Build caches of npm, Go, Docker and other tools."
+	case "aggressive":
+		return "Deep cleanup", "Everything from Everyday, plus crash dumps and update leftovers."
+	}
+	return name, "The rules this profile selects."
+}
+
+// riskWord names a risk the way the badge of the spec writes it.
+func riskWord(r model.Risk) string {
+	switch r {
+	case model.RiskDangerous:
+		return "DANGER"
+	case model.RiskModerate:
+		return "MOD"
+	default:
+		return "SAFE"
+	}
+}
+
+// riskLegend explains the badges in plain words.
+func riskLegend() string {
+	return "SAFE - apps rebuild it   MOD - comes back slower   DANGER - may lose data"
+}
+
+// riskStyleOf colors the plain word of a risk.
+func riskStyleOf(r model.Risk) lipgloss.Style {
+	switch r {
+	case model.RiskDangerous:
+		return dangerStyle
+	case model.RiskModerate:
+		return moderateStyle
+	default:
+		return safeStyle
+	}
+}
+
+// wrapText breaks a sentence into lines no wider than width, at spaces.
+func wrapText(text string, width int) []string {
+	if width < 10 {
+		width = 10
+	}
+	words := strings.Fields(text)
+	var lines []string
+	var line string
+	for _, word := range words {
+		if line == "" {
+			line = word
+			continue
+		}
+		if len(line)+1+len(word) > width {
+			lines = append(lines, line)
+			line = word
+			continue
+		}
+		line += " " + word
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// mutedLine keeps a long line inside the width, cutting it with the skin's
+// ellipsis instead of letting the frame do it.
+func mutedLine(text string, width int) string {
+	if width <= 0 || len(text) <= width {
+		return text
+	}
+	if width <= 3 {
+		return text[:width]
+	}
+	return text[:width-3] + "..."
+}
+
+// ruleCount names a number of rules with its noun.
+func ruleCount(n int) string {
+	if n == 1 {
+		return "1 rule"
+	}
+	return fmt.Sprintf("%d rules", n)
+}
+
+// humanCount writes an integer with thousands groups: 11623 -> 11,623.
+func humanCount(n int64) string {
+	s := fmt.Sprintf("%d", n)
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	var parts []string
+	for len(s) > 3 {
+		parts = append([]string{s[len(s)-3:]}, parts...)
+		s = s[:len(s)-3]
+	}
+	parts = append([]string{s}, parts...)
+	out := strings.Join(parts, ",")
+	if neg {
+		out = "-" + out
+	}
+	return out
+}
