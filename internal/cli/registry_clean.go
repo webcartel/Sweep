@@ -108,7 +108,9 @@ func runRegistryClean(cmd *cobra.Command, d deps, flags registryCleanFlags) erro
 			"there is no terminal to ask; say --yes to remove without the question, or --dry-run to only see the plan")}
 	}
 	if !flags.asJSON {
-		printRegistryTable(cmd.OutOrStdout(), selected)
+		if err := printRegistryTable(cmd.OutOrStdout(), selected); err != nil {
+			return err
+		}
 	}
 	if !flags.dryRun && !flags.yes {
 		if !askContinue(cmd.InOrStdin(), cmd.OutOrStdout()) {

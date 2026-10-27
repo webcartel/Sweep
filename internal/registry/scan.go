@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/webcartel/sweep/internal/platform"
@@ -317,12 +316,4 @@ func isAbsPath(path string) bool {
 		return true
 	}
 	return len(path) >= 3 && path[1] == ':' && path[2] == '\\'
-}
-
-// joinKey puts a value under its key for a note or a log line.
-func joinKey(key, value string) string {
-	if value == "" {
-		return key
-	}
-	return filepath.Join(key, value)
 }
