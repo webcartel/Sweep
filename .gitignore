@@ -10,3 +10,4 @@ coverage.*
 .superpowers/
 /list.json
 list.json
+*~
