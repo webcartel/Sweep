@@ -70,6 +70,9 @@ type Deps struct {
 	// RestartRegistry restarts the whole run as the administrator with the
 	// registry findings named.
 	RestartRegistry func(ids []string) error
+	// SettingsPath is the settings.yaml of this run, next to config.yaml.
+	// It is where the language the user picks is saved again.
+	SettingsPath string
 }
 
 // Model is the one Bubble Tea model of the TUI. Every screen of the run is a
@@ -123,6 +126,7 @@ func New(d Deps) *Model {
 	m.set = d.Set
 	m.rulesDir = d.RulesDir
 	m.configPath = d.ConfigPath
+	m.settingsPath = d.SettingsPath
 	m.reload = d.Reload
 	m.registryPreselect = d.RegistryPreselect
 	env := d.Env
@@ -205,6 +209,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateEditor(msg)
 	case screenPreview:
 		cmd, _ = m.updatePreview(msg)
+	case screenLang:
+		cmd, _ = m.updateLang(msg)
 	case screenRegScan:
 		cmd, _ = m.updateRegScan(msg)
 	case screenRegReview:
@@ -256,6 +262,8 @@ func (m *Model) View() string {
 		return m.viewEditor()
 	case screenPreview:
 		return m.viewPreview()
+	case screenLang:
+		return m.viewLang()
 	case screenRegScan:
 		return m.viewRegScan()
 	case screenRegReview:

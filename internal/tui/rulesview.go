@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/rules"
@@ -27,11 +28,17 @@ const (
 
 // rulesState is what the rules screens remember between frames.
 type rulesState struct {
-	set        *rules.Set
-	rulesDir   string
-	configPath string
-	reload     func() (*rules.Set, error)
-	env        platform.Env
+	set          *rules.Set
+	rulesDir     string
+	configPath   string
+	settingsPath string
+	reload       func() (*rules.Set, error)
+	env          platform.Env
+
+	// langNotice is what the last save of the language said, and
+	// langFailed is whether it had to say it the hard way.
+	langNotice string
+	langFailed bool
 
 	ruleCursor   int
 	ruleOffset   int
@@ -139,6 +146,8 @@ func (m *Model) updateRules(msg tea.Msg) (tea.Cmd, bool) {
 	case "u":
 		m.screen = screenUserRules
 		m.refreshUserFiles()
+	case "l":
+		m.screen = screenLang
 	case "?":
 		m.openHelp()
 	}
@@ -147,8 +156,8 @@ func (m *Model) updateRules(msg tea.Msg) (tea.Cmd, bool) {
 
 func (m *Model) viewRules() string {
 	b := &body{}
-	b.add(titleStyle.Render("Rules & settings"))
-	b.add(mutedStyle.Render("Rules decide what sweep looks for. Built-in rules stay read-only."))
+	b.add(titleStyle.Render(i18n.T("tui.rules.title")))
+	b.add(mutedStyle.Render(i18n.T("tui.rules.intro")))
 	b.add("")
 
 	builtin, own := 0, 0
@@ -159,35 +168,45 @@ func (m *Model) viewRules() string {
 		}
 		own++
 	}
-	b.add(fmt.Sprintf("Rules:     %d built-in, %d of yours", builtin, own))
-	b.add(fmt.Sprintf("Profiles:  %d available", len(m.profiles)))
+	b.add(fmt.Sprintf(i18n.T("tui.rules.counts"), builtin, own))
+	b.add(fmt.Sprintf(i18n.T("tui.rules.profiles"), len(m.profiles)))
 	config := m.configPath
-	state := "not found - defaults are used"
+	state := i18n.T("tui.rules.confignotfound")
 	if _, err := os.Stat(config); err == nil {
-		state = "found"
+		state = i18n.T("tui.rules.configfound")
 	}
-	b.add(fmt.Sprintf("Config:    %s (%s)", config, state))
+	b.add(fmt.Sprintf(i18n.T("tui.rules.config"), config, state))
 	if m.rulesDir != "" {
-		b.add(fmt.Sprintf("Your rules: %s", m.rulesDir))
+		b.add(fmt.Sprintf(i18n.T("tui.rules.yourrules"), m.rulesDir))
+	}
+	if m.langNotice != "" {
+		b.add("")
+		b.add(m.langNotice)
 	}
 	if m.message != "" {
 		b.add("")
 		b.add(warningStyle().Render(m.message))
 	}
 	b.add("")
-	b.add(mutedStyle.Render("What each screen holds:"))
-	b.add("  Browse rules   - every rule, its paths and where it came from")
-	b.add("  View config    - profiles, switches and excluded paths")
-	b.add("  My rules       - your own files: new, edit, delete")
+	b.add(mutedStyle.Render(i18n.T("tui.rules.holds")))
+	b.add("  " + i18n.T("tui.rules.holds.browse"))
+	b.add("  " + i18n.T("tui.rules.holds.config"))
+	b.add("  " + i18n.T("tui.rules.holds.lang"))
+	b.add("  " + i18n.T("tui.rules.holds.mine"))
 	b.add("")
-	b.add(mutedStyle.Render("You can undo an edit: every save leaves a .bak next to the file."))
+	b.add(mutedStyle.Render(i18n.T("tui.rules.undo")))
 
-	hint := "B browse" + m.skin.sep() + "C config" + m.skin.sep() + "U my rules" + m.skin.sep() + "Esc back"
-	return m.renderFrame("Rules", *b, mutedStyle.Render(hint), makeButtons(
-		buttonSpec{label: "Browse rules", primary: true, action: actBrowseRules},
-		buttonSpec{label: "View config", action: actViewConfig},
-		buttonSpec{label: "My rules", action: actUserRules},
-		buttonSpec{label: "Back", action: actBack},
+	hint := i18n.T("tui.rules.hint.browse") + m.skin.sep() +
+		i18n.T("tui.rules.hint.config") + m.skin.sep() +
+		i18n.T("tui.rules.hint.lang") + m.skin.sep() +
+		i18n.T("tui.rules.hint.mine") + m.skin.sep() +
+		i18n.T("tui.hint.back")
+	return m.renderFrame(i18n.T("tui.rules.title"), *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: i18n.T("tui.rules.browse"), primary: true, action: actBrowseRules},
+		buttonSpec{label: i18n.T("tui.rules.viewconfig"), action: actViewConfig},
+		buttonSpec{label: i18n.T("tui.rules.language"), action: actLang},
+		buttonSpec{label: i18n.T("tui.rules.mine"), action: actUserRules},
+		buttonSpec{label: i18n.T("tui.button.back"), action: actBack},
 	))
 }
 

@@ -237,6 +237,7 @@ func openTUI(d deps, c *cobra.Command, settingsPath string) error {
 	}
 	run.RulesDir = filepath.Join(dir, "rules")
 	run.ConfigPath = cfgPath
+	run.SettingsPath = settingsPath
 	run.RulesFor = func(profile string) ([]*model.Rule, error) {
 		chosen, _, err := chooseRules(set, profile, nil)
 		if err != nil {

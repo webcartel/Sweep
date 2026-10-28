@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 )
 
@@ -74,6 +75,9 @@ const (
 	actRegClean    = "registry-clean"
 	actRegRestart  = "registry-restart"
 	actRegBack     = "registry-back"
+	actLang        = "lang-open"
+	actLangEN      = "lang-en"
+	actLangRU      = "lang-ru"
 )
 
 // hitAt answers the box under a press.
@@ -232,6 +236,13 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 	case actPreviewBack:
 		m.screen = screenEditor
 		return nil, true
+	case actLang:
+		m.screen = screenLang
+		return nil, true
+	case actLangEN:
+		return m.setLanguage(i18n.LangEN), true
+	case actLangRU:
+		return m.setLanguage(i18n.LangRU), true
 	case actRegOpen:
 		return m.openRegistry(), true
 	case actRegToggle:
