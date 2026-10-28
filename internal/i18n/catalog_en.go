@@ -346,6 +346,7 @@ var catalogEN = map[string]string{
 	"scan.skip.disappeared": "the path disappeared",
 	"scan.skip.build":       "the rule names build %d, and this Windows is build %d",
 	"scan.warn.walk":        "the rule could not be walked: %v",
+	"scan.warn.target":      "the rule cannot read the target %s: %v",
 
 	"guard.err.empty":          "the path is empty",
 	"guard.err.var":            "the path %s names %%%s%%, which this machine does not set",
@@ -395,4 +396,142 @@ var catalogEN = map[string]string{
 	"rules.err.schema.add":    "add the rule schema",
 	"rules.err.schema.use":    "cannot use the rule schema: %v",
 	"rules.err.schema.decode": "cannot read the file: %v",
+
+	"cli.common.yes":  "yes",
+	"cli.common.no":   "no",
+	"cli.common.json": "print one JSON document",
+
+	"cli.root.short": "Clean Windows according to YAML rules",
+	"cli.root.long": "sweep cleans a Windows machine according to a set of YAML rules.\n\n" +
+		"Run it with no arguments to open the TUI, `sweep scan` to see what\n" +
+		"would be cleaned without changing anything, and `sweep clean` to\n" +
+		"remove it after confirmation.",
+	"cli.root.flag.config": "path to config.yaml (default %APPDATA%\\sweep\\config.yaml)",
+	"cli.root.flag.rulesdir": "extra directory of rule files; " +
+		"repeat it to read several",
+	"cli.root.flag.ascii":             "draw the screens with the plain characters of ASCII",
+	"cli.root.flag.noascii":           "draw the screens with the frames a terminal draws",
+	"cli.root.flag.preselect":         "the rules a run was already agreed to; the way the restart comes back",
+	"cli.root.flag.preselectregistry": "the registry findings a run was already agreed to",
+	"cli.root.flag.lang":              "interface language: \"en\" or \"ru\" (default: the language of the system)",
+	"cli.root.unknownarg":             "%q names nothing the run has",
+	"cli.root.datadir":                "find the directory of the config",
+
+	"cli.version.short": "Print version and build information",
+
+	"cli.list.short": "List the rules and say which of them the profile takes",
+	"cli.list.long": "List every rule sweep loaded, where it came from and whether the\n" +
+		"profile takes it, in the order the sources give them: the built-in\n" +
+		"rules first, then the ones of the user.",
+	"cli.list.flag.category":  "only rules of this category",
+	"cli.list.flag.profile":   "profile of rules to check against",
+	"cli.list.header.id":      "ID",
+	"cli.list.header.risk":    "RISK",
+	"cli.list.header.profile": "PROFILE",
+	"cli.list.header.admin":   "ADMIN",
+
+	"cli.scan.short": "Say what would be cleaned, without cleaning it",
+	"cli.scan.long": "Read the disk and print the plan: what every rule of the profile\n" +
+		"holds, how much it would free and what it could not take. Nothing is\n" +
+		"written or removed by this command.",
+	"cli.scan.flag.profile":   "profile of rules to scan for",
+	"cli.scan.flag.rule":      "id or mask of the rules to scan for; repeat it and it overrides the profile",
+	"cli.scan.header.id":      "ID",
+	"cli.scan.header.items":   "ITEMS",
+	"cli.scan.header.files":   "FILES",
+	"cli.scan.header.size":    "SIZE",
+	"cli.scan.header.skipped": "SKIPPED",
+	"cli.scan.total":          "TOTAL",
+	"cli.scan.skipped":        "skipped %s: %s",
+	"cli.scan.interrupted":    "scan interrupted",
+	"cli.scan.noplan":         "the scan ended without a plan",
+	"cli.scan.norule":         "no rule matches --rule %s; run `sweep list` to see what there is",
+
+	"cli.clean.short": "Clean after the plan is seen and agreed to",
+	"cli.clean.long": "Scan as `sweep scan` does, print the plan, ask to continue, and\n" +
+		"run the removal of the rules that stay selected. A rule marked\n" +
+		"dangerous asks for --include-dangerous, and its data goes to the\n" +
+		"recycle bin.",
+	"cli.clean.flag.profile":   "profile of rules to clean",
+	"cli.clean.flag.rule":      "id or mask of the rules to clean; repeat it and it overrides the profile",
+	"cli.clean.flag.dryrun":    "show the plan and leave the disk alone",
+	"cli.clean.flag.yes":       "go ahead without asking; the way a script runs sweep",
+	"cli.clean.flag.trash":     "send what the rules would delete to the recycle bin",
+	"cli.clean.flag.notrash":   "delete for good what a rule would send to the bin",
+	"cli.clean.flag.dangerous": "leave dangerous rules in the run; without the flag they stay out",
+	"cli.clean.flag.onreboot":  "postpone the paths of busy files to the next start of Windows",
+	"cli.clean.flag.report":    "write the JSON answer of the run to the file named",
+	"cli.clean.skipped":        "skipped %s: %s",
+	"cli.clean.failed":         "failed %s: %s",
+	"cli.clean.interrupted":    "clean interrupted",
+	"cli.clean.dangerous": "the dangerous rules %s only run with their data in the recycle bin; " +
+		"leave --no-trash out",
+	"cli.clean.noterminal": "there is no terminal to ask; say --yes to clean without the question, " +
+		"or --dry-run to only see the plan",
+	"cli.clean.noanswer":         "the run ended without an answer",
+	"cli.clean.leftbehind":       "%d path(s) stayed behind; the answer of the run names them",
+	"cli.clean.continue":         "Continue? [y/N] ",
+	"cli.clean.summary":          "cleaned: %d removed, %s freed",
+	"cli.clean.summary.trash":    " (%s to the recycle bin)",
+	"cli.clean.summary.dryrun":   " [dry run]",
+	"cli.clean.summary.reboot":   "off till the reboot: %d\n",
+	"cli.clean.log.localappdata": "open the log: %LOCALAPPDATA% is not set",
+	"cli.clean.log.open":         "open the log: %v",
+	"cli.clean.log.file":         "open the log %s",
+
+	"cli.rules.short":          "Check and inspect the rule files",
+	"cli.rules.validate.short": "Check rule files and report every finding with its place",
+	"cli.rules.validate.long": "Check rule files and report every finding as file:line:column on\n" +
+		"the error stream.\n\n" +
+		"With no path it checks everything sweep loads: the built-in rules, the\n" +
+		"rules of the user and every directory named as --rules-dir. A path that\n" +
+		"is a directory stands for the rule files it holds. It prints nothing\n" +
+		"when there is nothing to report, and leaves with code 2 when there is.",
+	"cli.rules.show.short": "Print one rule as the sources left it, with its variables expanded",
+	"cli.rules.show.long": "Print the rule the sources were merged into, so that its paths can be\n" +
+		"checked without running a scan: the id, what it cleans, and every\n" +
+		"target with its %VARIABLES% expanded to what this machine holds.",
+	"cli.rules.unknown":        "unknown rule '%s'",
+	"cli.rules.show.default":   "  in the default profile\n",
+	"cli.rules.show.admin":     "  needs administrator rights\n",
+	"cli.rules.show.closed":    "  must be closed: %s\n",
+	"cli.rules.show.build":     "  oldest build: %d\n",
+	"cli.rules.show.trash":     "  goes to the recycle bin\n",
+	"cli.rules.show.targets":   "  targets:\n",
+	"cli.rules.target.command": " (command)",
+	"cli.rules.target.mode":    "%s (mode: %s",
+	"cli.rules.target.older":   ", older than %d day(s)",
+	"cli.rules.target.size":    ", at least %d bytes",
+	"cli.rules.target.only":    ", only: ",
+	"cli.rules.target.except":  ", except: ",
+
+	"cli.registry.short": "Find and remove dead registry entries",
+	"cli.registry.long": "The registry branch handles the three places Windows leaves dead\n" +
+		"entries: uninstall commands, Run values and App Paths. It never runs\n" +
+		"without a choice, and it exports a .reg backup before every delete.",
+	"cli.registry.scan.short":     "List the dead registry entries without changing anything",
+	"cli.registry.scan.flag.json": "print one JSON document instead of a table",
+	"cli.registry.unavailable":    "the registry is not available on this system",
+	"cli.registry.header.kind":    "KIND",
+	"cli.registry.header.name":    "NAME",
+	"cli.registry.header.key":     "KEY",
+	"cli.registry.header.admin":   "ADMIN",
+	"cli.registry.header.reason":  "REASON",
+
+	"cli.registry.clean.short": "Remove the chosen dead entries, after a .reg backup",
+	"cli.registry.clean.long": "Only the findings named with --select are removed, and every key is\n" +
+		"exported to a .reg file before the first deletion.",
+	"cli.registry.clean.flag.select": "a finding to remove: kind:key[:value]; repeat it. " +
+		"A key holding a backslash is written as it is",
+	"cli.registry.clean.flag.dryrun":  "show what would be removed, change nothing",
+	"cli.registry.clean.flag.yes":     "do not ask for a confirmation",
+	"cli.registry.clean.nomatch":      "no finding matches %q",
+	"cli.registry.clean.noselect":     "nothing is chosen: name at least one finding with --select",
+	"cli.registry.clean.localappdata": "%LOCALAPPDATA% is not set, so the backup has no home",
+	"cli.registry.clean.noterminal": "there is no terminal to ask; say --yes to remove without " +
+		"the question, or --dry-run to only see the plan",
+	"cli.registry.clean.summary":    "removed %d, skipped %d, failed %d\n",
+	"cli.registry.clean.backup":     "backup %s\n",
+	"cli.registry.clean.leftbehind": "%d findings were left behind; the report names why",
+	"cli.registry.clean.none":       "no dead entries were found",
 }

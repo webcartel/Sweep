@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -74,11 +75,8 @@ func newRootCmd(d deps, args []string) *cobra.Command {
 
 	root := &cobra.Command{
 		Use:   "sweep",
-		Short: "Clean Windows according to YAML rules",
-		Long: "sweep cleans a Windows machine according to a set of YAML rules.\n\n" +
-			"Run it with no arguments to open the TUI, `sweep scan` to see what\n" +
-			"would be cleaned without changing anything, and `sweep clean` to\n" +
-			"remove it after confirmation.",
+		Short: i18n.T("cli.root.short"),
+		Long:  i18n.T("cli.root.long"),
 		// A command that fails prints the error alone: the usage text of a
 		// command is long, and the error is the part worth reading.
 		SilenceUsage: true,
@@ -89,20 +87,20 @@ func newRootCmd(d deps, args []string) *cobra.Command {
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError(err) })
 
 	root.PersistentFlags().String("config", "",
-		"path to config.yaml (default %APPDATA%\\sweep\\config.yaml)")
+		i18n.T("cli.root.flag.config"))
 	root.PersistentFlags().StringArray("rules-dir", nil,
-		"extra directory of rule files; repeat it to read several")
+		i18n.T("cli.root.flag.rulesdir"))
 	root.PersistentFlags().Bool("ascii", false,
-		"draw the screens with the plain characters of ASCII")
+		i18n.T("cli.root.flag.ascii"))
 	root.PersistentFlags().Bool("no-ascii", false,
-		"draw the screens with the frames a terminal draws")
+		i18n.T("cli.root.flag.noascii"))
 	root.PersistentFlags().String("preselect", "",
-		"the rules a run was already agreed to; the way the restart comes back")
+		i18n.T("cli.root.flag.preselect"))
 	root.PersistentFlags().String("preselect-registry", "",
-		"the registry findings a run was already agreed to")
+		i18n.T("cli.root.flag.preselectregistry"))
 	_ = root.PersistentFlags().MarkHidden("preselect-registry")
 	root.PersistentFlags().String("lang", "",
-		`interface language: "en" or "ru" (default: the language of the system)`)
+		i18n.T("cli.root.flag.lang"))
 
 	// A language sweep does not speak is a mistake to say, and it is said
 	// before any command runs.
@@ -112,7 +110,7 @@ func newRootCmd(d deps, args []string) *cobra.Command {
 
 	root.RunE = func(c *cobra.Command, args []string) error {
 		if len(args) != 0 {
-			return usageError(fmt.Errorf("%q names nothing the run has", args[0]))
+			return usageError(errorText("cli.root.unknownarg", args[0]))
 		}
 		return openTUI(d, c, settingsPath)
 	}
@@ -272,7 +270,7 @@ func dataDir(d deps) (string, error) {
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
-		return "", fmt.Errorf("find the directory of the config: %w", err)
+		return "", fmt.Errorf("%s: %w", i18n.T("cli.root.datadir"), err)
 	}
 	return filepath.Join(dir, "sweep"), nil
 }
@@ -349,4 +347,10 @@ func countArgs(check cobra.PositionalArgs) cobra.PositionalArgs {
 		}
 		return nil
 	}
+}
+
+// errorText makes an error out of the text of a key. A translated message is
+// not a format of its own, so it never goes to fmt.Errorf unformatted.
+func errorText(key string, args ...any) error {
+	return errors.New(i18n.T(key, args...))
 }

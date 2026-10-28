@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/webcartel/sweep/internal/guard"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/report"
@@ -26,11 +27,9 @@ func newScanCmd(d deps) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "scan",
-		Short: "Say what would be cleaned, without cleaning it",
-		Long: "Read the disk and print the plan: what every rule of the profile\n" +
-			"holds, how much it would free and what it could not take. Nothing is\n" +
-			"written or removed by this command.",
-		Args: countArgs(cobra.NoArgs),
+		Short: i18n.T("cli.scan.short"),
+		Long:  i18n.T("cli.scan.long"),
+		Args:  countArgs(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			set, err := loadSet(d, cmd)
 			if err != nil {
@@ -72,7 +71,7 @@ func newScanCmd(d deps) *cobra.Command {
 					// document holds them and says nothing twice.
 					if !asJSON {
 						_, _ = fmt.Fprintln(cmd.ErrOrStderr(),
-							"skipped "+one.Skip.Path+": "+string(one.Skip.Reason))
+							i18n.T("cli.scan.skipped", one.Skip.Path, string(one.Skip.Reason)))
 					}
 				case model.RuleScanned:
 					finished = append(finished, one.Plan)
@@ -92,11 +91,11 @@ func newScanCmd(d deps) *cobra.Command {
 						_ = printPlanTable(cmd.OutOrStdout(), partial)
 					}
 				}
-				_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "scan interrupted")
+				_, _ = fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cli.scan.interrupted"))
 				return nil
 			}
 			if plan == nil {
-				return fmt.Errorf("the scan ended without a plan")
+				return errorText("cli.scan.noplan")
 			}
 
 			if asJSON {
@@ -106,10 +105,10 @@ func newScanCmd(d deps) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&profile, "profile", "default", "profile of rules to scan for")
+	cmd.Flags().StringVar(&profile, "profile", "default", i18n.T("cli.scan.flag.profile"))
 	cmd.Flags().StringArrayVar(&ruleFlags, "rule", nil,
-		"id or mask of the rules to scan for; repeat it and it overrides the profile")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print one JSON document")
+		i18n.T("cli.scan.flag.rule"))
+	cmd.Flags().BoolVar(&asJSON, "json", false, i18n.T("cli.common.json"))
 
 	return cmd
 }
@@ -145,8 +144,7 @@ func chooseRules(set *rules.Set, profile string, ruleFlags []string) ([]*model.R
 		}
 	}
 	if len(found) == 0 {
-		return nil, nil, usageError(fmt.Errorf(
-			"no rule matches --rule %s; run `sweep list` to see what there is",
+		return nil, nil, usageError(errorText("cli.scan.norule",
 			strings.Join(ruleFlags, ", ")))
 	}
 	return found, warning, nil
@@ -181,7 +179,10 @@ func (m *masksOf) matches(id string) bool {
 // one row for the whole scan, with the sizes in the short form.
 func printPlanTable(out interface{ Write([]byte) (int, error) }, p *model.Plan) error {
 	tw := tabwriter.NewWriter(out, 2, 4, 2, ' ', 0)
-	_, err := fmt.Fprintln(tw, "ID\tITEMS\tFILES\tSIZE\tSKIPPED")
+	_, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+		i18n.T("cli.scan.header.id"), i18n.T("cli.scan.header.items"),
+		i18n.T("cli.scan.header.files"), i18n.T("cli.scan.header.size"),
+		i18n.T("cli.scan.header.skipped"))
 	if err != nil {
 		return err
 	}
@@ -204,7 +205,8 @@ func printPlanTable(out interface{ Write([]byte) (int, error) }, p *model.Plan) 
 		total.skipped += len(rule.Skipped)
 		total.size += rule.Bytes
 	}
-	if _, err := fmt.Fprintf(tw, "TOTAL\t%d\t%d\t%s\t%d\n",
+	if _, err := fmt.Fprintf(tw, "%s\t%d\t%d\t%s\t%d\n",
+		i18n.T("cli.scan.total"),
 		total.items, total.files, report.FormatBytes(total.size), total.skipped); err != nil {
 		return err
 	}

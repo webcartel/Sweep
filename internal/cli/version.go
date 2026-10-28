@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
+
+	"github.com/webcartel/sweep/internal/i18n"
 )
 
 // Version is the release version of the build. A release sets it with
@@ -18,7 +20,7 @@ var Version = "dev"
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Print version and build information",
+		Short: i18n.T("cli.version.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, err := fmt.Fprintln(cmd.OutOrStdout(), buildLine())

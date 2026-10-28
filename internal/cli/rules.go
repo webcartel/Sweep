@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/rules"
@@ -20,7 +20,7 @@ import (
 func newRulesCmd(d deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rules",
-		Short: "Check and inspect the rule files",
+		Short: i18n.T("cli.rules.short"),
 		Args:  countArgs(cobra.NoArgs),
 	}
 	cmd.AddCommand(newRulesValidateCmd(d), newRulesShowCmd(d))
@@ -31,14 +31,9 @@ func newRulesCmd(d deps) *cobra.Command {
 func newRulesValidateCmd(d deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate [path...]",
-		Short: "Check rule files and report every finding with its place",
-		Long: "Check rule files and report every finding as file:line:column on\n" +
-			"the error stream.\n\n" +
-			"With no path it checks everything sweep loads: the built-in rules, the\n" +
-			"rules of the user and every directory named as --rules-dir. A path that\n" +
-			"is a directory stands for the rule files it holds. It prints nothing\n" +
-			"when there is nothing to report, and leaves with code 2 when there is.",
-		Args: countArgs(cobra.ArbitraryArgs),
+		Short: i18n.T("cli.rules.validate.short"),
+		Long:  i18n.T("cli.rules.validate.long"),
+		Args:  countArgs(cobra.ArbitraryArgs),
 		RunE: func(cmd *cobra.Command, paths []string) error {
 			if len(paths) == 0 {
 				return validateEverything(d, cmd)
@@ -134,11 +129,9 @@ func ruleFiles(paths []string) ([]string, error) {
 func newRulesShowCmd(d deps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <id>",
-		Short: "Print one rule as the sources left it, with its variables expanded",
-		Long: "Print the rule the sources were merged into, so that its paths can be\n" +
-			"checked without running a scan: the id, what it cleans, and every\n" +
-			"target with its %VARIABLES% expanded to what this machine holds.",
-		Args: countArgs(cobra.ExactArgs(1)),
+		Short: i18n.T("cli.rules.show.short"),
+		Long:  i18n.T("cli.rules.show.long"),
+		Args:  countArgs(cobra.ExactArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			set, err := loadSet(d, cmd)
 			if err != nil {
@@ -148,7 +141,7 @@ func newRulesShowCmd(d deps) *cobra.Command {
 
 			rule := findRule(set, args[0])
 			if rule == nil {
-				return usageError(fmt.Errorf("unknown rule '%s'", args[0]))
+				return usageError(errorText("cli.rules.unknown", args[0]))
 			}
 			return printRule(cmd.OutOrStdout(), rule, d.Env)
 		},
@@ -175,25 +168,25 @@ func printRule(out io.Writer, rule *model.Rule, env platform.Env) error {
 	w.printf("  category: %s\n  risk: %s\n  source: %s\n",
 		rule.Category, rule.Risk, rule.Source)
 	if rule.DefaultEnabled {
-		w.printf("  in the default profile\n")
+		w.printf("%s", i18n.T("cli.rules.show.default"))
 	}
 	if len(rule.Tags) > 0 {
 		w.printf("  tags: %s\n", strings.Join(rule.Tags, ", "))
 	}
 	if rule.RequiresAdmin {
-		w.printf("  needs administrator rights\n")
+		w.printf("%s", i18n.T("cli.rules.show.admin"))
 	}
 	if len(rule.RequiresClosed) > 0 {
-		w.printf("  must be closed: %s\n", strings.Join(rule.RequiresClosed, ", "))
+		w.printf("%s", i18n.T("cli.rules.show.closed", strings.Join(rule.RequiresClosed, ", ")))
 	}
 	if rule.OSMinBuild > 0 {
-		w.printf("  oldest build: %d\n", rule.OSMinBuild)
+		w.printf("%s", i18n.T("cli.rules.show.build", rule.OSMinBuild))
 	}
 	if rule.Trash {
-		w.printf("  goes to the recycle bin\n")
+		w.printf("%s", i18n.T("cli.rules.show.trash"))
 	}
 
-	w.printf("  targets:\n")
+	w.printf("%s", i18n.T("cli.rules.show.targets"))
 	for _, target := range rule.Targets {
 		w.printf("    %s\n", targetLine(target, env))
 	}
@@ -204,21 +197,21 @@ func printRule(out io.Writer, rule *model.Rule, env platform.Env) error {
 func targetLine(target model.Target, env platform.Env) string {
 	if target.Kind == model.KindCommand {
 		command := strings.TrimSpace(strings.Join(append([]string{target.Cmd}, target.Args...), " "))
-		return command + " (command)"
+		return command + i18n.T("cli.rules.target.command")
 	}
 
-	line := fmt.Sprintf("%s (mode: %s", platform.Expand(target.Path, env), target.Mode)
+	line := i18n.T("cli.rules.target.mode", platform.Expand(target.Path, env), target.Mode)
 	if target.MinAgeDays > 0 {
-		line += fmt.Sprintf(", older than %d day(s)", target.MinAgeDays)
+		line += i18n.T("cli.rules.target.older", target.MinAgeDays)
 	}
 	if target.MinSize > 0 {
-		line += fmt.Sprintf(", at least %d bytes", target.MinSize)
+		line += i18n.T("cli.rules.target.size", target.MinSize)
 	}
 	if len(target.Include) > 0 {
-		line += ", only: " + strings.Join(target.Include, ", ")
+		line += i18n.T("cli.rules.target.only") + strings.Join(target.Include, ", ")
 	}
 	if len(target.Exclude) > 0 {
-		line += ", except: " + strings.Join(target.Exclude, ", ")
+		line += i18n.T("cli.rules.target.except") + strings.Join(target.Exclude, ", ")
 	}
 	return line + ")"
 }

@@ -242,7 +242,7 @@ func (s *Scanner) target(ctx context.Context, t model.Target,
 			return nil
 		}
 		*warnings = append(*warnings,
-			fmt.Sprintf("the rule cannot read the target %s: %v", t.Path, err))
+			i18n.T("scan.warn.target", t.Path, err))
 		// One unreadable target does not stop the scan.
 		return nil
 	case !asked.Allowed:

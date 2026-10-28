@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/registry"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -48,24 +49,23 @@ func newRegistryCleanCmd(d deps) *cobra.Command {
 	var flags registryCleanFlags
 	cmd := &cobra.Command{
 		Use:   "clean",
-		Short: "Remove the chosen dead entries, after a .reg backup",
-		Long: "Only the findings named with --select are removed, and every key is\n" +
-			"exported to a .reg file before the first deletion.",
-		Args: cobra.NoArgs,
-		RunE: func(c *cobra.Command, _ []string) error { return runRegistryClean(c, d, flags) },
+		Short: i18n.T("cli.registry.clean.short"),
+		Long:  i18n.T("cli.registry.clean.long"),
+		Args:  cobra.NoArgs,
+		RunE:  func(c *cobra.Command, _ []string) error { return runRegistryClean(c, d, flags) },
 	}
 	cmd.Flags().StringArrayVar(&flags.selectors, "select", nil,
-		"a finding to remove: kind:key[:value]; repeat it. A key holding a backslash is written as it is")
-	cmd.Flags().BoolVar(&flags.dryRun, "dry-run", false, "show what would be removed, change nothing")
-	cmd.Flags().BoolVar(&flags.yes, "yes", false, "do not ask for a confirmation")
-	cmd.Flags().BoolVar(&flags.asJSON, "json", false, "print one JSON document")
+		i18n.T("cli.registry.clean.flag.select"))
+	cmd.Flags().BoolVar(&flags.dryRun, "dry-run", false, i18n.T("cli.registry.clean.flag.dryrun"))
+	cmd.Flags().BoolVar(&flags.yes, "yes", false, i18n.T("cli.registry.clean.flag.yes"))
+	cmd.Flags().BoolVar(&flags.asJSON, "json", false, i18n.T("cli.common.json"))
 	return cmd
 }
 
 // runRegistryClean is the body of the command.
 func runRegistryClean(cmd *cobra.Command, d deps, flags registryCleanFlags) error {
 	if d.Registry == nil {
-		return usageError(fmt.Errorf("the registry is not available on this system"))
+		return usageError(errorText("cli.registry.unavailable"))
 	}
 	findings, notes, err := registry.Scan(d.Registry, d.FS, d.Env)
 	if err != nil {
@@ -76,7 +76,7 @@ func runRegistryClean(cmd *cobra.Command, d deps, flags registryCleanFlags) erro
 	}
 	selected, missing := registry.Select(findings, flags.selectors)
 	if len(missing) != 0 {
-		return usageError(fmt.Errorf("no finding matches %q", missing[0]))
+		return usageError(errorText("cli.registry.clean.nomatch", missing[0]))
 	}
 	if flags.dryRun && len(selected) == 0 && len(flags.selectors) == 0 {
 		selected = findings
@@ -85,7 +85,7 @@ func runRegistryClean(cmd *cobra.Command, d deps, flags registryCleanFlags) erro
 		if len(findings) == 0 {
 			return printRegistryNone(cmd, flags.asJSON)
 		}
-		return usageError(fmt.Errorf("nothing is chosen: name at least one finding with --select"))
+		return usageError(errorText("cli.registry.clean.noselect"))
 	}
 
 	elevated := false
@@ -98,14 +98,13 @@ func runRegistryClean(cmd *cobra.Command, d deps, flags registryCleanFlags) erro
 	if !flags.dryRun {
 		local, _ := d.Env.Get("LOCALAPPDATA")
 		if local == "" {
-			return &ExitError{Code: ExitInternal, Err: fmt.Errorf("%%LOCALAPPDATA%% is not set, so the backup has no home")}
+			return &ExitError{Code: ExitInternal, Err: errorText("cli.registry.clean.localappdata")}
 		}
 		root = filepath.Join(local, "sweep", "registry-backups")
 	}
 
 	if !flags.dryRun && !flags.yes && !isTerminal(cmd.OutOrStdout()) {
-		return &ExitError{Code: ExitNoTerminal, Err: fmt.Errorf(
-			"there is no terminal to ask; say --yes to remove without the question, or --dry-run to only see the plan")}
+		return &ExitError{Code: ExitNoTerminal, Err: errorText("cli.registry.clean.noterminal")}
 	}
 	if !flags.asJSON {
 		if err := printRegistryTable(cmd.OutOrStdout(), selected); err != nil {
@@ -142,14 +141,14 @@ func runRegistryClean(cmd *cobra.Command, d deps, flags registryCleanFlags) erro
 	if flags.asJSON {
 		return printRegistryCleanJSON(cmd, flags.dryRun, result)
 	}
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "removed %d, skipped %d, failed %d\n",
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), i18n.T("cli.registry.clean.summary"),
 		result.Removed, result.Skipped, result.Failed)
 	if result.BackupDir != "" {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "backup %s\n", result.BackupDir)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), i18n.T("cli.registry.clean.backup"), result.BackupDir)
 	}
 	if result.Skipped+result.Failed != 0 {
-		return &ExitError{Code: ExitPartial, Err: fmt.Errorf(
-			"%d findings were left behind; the report names why", result.Skipped+result.Failed)}
+		return &ExitError{Code: ExitPartial, Err: errorText("cli.registry.clean.leftbehind",
+			result.Skipped+result.Failed)}
 	}
 	return nil
 }
@@ -160,7 +159,7 @@ func printRegistryNone(cmd *cobra.Command, asJSON bool) error {
 		answer := registryCleanAnswer{Schema: 1, Entries: []registryCleanEntry{}}
 		return writeRegistryCleanJSON(cmd, answer)
 	}
-	_, err := fmt.Fprintln(cmd.OutOrStdout(), "no dead entries were found")
+	_, err := fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cli.registry.clean.none"))
 	return err
 }
 

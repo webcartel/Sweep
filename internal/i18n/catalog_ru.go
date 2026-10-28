@@ -346,6 +346,7 @@ var catalogRU = map[string]string{
 	"scan.skip.disappeared": "путь исчез",
 	"scan.skip.build":       "правило требует сборку %d, а здесь Windows со сборкой %d",
 	"scan.warn.walk":        "правило не удалось обойти: %v",
+	"scan.warn.target":      "правило не может прочитать цель %s: %v",
 
 	"guard.err.empty":          "путь пуст",
 	"guard.err.var":            "путь %s называет %%%s%%, которую эта машина не задаёт",
@@ -395,4 +396,145 @@ var catalogRU = map[string]string{
 	"rules.err.schema.add":    "не удалось добавить схему правил",
 	"rules.err.schema.use":    "не удалось применить схему правил: %v",
 	"rules.err.schema.decode": "не удалось прочитать файл: %v",
+
+	"cli.common.yes":  "да",
+	"cli.common.no":   "нет",
+	"cli.common.json": "вывести один JSON-документ",
+
+	"cli.root.short": "Очистка Windows по правилам YAML",
+	"cli.root.long": "sweep очищает машину с Windows по набору правил YAML.\n\n" +
+		"Запустите его без аргументов, чтобы открыть TUI, `sweep scan` - чтобы\n" +
+		"увидеть, что будет очищено, ничего не меняя, и `sweep clean` - чтобы\n" +
+		"удалить это после подтверждения.",
+	"cli.root.flag.config": "путь к config.yaml (по умолчанию %APPDATA%\\sweep\\config.yaml)",
+	"cli.root.flag.rulesdir": "дополнительный каталог файлов правил; " +
+		"повторите флаг, чтобы прочитать несколько",
+	"cli.root.flag.ascii":             "рисовать экраны простыми символами ASCII",
+	"cli.root.flag.noascii":           "рисовать экраны рамками терминала",
+	"cli.root.flag.preselect":         "правила, на которые уже дано согласие; так возвращается перезапуск",
+	"cli.root.flag.preselectregistry": "находки реестра, на которые уже дано согласие",
+	"cli.root.flag.lang":              "язык интерфейса: \"en\" или \"ru\" (по умолчанию: язык системы)",
+	"cli.root.unknownarg":             "%q не называет ничего, что есть в запуске",
+	"cli.root.datadir":                "найти каталог конфига",
+
+	"cli.version.short": "Показать версию и сведения о сборке",
+
+	"cli.list.short": "Показать правила и сказать, какие из них берёт профиль",
+	"cli.list.long": "Показать все правила, которые загрузил sweep, откуда они пришли и\n" +
+		"берёт ли их профиль, в том порядке, который задают источники: сначала\n" +
+		"встроенные правила, затем правила пользователя.",
+	"cli.list.flag.category":  "только правила этой категории",
+	"cli.list.flag.profile":   "профиль правил для проверки",
+	"cli.list.header.id":      "ID",
+	"cli.list.header.risk":    "РИСК",
+	"cli.list.header.profile": "ПРОФИЛЬ",
+	"cli.list.header.admin":   "АДМИН",
+
+	"cli.scan.short": "Сказать, что будет очищено, ничего не очищая",
+	"cli.scan.long": "Прочитать диск и напечатать план: что держит каждое правило\n" +
+		"профиля, сколько оно освободит и что оно не смогло взять. Эта команда\n" +
+		"ничего не пишет и не удаляет.",
+	"cli.scan.flag.profile":   "профиль правил для сканирования",
+	"cli.scan.flag.rule":      "id или маска правил для сканирования; повторите флаг, и он перекроет профиль",
+	"cli.scan.header.id":      "ID",
+	"cli.scan.header.items":   "ЭЛЕМЕНТЫ",
+	"cli.scan.header.files":   "ФАЙЛЫ",
+	"cli.scan.header.size":    "РАЗМЕР",
+	"cli.scan.header.skipped": "ПРОПУЩЕНО",
+	"cli.scan.total":          "ИТОГО",
+	"cli.scan.skipped":        "пропущено %s: %s",
+	"cli.scan.interrupted":    "сканирование прервано",
+	"cli.scan.noplan":         "сканирование завершилось без плана",
+	"cli.scan.norule":         "ни одно правило не совпадает с --rule %s; запустите `sweep list`, чтобы увидеть, что есть",
+
+	"cli.clean.short": "Очистить после того, как план показан и согласован",
+	"cli.clean.long": "Сканировать так же, как `sweep scan`, напечатать план, спросить о\n" +
+		"продолжении и удалить правила, которые остались выбранными. Правило,\n" +
+		"помеченное как опасное, требует --include-dangerous, а его данные\n" +
+		"отправляются в Корзину.",
+	"cli.clean.flag.profile":   "профиль правил для очистки",
+	"cli.clean.flag.rule":      "id или маска правил для очистки; повторите флаг, и он перекроет профиль",
+	"cli.clean.flag.dryrun":    "показать план и не трогать диск",
+	"cli.clean.flag.yes":       "действовать без вопроса; так скрипт запускает sweep",
+	"cli.clean.flag.trash":     "отправлять то, что удалили бы правила, в Корзину",
+	"cli.clean.flag.notrash":   "удалять безвозвратно то, что правило отправило бы в Корзину",
+	"cli.clean.flag.dangerous": "оставить опасные правила в запуске; без флага они не участвуют",
+	"cli.clean.flag.onreboot":  "отложить пути занятых файлов до следующего запуска Windows",
+	"cli.clean.flag.report":    "записать JSON-ответ запуска в указанный файл",
+	"cli.clean.skipped":        "пропущено %s: %s",
+	"cli.clean.failed":         "не удалось %s: %s",
+	"cli.clean.interrupted":    "очистка прервана",
+	"cli.clean.dangerous": "опасные правила %s запускаются только с отправкой данных в Корзину; " +
+		"уберите --no-trash",
+	"cli.clean.noterminal": "нет терминала, чтобы спросить; скажите --yes, чтобы очистить без " +
+		"вопроса, или --dry-run, чтобы только увидеть план",
+	"cli.clean.noanswer":         "запуск завершился без ответа",
+	"cli.clean.leftbehind":       "осталось путей: %d; ответ запуска называет их",
+	"cli.clean.continue":         "Продолжить? [y/N] ",
+	"cli.clean.summary":          "очищено: удалено %d, освобождено %s",
+	"cli.clean.summary.trash":    " (%s в Корзину)",
+	"cli.clean.summary.dryrun":   " [пробный запуск]",
+	"cli.clean.summary.reboot":   "отложено до перезагрузки: %d\n",
+	"cli.clean.log.localappdata": "открыть журнал: переменная %LOCALAPPDATA% не задана",
+	"cli.clean.log.open":         "открыть журнал: %v",
+	"cli.clean.log.file":         "открыть журнал %s",
+
+	"cli.rules.short":          "Проверить и показать файлы правил",
+	"cli.rules.validate.short": "Проверить файлы правил и сообщить о каждой находке с её местом",
+	"cli.rules.validate.long": "Проверить файлы правил и сообщить о каждой находке как file:line:column в\n" +
+		"поток ошибок.\n\n" +
+		"Без пути проверяется всё, что загружает sweep: встроенные правила,\n" +
+		"правила пользователя и каждый каталог, названный через --rules-dir. Путь,\n" +
+		"который является каталогом, означает файлы правил в нём. Команда ничего\n" +
+		"не печатает, когда сообщать не о чем, и завершается с кодом 2, когда есть\n" +
+		"о чём.",
+	"cli.rules.show.short": "Напечатать одно правило в том виде, в каком его оставили источники, с раскрытыми переменными",
+	"cli.rules.show.long": "Напечатать правило, в которое слились источники, чтобы его пути можно\n" +
+		"было проверить без сканирования: id, что оно чистит, и каждую цель с\n" +
+		"переменными %VARIABLES%, раскрытыми в то, что есть на этой машине.",
+	"cli.rules.unknown":        "неизвестное правило '%s'",
+	"cli.rules.show.default":   "  в профиле по умолчанию\n",
+	"cli.rules.show.admin":     "  нужны права администратора\n",
+	"cli.rules.show.closed":    "  должны быть закрыты: %s\n",
+	"cli.rules.show.build":     "  минимальная сборка: %d\n",
+	"cli.rules.show.trash":     "  отправляется в Корзину\n",
+	"cli.rules.show.targets":   "  цели:\n",
+	"cli.rules.target.command": " (команда)",
+	"cli.rules.target.mode":    "%s (режим: %s",
+	"cli.rules.target.older":   ", старше %d дн.",
+	"cli.rules.target.size":    ", не меньше %d байт",
+	"cli.rules.target.only":    ", только: ",
+	"cli.rules.target.except":  ", кроме: ",
+
+	"cli.registry.short": "Найти и удалить мёртвые записи реестра",
+	"cli.registry.long": "Ветка реестра охватывает три места, где Windows оставляет мёртвые\n" +
+		"записи: команды удаления, значения Run и App Paths. Она никогда не\n" +
+		"запускается без выбора и экспортирует резервную копию .reg перед каждым\n" +
+		"удалением.",
+	"cli.registry.scan.short":     "Перечислить мёртвые записи реестра, ничего не меняя",
+	"cli.registry.scan.flag.json": "вывести один JSON-документ вместо таблицы",
+	"cli.registry.unavailable":    "реестр недоступен в этой системе",
+	"cli.registry.header.kind":    "ТИП",
+	"cli.registry.header.name":    "ИМЯ",
+	"cli.registry.header.key":     "КЛЮЧ",
+	"cli.registry.header.admin":   "АДМИН",
+	"cli.registry.header.reason":  "ПРИЧИНА",
+
+	"cli.registry.clean.short": "Удалить выбранные мёртвые записи после резервной копии .reg",
+	"cli.registry.clean.long": "Удаляются только находки, названные через --select, и каждый ключ\n" +
+		"экспортируется в файл .reg перед первым удалением.",
+	"cli.registry.clean.flag.select": "находка для удаления: kind:key[:value]; повторите флаг. " +
+		"Ключ с обратной косой чертой пишется как есть",
+	"cli.registry.clean.flag.dryrun": "показать, что было бы удалено, и ничего не менять",
+	"cli.registry.clean.flag.yes":    "не спрашивать подтверждения",
+	"cli.registry.clean.nomatch":     "ни одна находка не совпадает с %q",
+	"cli.registry.clean.noselect":    "ничего не выбрано: назовите хотя бы одну находку через --select",
+	"cli.registry.clean.localappdata": "переменная %LOCALAPPDATA% не задана, " +
+		"поэтому резервной копии некуда лечь",
+	"cli.registry.clean.noterminal": "нет терминала, чтобы спросить; скажите --yes, чтобы удалить " +
+		"без вопроса, или --dry-run, чтобы только увидеть план",
+	"cli.registry.clean.summary":    "удалено %d, пропущено %d, не удалось %d\n",
+	"cli.registry.clean.backup":     "резервная копия %s\n",
+	"cli.registry.clean.leftbehind": "осталось находок: %d; отчёт называет причину",
+	"cli.registry.clean.none":       "мёртвых записей не найдено",
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/webcartel/sweep/internal/exec"
 	"github.com/webcartel/sweep/internal/guard"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 	"github.com/webcartel/sweep/internal/scan"
@@ -46,12 +47,9 @@ func newCleanCmd(d deps) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "clean",
-		Short: "Clean after the plan is seen and agreed to",
-		Long: "Scan as `sweep scan` does, print the plan, ask to continue, and\n" +
-			"run the removal of the rules that stay selected. A rule marked\n" +
-			"dangerous asks for --include-dangerous, and its data goes to the\n" +
-			"recycle bin.",
-		Args: countArgs(cobra.NoArgs),
+		Short: i18n.T("cli.clean.short"),
+		Long:  i18n.T("cli.clean.long"),
+		Args:  countArgs(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cleanRun(d, cmd, cleanFlags{
 				profile: profile, ruleFlags: ruleFlags, dryRun: dryRun, yes: yes,
@@ -62,19 +60,19 @@ func newCleanCmd(d deps) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&profile, "profile", "default", "profile of rules to clean")
+	cmd.Flags().StringVar(&profile, "profile", "default", i18n.T("cli.clean.flag.profile"))
 	cmd.Flags().StringArrayVar(&ruleFlags, "rule", nil,
-		"id or mask of the rules to clean; repeat it and it overrides the profile")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show the plan and leave the disk alone")
-	cmd.Flags().BoolVar(&yes, "yes", false, "go ahead without asking; the way a script runs sweep")
-	cmd.Flags().BoolVar(&trashFlag, "trash", false, "send what the rules would delete to the recycle bin")
-	cmd.Flags().BoolVar(&noTrashFlag, "no-trash", false, "delete for good what a rule would send to the bin")
+		i18n.T("cli.clean.flag.rule"))
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, i18n.T("cli.clean.flag.dryrun"))
+	cmd.Flags().BoolVar(&yes, "yes", false, i18n.T("cli.clean.flag.yes"))
+	cmd.Flags().BoolVar(&trashFlag, "trash", false, i18n.T("cli.clean.flag.trash"))
+	cmd.Flags().BoolVar(&noTrashFlag, "no-trash", false, i18n.T("cli.clean.flag.notrash"))
 	cmd.Flags().BoolVar(&includeDangerous, "include-dangerous", false,
-		"leave dangerous rules in the run; without the flag they stay out")
+		i18n.T("cli.clean.flag.dangerous"))
 	cmd.Flags().BoolVar(&onReboot, "on-reboot", false,
-		"postpone the paths of busy files to the next start of Windows")
-	cmd.Flags().StringVar(&reportPath, "report", "", "write the JSON answer of the run to the file named")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print one JSON document")
+		i18n.T("cli.clean.flag.onreboot"))
+	cmd.Flags().StringVar(&reportPath, "report", "", i18n.T("cli.clean.flag.report"))
+	cmd.Flags().BoolVar(&asJSON, "json", false, i18n.T("cli.common.json"))
 
 	return cmd
 }
@@ -140,7 +138,7 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 		case model.ItemSkipped:
 			if !flags.json {
 				_, _ = fmt.Fprintln(errOut,
-					"skipped "+one.Skip.Path+": "+string(one.Skip.Reason))
+					i18n.T("cli.clean.skipped", one.Skip.Path, string(one.Skip.Reason)))
 			}
 		case model.ScanDone:
 			plan = one.Plan
@@ -150,11 +148,11 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 		// What stood completed when Ctrl+C came is printed, then the
 		// word of the interruption; the ask for a run that never got to
 		// take anything away is not asked.
-		_, _ = fmt.Fprintln(errOut, "scan interrupted")
+		_, _ = fmt.Fprintln(errOut, i18n.T("cli.scan.interrupted"))
 		return nil
 	}
 	if plan == nil {
-		return fmt.Errorf("the scan ended without a plan")
+		return errorText("cli.scan.noplan")
 	}
 
 	// A rule whose data the user may still want stays out of the run
@@ -183,8 +181,7 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 			}
 		}
 		if len(dangerous) != 0 {
-			return usageError(fmt.Errorf(
-				"the dangerous rules %s only run with their data in the recycle bin; leave --no-trash out",
+			return usageError(errorText("cli.clean.dangerous",
 				strings.Join(dangerous, ", ")))
 		}
 	}
@@ -212,8 +209,7 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 	// A clean that cannot ask is not a clean that may run: without a
 	// terminal the agreement has to be said on the command line.
 	if !flags.dryRun && !flags.yes && !isTerminal(cmd.OutOrStdout()) {
-		return &ExitError{Code: ExitNoTerminal, Err: fmt.Errorf(
-			"there is no terminal to ask; say --yes to clean without the question, or --dry-run to only see the plan")}
+		return &ExitError{Code: ExitNoTerminal, Err: errorText("cli.clean.noterminal")}
 	}
 	if !flags.dryRun && !flags.yes {
 		if !askContinue(cmd.InOrStdin(), out) {
@@ -276,7 +272,7 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 		case model.ItemFailed:
 			failed++
 			if !flags.json {
-				_, _ = fmt.Fprintln(errOut, "failed "+one.Path+": "+one.Err.Error())
+				_, _ = fmt.Fprintln(errOut, i18n.T("cli.clean.failed", one.Path, one.Err.Error()))
 			}
 			_ = sink.Append(report.Entry{
 				Time: time.Now(), RuleID: one.RuleID, Path: one.Path,
@@ -309,11 +305,11 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 		// The stream closed because the run was cancelled. The paths the
 		// rules made it through are on the disk in the order the events
 		// named them; the run says so instead of an error.
-		_, _ = fmt.Fprintln(errOut, "clean interrupted")
+		_, _ = fmt.Fprintln(errOut, i18n.T("cli.clean.interrupted"))
 		return nil
 	}
 	if result == nil {
-		return fmt.Errorf("the run ended without an answer")
+		return errorText("cli.clean.noanswer")
 	}
 
 	if flags.report == "" && !flags.json {
@@ -325,8 +321,8 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 		return nil
 	}
 	if skipped+failed != 0 {
-		return &ExitError{Code: ExitPartial, Err: fmt.Errorf(
-			"%d path(s) stayed behind; the answer of the run names them", skipped+failed)}
+		return &ExitError{Code: ExitPartial, Err: errorText("cli.clean.leftbehind",
+			skipped+failed)}
 	}
 	return nil
 }
@@ -334,7 +330,7 @@ func cleanRun(d deps, cmd *cobra.Command, flags cleanFlags) error {
 // askContinue puts the question of the spec and takes the answer: only the
 // word of an agreement starts the run.
 func askContinue(in io.Reader, out io.Writer) bool {
-	if _, err := fmt.Fprint(out, "Continue? [y/N] "); err != nil {
+	if _, err := fmt.Fprint(out, i18n.T("cli.clean.continue")); err != nil {
 		return false
 	}
 	said := bufio.NewScanner(in)
@@ -350,19 +346,19 @@ func askContinue(in io.Reader, out io.Writer) bool {
 
 // printRunSummary says in a few short lines what a run came to.
 func printRunSummary(out io.Writer, result *model.Result) {
-	if _, err := fmt.Fprintf(out, "cleaned: %d removed, %s freed", result.Removed,
+	if _, err := fmt.Fprintf(out, i18n.T("cli.clean.summary"), result.Removed,
 		report.FormatBytes(result.FreedBytes)); err != nil {
 		return
 	}
 	if result.TrashBytes != 0 {
-		_, _ = fmt.Fprintf(out, " (%s to the recycle bin)", report.FormatBytes(result.TrashBytes))
+		_, _ = fmt.Fprintf(out, i18n.T("cli.clean.summary.trash"), report.FormatBytes(result.TrashBytes))
 	}
 	if result.DryRun {
-		_, _ = fmt.Fprint(out, " [dry run]")
+		_, _ = fmt.Fprint(out, i18n.T("cli.clean.summary.dryrun"))
 	}
 	_, _ = fmt.Fprintln(out)
 	if result.PendingReboot != nil {
-		_, _ = fmt.Fprintf(out, "off till the reboot: %d\n", len(result.PendingReboot))
+		_, _ = fmt.Fprintf(out, i18n.T("cli.clean.summary.reboot"), len(result.PendingReboot))
 	}
 }
 
@@ -374,16 +370,16 @@ func openLog(d deps) (report.LogSink, func(), error) {
 		local, _ = d.Env.Get("LOCALAPPDATA")
 	}
 	if local == "" {
-		return nil, nil, fmt.Errorf("open the log: %%LOCALAPPDATA%% is not set")
+		return nil, nil, errorText("cli.clean.log.localappdata")
 	}
 	at := time.Now()
 	log := report.LogFile(local, at)
 	if err := os.MkdirAll(filepath.Dir(log), 0o700); err != nil {
-		return nil, nil, fmt.Errorf("open the log: %v", err)
+		return nil, nil, errorText("cli.clean.log.open", err)
 	}
 	file, err := os.OpenFile(log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open the log %s: %w", log, err)
+		return nil, nil, fmt.Errorf("%s: %w", i18n.T("cli.clean.log.file", log), err)
 	}
 	return report.LogTo(file), func() { _ = file.Close() }, nil
 }

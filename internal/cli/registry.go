@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/registry"
 )
 
@@ -35,10 +36,8 @@ type registryScanAnswer struct {
 func newRegistryCmd(d deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "registry",
-		Short: "Find and remove dead registry entries",
-		Long: "The registry branch handles the three places Windows leaves dead\n" +
-			"entries: uninstall commands, Run values and App Paths. It never runs\n" +
-			"without a choice, and it exports a .reg backup before every delete.",
+		Short: i18n.T("cli.registry.short"),
+		Long:  i18n.T("cli.registry.long"),
 	}
 	cmd.AddCommand(newRegistryScanCmd(d), newRegistryCleanCmd(d))
 	return cmd
@@ -49,11 +48,11 @@ func newRegistryScanCmd(d deps) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "scan",
-		Short: "List the dead registry entries without changing anything",
+		Short: i18n.T("cli.registry.scan.short"),
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			if d.Registry == nil {
-				return usageError(fmt.Errorf("the registry is not available on this system"))
+				return usageError(errorText("cli.registry.unavailable"))
 			}
 			findings, notes, err := registry.Scan(d.Registry, d.FS, d.Env)
 			if err != nil {
@@ -77,20 +76,23 @@ func newRegistryScanCmd(d deps) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print one JSON document instead of a table")
+	cmd.Flags().BoolVar(&asJSON, "json", false, i18n.T("cli.registry.scan.flag.json"))
 	return cmd
 }
 
 // printRegistryTable draws the findings: kind, name, key, admin and why.
 func printRegistryTable(out io.Writer, findings []registry.Finding) error {
 	tw := tabwriter.NewWriter(out, 2, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "KIND\tNAME\tKEY\tADMIN\tREASON"); err != nil {
+	if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+		i18n.T("cli.registry.header.kind"), i18n.T("cli.registry.header.name"),
+		i18n.T("cli.registry.header.key"), i18n.T("cli.registry.header.admin"),
+		i18n.T("cli.registry.header.reason")); err != nil {
 		return err
 	}
 	for _, finding := range findings {
-		admin := "no"
+		admin := i18n.T("cli.common.no")
 		if finding.Admin {
-			admin = "yes"
+			admin = i18n.T("cli.common.yes")
 		}
 		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
 			finding.Kind, finding.Name, keyOf(finding), admin, finding.Reason); err != nil {

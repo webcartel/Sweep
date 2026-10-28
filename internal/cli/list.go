@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/rules"
 )
 
@@ -37,11 +38,9 @@ func newListCmd(d deps) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List the rules and say which of them the profile takes",
-		Long: "List every rule sweep loaded, where it came from and whether the\n" +
-			"profile takes it, in the order the sources give them: the built-in\n" +
-			"rules first, then the ones of the user.",
-		Args: countArgs(cobra.NoArgs),
+		Short: i18n.T("cli.list.short"),
+		Long:  i18n.T("cli.list.long"),
+		Args:  countArgs(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			set, err := loadSet(d, cmd)
 			if err != nil {
@@ -62,9 +61,9 @@ func newListCmd(d deps) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&category, "category", "", "only rules of this category")
-	cmd.Flags().StringVar(&profile, "profile", "default", "profile of rules to check against")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print one JSON document")
+	cmd.Flags().StringVar(&category, "category", "", i18n.T("cli.list.flag.category"))
+	cmd.Flags().StringVar(&profile, "profile", "default", i18n.T("cli.list.flag.profile"))
+	cmd.Flags().BoolVar(&asJSON, "json", false, i18n.T("cli.common.json"))
 
 	return cmd
 }
@@ -112,7 +111,9 @@ func printListTable(out io.Writer, report listReport) error {
 	table := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 
 	w := &writer{out: table}
-	w.printf("ID\tRISK\tPROFILE\tADMIN\n")
+	w.printf("%s\t%s\t%s\t%s\n",
+		i18n.T("cli.list.header.id"), i18n.T("cli.list.header.risk"),
+		i18n.T("cli.list.header.profile"), i18n.T("cli.list.header.admin"))
 	for _, row := range report.Rules {
 		w.printf("%s\t%s\t%s\t%s\n",
 			row.ID, row.Risk, yesNo(row.InProfile), yesNo(row.RequiresAdmin))
@@ -126,7 +127,7 @@ func printListTable(out io.Writer, report listReport) error {
 // yesNo renders a flag the way the table reads.
 func yesNo(value bool) string {
 	if value {
-		return "yes"
+		return i18n.T("cli.common.yes")
 	}
-	return "no"
+	return i18n.T("cli.common.no")
 }
