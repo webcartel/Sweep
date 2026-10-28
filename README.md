@@ -130,6 +130,7 @@ allowed; give your own rule the same id to override it.
 | `e` | show or hide rules that found nothing |
 | `r` | scan again |
 | `g` | rules and settings |
+| `l` | language, inside rules and settings |
 | `r` | registry cleanup, on the start screen |
 | `s` | save the report on the result screen |
 | `?` | help |
@@ -138,6 +139,35 @@ allowed; give your own rule the same id to override it.
 
 `--ascii` (or `SWEEP_ASCII=1`) draws the same layout in plain characters for
 an old console. The interface needs at least 80 x 24 cells.
+
+![The start screen in Russian](.github/i18n-profile.png)
+
+## Language
+
+The interface speaks English and Russian. English is the default.
+
+The language is chosen by this chain, strongest first:
+
+```
+--lang  >  settings.yaml  >  the language of Windows  >  English
+```
+
+- `--lang en` and `--lang ru` on any command. Any other value is a usage
+  error, exit code `2`.
+- `settings.yaml` sits next to `config.yaml`: in `%APPDATA%\sweep` by
+  default, or in the directory of `--config`. Pick a language once in the
+  interface and it stays.
+- Windows answers with the user interface language it is set to; every
+  language but Russian falls back to English.
+
+In the interface, open **Rules & settings** and choose **Language** (`l`).
+The choice is saved at once and every screen redraws in it.
+
+The machine answers never change language. `--json` output and the JSONL log
+stay English whatever the interface says, so a script that reads them keeps
+working: `status`, `action`, `kind`, `id`, `reason` and `note` are the same
+bytes in both languages. Rule names, descriptions and categories in YAML are
+data and stay as written.
 
 ## Commands
 

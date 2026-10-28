@@ -61,6 +61,11 @@ func restartParamsWith(c *cobra.Command, flag string, preselect []string) string
 	if noASCII, _ := c.Flags().GetBool("no-ascii"); noASCII {
 		params += " --no-ascii"
 	}
+	// The child process speaks the language this one was given, rather
+	// than falling back to the system or the saved setting.
+	if lang, _ := c.Flags().GetString("lang"); lang != "" {
+		params += " --lang " + lang
+	}
 	return params
 }
 
