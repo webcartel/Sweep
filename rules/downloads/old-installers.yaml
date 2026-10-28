@@ -1,0 +1,13 @@
+schema: 1
+rules:
+  - id: downloads.old-installers
+    name: Old installers in Downloads
+    description: Setup files older than 30 days in your Downloads folder (.exe, .msi, .msix, .appx). You may still need one to install an old version, so the rule is off by default.
+    category: downloads
+    risk: moderate
+    default_enabled: false
+    targets:
+      - path: '%USERPROFILE%\Downloads'
+        mode: files
+        include: ['*.exe', '*.msi', '*.msix', '*.appx']
+        min_age_days: 30

@@ -28,10 +28,11 @@ The eight stages of the specification: stages 0-6 are done.
 | 6. Rule set and documentation | done |
 | 7. Extensions after the first release | in progress: the rule browser, the config viewer, the user-rule editor and the registry cleanup are here; the rest is listed below |
 
-The built-in set has 26 rules: browser and app caches, system temp folders,
-Error Reporting, servicing logs, crash dumps, update leftovers, and developer
-caches. Every path was probed on a real Windows 10 22H2 machine; the table of
-what was checked, and what could not be checked here, is in
+The built-in set has 32 rules: browser and app caches, system temp folders,
+Error Reporting, servicing logs, crash dumps, update leftovers, developer
+caches, old installers in Downloads, and the previous Windows installation
+left by an upgrade. Every path was probed on a real Windows 10 22H2 machine;
+the table of what was checked, and what could not be checked here, is in
 [`docs/rules.md`](docs/rules.md). Windows 11 is marked `not verified`.
 
 ![The review screen after a real scan](.github/tui.png)

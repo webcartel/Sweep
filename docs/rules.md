@@ -38,9 +38,15 @@ expected to be the same, but nothing here survives on that claim.
 | `dev.nuget-cache` | `%LOCALAPPDATA%\NuGet\v3-cache`, `%TEMP%\NuGetScratch` | safe | no (tag `dev`) | no | **verified** (both present) | not verified | |
 | `dev.gradle-caches` | `%USERPROFILE%\.gradle\caches` | moderate | no (tag `dev`) | no | **verified** (~78k items) | not verified | |
 | `dev.docker-prune` (command) | `docker system prune -f` | dangerous | no (tag `dev`) | no | not verifiable here (docker not installed) | not verified | stopped containers do not come back; that is why the risk is dangerous |
-| `apps.vscode.cache` | `%APPDATA%\Code` → Cache, CachedData, CachedExtensionVSIXs, Code Cache, GPUCache; closed `Code.exe` | safe | yes | no | **verified** (all five folders present) | not verified | |
+| `apps.vscode.cache` | `%APPDATA%\Code` → Cache, CachedData, CachedExtensionVSIXs, Code Cache, GPUCache, Crashpad, DawnWebGPUCache, DawnGraphiteCache; closed `Code.exe` | safe | yes | no | **verified** (all eight folders present; Crashpad alone is 238.5 MiB) | not verified | `Code\User`, `WebStorage` and `Partitions` are your settings and state and are **not** named |
 | `apps.discord.cache` | `%APPDATA%\discord` → Cache, Code Cache, GPUCache; closed `Discord.exe` | safe | yes | no | not verifiable here (Discord not installed; Electron layout vendor-documented) | not verified | |
 | `apps.slack.cache` | `%APPDATA%\Slack` → Cache, Code Cache, GPUCache; closed `slack.exe` | safe | yes | no | **verified** (all three present) | not verified | |
+| `apps.obsidian.cache` | `%APPDATA%\Obsidian` → Cache, Code Cache, GPUCache; closed `Obsidian.exe` | safe | yes | no | **verified** (88.2 MiB in 90 files) | not verified | vaults live under `%USERPROFILE%`, not here |
+| `apps.notion.cache` | `%APPDATA%\Notion` → Cache, Code Cache, GPUCache, DawnCache, `notionAssetCache-v2`, and the same four under `Partitions\*`; closed `Notion.exe` | safe | yes | no | **verified** (65.4 MiB in 470 files) | not verified | `Partitions\*\databases` and `blob_storage` are local state and are **not** named |
+| `apps.telegram.cache` | `tdata\user_data\cache`, `user_data\media_cache`, `tdata\webview`, `tdata\emoji`, `tdata\dumps`; closed `Telegram.exe` | safe | yes | no | **verified** (321 MiB in 1312 files) | not verified | `tdata` root, `user_data` root, the account folder and the `*.s` key files are **not** named |
+| `apps.steam.cache` | `%LOCALAPPDATA%\Steam\htmlcache`; closed `steam.exe` | safe | yes | no | **verified** (606 MiB in 4441 files) | not verified | `cefdata` holds the login and is **not** named |
+| `downloads.old-installers` | `%USERPROFILE%\Downloads\*.exe`, `*.msi`, `*.msix`, `*.appx`, older than 30 days (`mode: files`) | moderate | no | no | **verified: rule runs, found 0** (65 files in Downloads, none an installer) | not verified | the folder is guarded: `contents` is refused, `files` with masks and an age passes |
+| `system.windows-old` | `%SystemDrive%\Windows.old`, `%SystemDrive%\$WINDOWS.~BT` | moderate | no | yes | **verified: both absent** (0 B, 2 skips) | not verified | removes the rollback to the previous version; that is why it is `moderate` and off |
 
 ## Removed on verification
 

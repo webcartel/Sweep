@@ -16,6 +16,7 @@ var builtinEnv = fakeEnv{
 	"TEMP":         `C:\Users\probe\AppData\Local\Temp`,
 	"LOCALAPPDATA": `C:\Users\probe\AppData\Local`,
 	"SystemRoot":   `C:\Windows`,
+	"SystemDrive":  `C:`,
 	"ProgramData":  `C:\ProgramData`,
 	"USERPROFILE":  `C:\Users\probe`,
 }
@@ -299,22 +300,26 @@ func TestSystemCommandAndDevRules(t *testing.T) {
 	}
 }
 
-// specV1IDs is the built-in rule set of v1, from the table of the spec. The
-// set-shape test holds this list against whatever files the embed carries, so
-// a typo in one yaml id or a lost file shows up by name.
-var specV1IDs = []string{
+// builtinRuleIDs is every id the built-in set carries. The set-shape test
+// holds this list against whatever files the embed carries, so a typo in one
+// yaml id or a lost file shows up by name. The v1 spec fixed 26 of them; the
+// rules added after it are listed here too, because the point of the test is
+// that the set changes only on purpose.
+var builtinRuleIDs = []string{
 	"browsers.chrome.cache", "browsers.edge.cache", "browsers.firefox.cache",
 	"system.user-temp", "system.windows-temp", "system.wer-user", "system.wer-machine",
 	"system.cbs-logs", "system.crash-dumps", "system.minidumps",
 	"system.windows-update-cache", "system.delivery-optimization", "system.thumbnail-cache",
-	"system.recycle-bin", "system.component-cleanup",
+	"system.recycle-bin", "system.component-cleanup", "system.windows-old",
 	"dev.npm-cache", "dev.pnpm-store", "dev.yarn-cache", "dev.pip-cache",
 	"dev.go-build-cache", "dev.nuget-cache", "dev.gradle-caches", "dev.docker-prune",
 	"apps.vscode.cache", "apps.discord.cache", "apps.slack.cache",
+	"apps.obsidian.cache", "apps.notion.cache", "apps.telegram.cache", "apps.steam.cache",
+	"downloads.old-installers",
 }
 
-// TestBuiltinSetShape pins the whole built-in set: one rule per spec id, no
-// more and none lost.
+// TestBuiltinSetShape pins the whole built-in set: one rule per id, no more
+// and none lost.
 func TestBuiltinSetShape(t *testing.T) {
 	ids := builtinIDs(t)
 	sorted := slices.Clone(ids)
@@ -326,28 +331,34 @@ func TestBuiltinSetShape(t *testing.T) {
 		}
 		seen[id] = true
 	}
-	want := slices.Clone(specV1IDs)
+	want := slices.Clone(builtinRuleIDs)
 	slices.Sort(want)
 	if !slices.Equal(sorted, want) {
-		t.Errorf("the built-in set = %v, want the 26 ids of the spec %v", sorted, want)
+		t.Errorf("the built-in set = %v, want %d ids %v", sorted, len(want), want)
 	}
 }
 
-// TestBrowsersAndAppsRules pins the browsers and Electron apps of the v1 set:
-// the closed process each names, the risk the spec gives, and the cache
-// directories each target asks for. The chrome rule the set already holds
-// re-enters the same table, so one table stays one lie detector.
+// TestBrowsersAndAppsRules pins the browsers and Electron apps: the closed
+// process each names, the risk, and the cache directories each target asks
+// for. The chrome rule the set already holds re-enters the same table, so one
+// table stays one lie detector.
 func TestBrowsersAndAppsRules(t *testing.T) {
-	six := map[string]struct {
+	pinned := map[string]struct {
 		closed  string
 		targets []string
 	}{
 		"browsers.chrome.cache":  {"chrome.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
 		"browsers.edge.cache":    {"msedge.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
 		"browsers.firefox.cache": {"firefox.exe", []string{`cache2`}},
-		"apps.vscode.cache":      {"Code.exe", []string{`Cache`, `CachedData`, `CachedExtensionVSIXs`, `Code Cache`, `GPUCache`}},
-		"apps.discord.cache":     {"Discord.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
-		"apps.slack.cache":       {"slack.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
+		"apps.vscode.cache": {"Code.exe", []string{`Cache`, `CachedData`, `CachedExtensionVSIXs`,
+			`Code Cache`, `GPUCache`, `Crashpad`, `DawnWebGPUCache`, `DawnGraphiteCache`}},
+		"apps.discord.cache":  {"Discord.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
+		"apps.slack.cache":    {"slack.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
+		"apps.obsidian.cache": {"Obsidian.exe", []string{`Cache`, `Code Cache`, `GPUCache`}},
+		"apps.notion.cache": {"Notion.exe", []string{`Cache`, `Code Cache`, `GPUCache`,
+			`DawnCache`, `notionAssetCache-v2`}},
+		"apps.telegram.cache": {"Telegram.exe", []string{`cache`, `media_cache`, `webview`, `emoji`, `dumps`}},
+		"apps.steam.cache":    {"steam.exe", []string{`htmlcache`}},
 	}
 	byID := map[string]*model.Rule{}
 	for _, file := range builtinFiles(t) {
@@ -355,7 +366,7 @@ func TestBrowsersAndAppsRules(t *testing.T) {
 			byID[parsed.Rule.ID] = parsed.Rule
 		}
 	}
-	for id, spec := range six {
+	for id, spec := range pinned {
 		rule, ok := byID[id]
 		if !ok {
 			t.Errorf("%s is not among the built-in rules", id)

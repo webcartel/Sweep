@@ -23,6 +23,7 @@ func rulesMachine(t *testing.T) (*Model, string, platform.Env) {
 	env.Set("TEMP", `C:\Users\probe\AppData\Local\Temp`)
 	env.Set("USERPROFILE", `C:\Users\probe`)
 	env.Set("SystemRoot", `C:\Windows`)
+	env.Set("SystemDrive", `C:`)
 	env.Set("ProgramData", `C:\ProgramData`)
 	loader := rules.Loader{Env: env, UserDir: dir}
 	set, err := loader.Load()

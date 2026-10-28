@@ -1,0 +1,12 @@
+schema: 1
+rules:
+  - id: apps.steam.cache
+    name: Steam browser cache
+    description: The cache of Steam's built-in browser. Steam rebuilds it on the next page it opens; your login, games and settings are kept.
+    category: apps
+    risk: safe
+    default_enabled: true
+    requires_closed: [steam.exe]
+    targets:
+      - path: '%LOCALAPPDATA%\Steam\htmlcache'
+        mode: contents

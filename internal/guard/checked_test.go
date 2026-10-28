@@ -24,6 +24,8 @@ func TestCheckNormalizedAgreesWithCheck(t *testing.T) {
 		{"System32 stays closed even with filters", `C:\Windows\System32`, model.ModeFiles, []string{"*.log"}, 1, false},
 		{"the desktop keeps its filters", `C:\Users\probe\Desktop`, model.ModeContents, nil, 0, false},
 		{"the desktop with filters passes", `C:\Users\probe\Desktop`, model.ModeFiles, []string{"*.old"}, 1, true},
+		{"Downloads is not emptied whole", `C:\Users\probe\Downloads`, model.ModeContents, nil, 0, false},
+		{"old installers in Downloads pass", `C:\Users\probe\Downloads`, model.ModeFiles, []string{"*.exe", "*.msi"}, 30, true},
 		{"own user data passes", `C:\Users\probe\AppData\Local\Temp\x`, model.ModeContents, nil, 0, true},
 		{"a path that is not there is not refused", `C:\Temp\nope`, model.ModeSelf, nil, 0, true},
 	}

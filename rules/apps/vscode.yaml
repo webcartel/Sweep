@@ -18,3 +18,9 @@ rules:
         mode: contents
       - path: '%APPDATA%\Code\GPUCache'
         mode: contents
+      - path: '%APPDATA%\Code\Crashpad'
+        mode: contents
+      - path: '%APPDATA%\Code\DawnWebGPUCache'
+        mode: contents
+      - path: '%APPDATA%\Code\DawnGraphiteCache'
+        mode: contents

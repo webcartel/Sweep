@@ -1,0 +1,20 @@
+schema: 1
+rules:
+  - id: apps.telegram.cache
+    name: Telegram media cache
+    description: Telegram Desktop's cache of downloaded photos, videos, emoji and embedded pages. The account, the message history and the encryption keys live in the same folder and are not touched; the app downloads the media again.
+    category: apps
+    risk: safe
+    default_enabled: true
+    requires_closed: [Telegram.exe]
+    targets:
+      - path: '%APPDATA%\Telegram Desktop\tdata\user_data\cache'
+        mode: contents
+      - path: '%APPDATA%\Telegram Desktop\tdata\user_data\media_cache'
+        mode: contents
+      - path: '%APPDATA%\Telegram Desktop\tdata\webview'
+        mode: contents
+      - path: '%APPDATA%\Telegram Desktop\tdata\emoji'
+        mode: contents
+      - path: '%APPDATA%\Telegram Desktop\tdata\dumps'
+        mode: contents

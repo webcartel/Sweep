@@ -1,0 +1,14 @@
+schema: 1
+rules:
+  - id: system.windows-old
+    name: Previous Windows installation
+    description: The copy Windows keeps after an upgrade, and the folder it staged the upgrade in. Removing them frees several gigabytes and gives up the rollback to the previous version.
+    category: system
+    risk: moderate
+    default_enabled: false
+    requires_admin: true
+    targets:
+      - path: '%SystemDrive%\Windows.old'
+        mode: contents
+      - path: '%SystemDrive%\$WINDOWS.~BT'
+        mode: contents

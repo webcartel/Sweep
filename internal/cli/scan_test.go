@@ -27,6 +27,7 @@ func scanDeps(t *testing.T) (d deps) {
 	env := fake.NewEnv()
 	env.Set(`USERPROFILE`, `C:\Users\probe`)
 	env.Set(`SystemRoot`, `C:\Windows`)
+	env.Set(`SystemDrive`, `C:`)
 	env.Set(`ProgramData`, `C:\ProgramData`)
 	env.Set(`ProgramFiles`, `C:\Program Files`)
 	env.Set(`ProgramFiles(x86)`, `C:\Program Files (x86)`)

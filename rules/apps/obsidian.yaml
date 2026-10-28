@@ -1,0 +1,16 @@
+schema: 1
+rules:
+  - id: apps.obsidian.cache
+    name: Obsidian cache
+    description: Obsidian's cache of window frames, scripts and fonts. It rebuilds them, so the first start is slower once.
+    category: apps
+    risk: safe
+    default_enabled: true
+    requires_closed: [Obsidian.exe]
+    targets:
+      - path: '%APPDATA%\Obsidian\Cache'
+        mode: contents
+      - path: '%APPDATA%\Obsidian\Code Cache'
+        mode: contents
+      - path: '%APPDATA%\Obsidian\GPUCache'
+        mode: contents

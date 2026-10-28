@@ -1,0 +1,28 @@
+schema: 1
+rules:
+  - id: apps.notion.cache
+    name: Notion cache
+    description: Notion's caches of pages, assets and scripts. The app downloads them again; your pages, drafts and databases stay where they are.
+    category: apps
+    risk: safe
+    default_enabled: true
+    requires_closed: [Notion.exe]
+    targets:
+      - path: '%APPDATA%\Notion\Cache'
+        mode: contents
+      - path: '%APPDATA%\Notion\Code Cache'
+        mode: contents
+      - path: '%APPDATA%\Notion\GPUCache'
+        mode: contents
+      - path: '%APPDATA%\Notion\DawnCache'
+        mode: contents
+      - path: '%APPDATA%\Notion\notionAssetCache-v2'
+        mode: contents
+      - path: '%APPDATA%\Notion\Partitions\*\Cache'
+        mode: contents
+      - path: '%APPDATA%\Notion\Partitions\*\Code Cache'
+        mode: contents
+      - path: '%APPDATA%\Notion\Partitions\*\GPUCache'
+        mode: contents
+      - path: '%APPDATA%\Notion\Partitions\*\DawnCache'
+        mode: contents

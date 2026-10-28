@@ -19,8 +19,9 @@ func TestBuiltinRulesPassTheGuard(t *testing.T) {
 	}
 
 	// guardEnv answers every variable a built-in rule in this repository
-	// writes: USERPROFILE, APPDATA, LOCALAPPDATA, TEMP, SystemRoot, ProgramFiles,
-	// ProgramData. A rule that names one more has to add it there too.
+	// writes: USERPROFILE, APPDATA, LOCALAPPDATA, TEMP, SystemRoot,
+	// SystemDrive, ProgramFiles, ProgramData. A rule that names one more has
+	// to add it there too.
 	g, err := New(fake.NewFS(), guardEnv(), `C:\Users\probe`, nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
