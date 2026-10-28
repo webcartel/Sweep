@@ -329,11 +329,13 @@ func (f *FS) drop(key string) {
 type System struct {
 	build    int
 	elevated bool
+	lang     string
 }
 
 // NewSystem returns a system that reports build 0 until SetBuild is called,
-// and an elevated process until SetElevated(false) is called.
-func NewSystem() *System { return &System{elevated: true} }
+// an elevated process until SetElevated(false) is called, and English until
+// SetUILanguage names another language.
+func NewSystem() *System { return &System{elevated: true, lang: "en"} }
 
 // SetBuild says what build the system runs.
 func (s *System) SetBuild(build int) { s.build = build }
@@ -348,6 +350,17 @@ func (s *System) Elevated() (bool, error) { return s.elevated, nil }
 
 // SetElevated says whether the system reports an elevated process.
 func (s *System) SetElevated(v bool) { s.elevated = v }
+
+// UILanguage gives the language SetUILanguage set, English until then.
+func (s *System) UILanguage() string {
+	if s.lang == "" {
+		return "en"
+	}
+	return s.lang
+}
+
+// SetUILanguage says what language the user interface of the system speaks.
+func (s *System) SetUILanguage(v string) { s.lang = v }
 
 // Procs is a process list in memory.
 type Procs struct {

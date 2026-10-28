@@ -22,3 +22,15 @@ func TestWindowsSystemReportsTheBuild(t *testing.T) {
 	}
 	t.Logf("the machine reports build %d", build)
 }
+
+func TestWindowsSystemReportsTheLanguage(t *testing.T) {
+	sys, err := platform.NewSystem()
+	if err != nil {
+		t.Fatalf("NewSystem: %v", err)
+	}
+	got := sys.UILanguage()
+	if got != "en" && got != "ru" {
+		t.Fatalf("UILanguage() = %q, want \"en\" or \"ru\"", got)
+	}
+	t.Logf("the machine reports language %q", got)
+}
