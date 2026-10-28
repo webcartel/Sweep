@@ -51,13 +51,70 @@ func english(t *testing.T) {
 // openPicker walks the settings screen to the picker.
 func openPicker(t *testing.T) *Model {
 	t.Helper()
-	m, _ := langMachine(t)
+	m, _ := openPickerWithPath(t)
+	return m
+}
+
+// openPickerWithPath is openPicker for a test that also reads the file.
+func openPickerWithPath(t *testing.T) (*Model, string) {
+	t.Helper()
+	m, path := langMachine(t)
 	m = keyIn(m, "g", 0)
 	m = keyIn(m, "l", 0)
 	if m.screen != screenLang {
 		t.Fatalf("the picker did not open: screen %d", m.screen)
 	}
-	return m
+	return m, path
+}
+
+// The arrow keys switch the language. Moving the choice is the choice, so
+// a keyboard user never has to know a second key to see a result.
+func TestArrowKeysSwitchTheLanguage(t *testing.T) {
+	english(t)
+	m := openPicker(t)
+
+	m = keyIn(m, "", tea.KeyDown)
+	if got := i18n.Current(); got != i18n.LangRU {
+		t.Fatalf("down left the language at %q", got)
+	}
+	if view := m.View(); !strings.Contains(view, "Язык") {
+		t.Fatalf("the picker did not redraw in Russian: %q", view)
+	}
+
+	keyIn(m, "", tea.KeyUp)
+	if got := i18n.Current(); got != i18n.LangEN {
+		t.Fatalf("up left the language at %q", got)
+	}
+}
+
+// Enter keeps the choice without the mouse.
+func TestKeyboardEnterConfirms(t *testing.T) {
+	english(t)
+	m, path := openPickerWithPath(t)
+
+	keyIn(m, "", tea.KeyDown)
+	keyIn(m, "", tea.KeyEnter)
+
+	name, found, err := settings.Read(path)
+	if err != nil || !found || name != "ru" {
+		t.Fatalf("Enter saved %q, %v, %v; want ru", name, found, err)
+	}
+}
+
+// Esc drops the choice without the mouse.
+func TestKeyboardEscapeCancels(t *testing.T) {
+	english(t)
+	m, path := openPickerWithPath(t)
+
+	keyIn(m, "", tea.KeyDown)
+	keyIn(m, "", tea.KeyEsc)
+
+	if got := i18n.Current(); got != i18n.LangEN {
+		t.Fatalf("Esc left the language at %q", got)
+	}
+	if _, found, _ := settings.Read(path); found {
+		t.Fatal("Esc saved the setting")
+	}
 }
 
 // The settings screen is the way to the picker.

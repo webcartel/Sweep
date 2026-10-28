@@ -32,11 +32,10 @@ var catalogRU = map[string]string{
 	"tui.hint.back": "Esc назад",
 
 	"tui.lang.title":       "Язык",
-	"tui.lang.hint":        "Выберите язык и подтвердите.",
+	"tui.lang.hint":        "Перейдите к языку — он применится сразу; подтвердите, чтобы сохранить.",
 	"tui.lang.confirm":     "Подтвердить",
 	"tui.lang.cancel":      "Отмена",
-	"tui.lang.hint.move":   " выбор",
-	"tui.lang.hint.choose": "Space выбрать",
+	"tui.lang.hint.move":   " выбрать",
 	"tui.lang.hint.save":   "Enter сохранить",
 	"tui.lang.hint.cancel": "Esc отмена",
 	"tui.lang.saved":       "Сохранено.",

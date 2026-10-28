@@ -32,11 +32,10 @@ var catalogEN = map[string]string{
 	"tui.hint.back": "Esc back",
 
 	"tui.lang.title":       "Language",
-	"tui.lang.hint":        "Pick a language, then confirm.",
+	"tui.lang.hint":        "Move to a language and it applies at once; confirm keeps it.",
 	"tui.lang.confirm":     "Confirm",
 	"tui.lang.cancel":      "Cancel",
-	"tui.lang.hint.move":   " move",
-	"tui.lang.hint.choose": "Space choose",
+	"tui.lang.hint.move":   " choose",
 	"tui.lang.hint.save":   "Enter save",
 	"tui.lang.hint.cancel": "Esc cancel",
 	"tui.lang.saved":       "Saved.",

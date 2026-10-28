@@ -113,7 +113,6 @@ func (m *Model) viewLang() string {
 	}
 
 	hint := m.skin.arrows() + i18n.T("tui.lang.hint.move") + m.skin.sep() +
-		i18n.T("tui.lang.hint.choose") + m.skin.sep() +
 		i18n.T("tui.lang.hint.save") + m.skin.sep() +
 		i18n.T("tui.lang.hint.cancel")
 	return m.renderFrame(i18n.T("tui.lang.title"), *b, mutedStyle.Render(hint), makeButtons(
@@ -139,21 +138,25 @@ func (m *Model) updateLang(msg tea.Msg) (tea.Cmd, bool) {
 	switch key.String() {
 	case "esc", "q":
 		return m.cancelLanguage(), true
-	case "up", "k":
+	case "up", "k", "left", "h":
 		if m.langCursor > 0 {
 			m.langCursor--
+			return m.previewLanguage(langChoices[m.langCursor].lang), true
 		}
-	case "down", "j":
+	case "down", "j", "right", "l":
 		if m.langCursor < len(langChoices)-1 {
 			m.langCursor++
+			return m.previewLanguage(langChoices[m.langCursor].lang), true
 		}
 	case " ":
 		return m.previewLanguage(langChoices[m.langCursor].lang), true
 	case "enter":
 		return m.saveLanguage(), true
 	case "e":
+		m.langCursor = 0
 		return m.previewLanguage(i18n.LangEN), true
 	case "r":
+		m.langCursor = 1
 		return m.previewLanguage(i18n.LangRU), true
 	}
 	return nil, true
