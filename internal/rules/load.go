@@ -1,13 +1,14 @@
 package rules
 
 import (
-	"fmt"
+	"errors"
 	"math"
 	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 )
 
@@ -105,7 +106,7 @@ func parseTarget(node *yaml.Node, source string) (model.Target, error) {
 	if size := field(node, "min_size"); size != nil {
 		bytes, err := parseSize(scalar(size))
 		if err != nil {
-			return model.Target{}, errorAt(source, size, "%v", err)
+			return model.Target{}, errorTextAt(source, size, err.Error())
 		}
 		target.MinSize = bytes
 	}
@@ -137,13 +138,13 @@ func parseSize(text string) (int64, error) {
 
 	value, err := strconv.ParseInt(digits, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("size %q is not a number with an optional B/KB/MB/GB/TB suffix", text)
+		return 0, errors.New(i18n.T("rules.err.size.format", text))
 	}
 	if value < 0 {
-		return 0, fmt.Errorf("size %q is negative", text)
+		return 0, errors.New(i18n.T("rules.err.size.negative", text))
 	}
 	if value > math.MaxInt64/multiplier {
-		return 0, fmt.Errorf("size %q is too large", text)
+		return 0, errors.New(i18n.T("rules.err.size.large", text))
 	}
 	return value * multiplier, nil
 }

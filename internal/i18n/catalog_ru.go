@@ -70,4 +70,43 @@ var catalogRU = map[string]string{
 	"guard.err.exclude.var":    "exclude_paths %s называет %%%s%%, которую эта машина не задаёт",
 	"guard.err.exclude.nopath": "exclude_paths %s не называет никакого места",
 	"guard.err.exclude.mask":   "exclude_paths %s — маска, а список принимает пути",
+
+	"rules.err.config.mapping":      "конфиг должен быть отображением своих полей",
+	"rules.err.config.twicerule":    "правило '%s' переключено дважды",
+	"rules.err.config.twiceprofile": "профиль '%s' записан дважды",
+	"rules.err.config.maxrisk":      "max_risk должен быть safe, moderate или dangerous, а получено '%s'",
+	"rules.err.config.unknownfield": "неизвестное поле '%s'",
+	"rules.err.config.fieldtwice":   "поле '%s' задано дважды",
+	"rules.err.config.mappingwhat":  "%s должен быть отображением",
+	"rules.err.config.bool":         "%s должен быть true или false",
+	"rules.err.config.stringlist":   "%s должен быть списком строк",
+
+	"rules.err.size.format":   "размер %q — не число с необязательным суффиксом B/KB/MB/GB/TB",
+	"rules.err.size.negative": "размер %q отрицательный",
+	"rules.err.size.large":    "размер %q слишком велик",
+
+	"rules.err.merge.dupid":            "id '%s' уже определён в %s",
+	"rules.err.merge.usercommand":      "правило '%s' запускает команду; разрешите это через allow_user_commands: true",
+	"rules.warn.merge.replace":         "правило '%s' заменяет то, что взято из %s",
+	"rules.warn.config.unknownrule":    "конфиг переключает правило '%s', которое не определено ни в одном источнике",
+	"rules.warn.config.replaceprofile": "профиль конфига '%s' заменяет встроенный",
+	"rules.err.readdir":                "не удалось прочитать каталог правил %s",
+	"rules.err.readfile":               "не удалось прочитать %s",
+
+	"rules.err.profile.unknown": "неизвестный профиль '%s'; доступны профили: %s",
+	"rules.warn.profile.mask":   "профиль '%s': поле %s, маска '%s': %v",
+
+	"rules.err.semantic.dupid":       "id '%s' уже использован в строке %d",
+	"rules.err.semantic.cmdneeds":    "цель-команда требует поле cmd",
+	"rules.err.semantic.cmdnotpath":  "цель-команда принимает cmd, а не path",
+	"rules.err.semantic.pathneeds":   "цель-путь требует поле path",
+	"rules.err.semantic.pathnotcmd":  "цель-путь принимает path, а не cmd",
+	"rules.err.semantic.pathnotargs": "цель-путь принимает path, а не args",
+	"rules.err.semantic.var":         "переменная окружения %%%s%% не задана",
+	"rules.err.semantic.mask":        "%s '%s': %v",
+
+	"rules.err.schema.read":   "не удалось прочитать схему правил",
+	"rules.err.schema.add":    "не удалось добавить схему правил",
+	"rules.err.schema.use":    "не удалось применить схему правил: %v",
+	"rules.err.schema.decode": "не удалось прочитать файл: %v",
 }

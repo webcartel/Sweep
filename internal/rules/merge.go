@@ -12,6 +12,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -86,7 +87,7 @@ func (l Loader) Load() (*Set, error) {
 
 				if where, ok := defined[id]; ok {
 					findings = append(findings, errorAt(file.Path, keyOf(parsed.Node, "id"),
-						"id '%s' is already defined in %s", id, where))
+						"rules.err.merge.dupid", id, where))
 					continue
 				}
 				defined[id] = fmt.Sprintf("%s:%d", file.Path, keyOf(parsed.Node, "id").Line)
@@ -94,13 +95,13 @@ func (l Loader) Load() (*Set, error) {
 				if !src.builtin && !l.Config.AllowUserCommands {
 					if kind := commandKind(&parsed); kind != nil {
 						findings = append(findings, errorAt(file.Path, kind,
-							"rule '%s' runs a command; set allow_user_commands: true to allow it", id))
+							"rules.err.merge.usercommand", id))
 					}
 				}
 
 				if place, seen := placed[id]; seen {
 					set.Warnings = append(set.Warnings, errorAt(file.Path, keyOf(parsed.Node, "id"),
-						"rule '%s' replaces the one from %s", id, owner[id]).Error())
+						"rules.warn.merge.replace", id, owner[id]).Error())
 					set.Rules[place] = parsed.Rule
 				} else {
 					placed[id] = len(set.Rules)
@@ -115,13 +116,13 @@ func (l Loader) Load() (*Set, error) {
 		set.Toggles[id] = l.Config.Rules[id]
 		if _, known := placed[id]; !known {
 			set.Warnings = append(set.Warnings,
-				fmt.Sprintf("the config switches rule '%s', which no source defines", id))
+				i18n.T("rules.warn.config.unknownrule", id))
 		}
 	}
 	for _, name := range slices.Sorted(maps.Keys(l.Config.Profiles)) {
 		if _, builtin := set.Profiles[name]; builtin {
 			set.Warnings = append(set.Warnings,
-				fmt.Sprintf("the config profile '%s' replaces the built-in one", name))
+				i18n.T("rules.warn.config.replaceprofile", name))
 		}
 		set.Profiles[name] = l.Config.Profiles[name]
 	}
@@ -181,7 +182,7 @@ func (l Loader) readDir(dir string, required bool) ([]*File, []string, []error) 
 		if errors.Is(err, fs.ErrNotExist) && !required {
 			return nil, nil, nil
 		}
-		return nil, nil, []error{fmt.Errorf("read the rules directory %s: %w", dir, err)}
+		return nil, nil, []error{fmt.Errorf("%s: %w", i18n.T("rules.err.readdir", dir), err)}
 	}
 
 	var (
@@ -196,7 +197,7 @@ func (l Loader) readDir(dir string, required bool) ([]*File, []string, []error) 
 		path := filepath.Join(dir, entry.Name())
 		data, err := os.ReadFile(path)
 		if err != nil {
-			findings = append(findings, fmt.Errorf("read %s: %w", path, err))
+			findings = append(findings, fmt.Errorf("%s: %w", i18n.T("rules.err.readfile", path), err))
 			continue
 		}
 		file, err := LoadFile(path, data)

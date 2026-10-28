@@ -51,7 +51,7 @@ func LoadConfig(path string) (model.Config, error) {
 		return model.Config{}, nil
 	}
 	if root.Kind != yaml.MappingNode {
-		return model.Config{}, errorAt(path, root, "a config must be a mapping of its fields")
+		return model.Config{}, errorAt(path, root, "rules.err.config.mapping")
 	}
 	if err := checkFields(path, root, configFields); err != nil {
 		return model.Config{}, err
@@ -114,7 +114,7 @@ func readToggles(file string, rules *yaml.Node) (map[string]model.RuleToggle, er
 			return nil, err
 		}
 		if _, seen := toggles[id.Value]; seen {
-			return nil, errorAt(file, id, "rule '%s' is switched twice", id.Value)
+			return nil, errorAt(file, id, "rules.err.config.twicerule", id.Value)
 		}
 		toggles[id.Value] = model.RuleToggle{Enabled: enabled}
 	}
@@ -140,7 +140,7 @@ func readProfiles(file string, profiles *yaml.Node) (map[string]model.Profile, e
 			return nil, err
 		}
 		if _, seen := read[name.Value]; seen {
-			return nil, errorAt(file, name, "profile '%s' is written twice", name.Value)
+			return nil, errorAt(file, name, "rules.err.config.twiceprofile", name.Value)
 		}
 		read[name.Value] = profile
 	}
@@ -175,7 +175,7 @@ func readProfile(file string, body *yaml.Node) (model.Profile, error) {
 			profile.MaxRisk = risk
 		default:
 			return model.Profile{},
-				errorAt(file, ceiling, "max_risk must be safe, moderate or dangerous, got '%s'", scalar(ceiling))
+				errorAt(file, ceiling, "rules.err.config.maxrisk", scalar(ceiling))
 		}
 	}
 	return profile, nil
@@ -193,10 +193,10 @@ func checkFields(file string, mapping *yaml.Node, known []string) error {
 	for i := 0; i+1 < len(mapping.Content); i += 2 {
 		key := mapping.Content[i]
 		if !slices.Contains(known, key.Value) {
-			return errorAt(file, key, "unknown field '%s'", key.Value)
+			return errorAt(file, key, "rules.err.config.unknownfield", key.Value)
 		}
 		if seen[key.Value] {
-			return errorAt(file, key, "field '%s' is set twice", key.Value)
+			return errorAt(file, key, "rules.err.config.fieldtwice", key.Value)
 		}
 		seen[key.Value] = true
 	}
@@ -210,7 +210,7 @@ func mappingOf(file string, value *yaml.Node, what string) (*yaml.Node, error) {
 		return nil, nil
 	}
 	if value.Kind != yaml.MappingNode {
-		return nil, errorAt(file, value, "%s must be a mapping", what)
+		return nil, errorAt(file, value, "rules.err.config.mappingwhat", what)
 	}
 	return value, nil
 }
@@ -224,7 +224,7 @@ func boolValue(file string, value *yaml.Node, what string) (bool, error) {
 
 	var parsed bool
 	if err := value.Decode(&parsed); err != nil {
-		return false, errorAt(file, value, "%s must be true or false", what)
+		return false, errorAt(file, value, "rules.err.config.bool", what)
 	}
 	return parsed, nil
 }
@@ -237,7 +237,7 @@ func stringValues(file string, value *yaml.Node, what string) ([]string, error) 
 
 	var parsed []string
 	if err := value.Decode(&parsed); err != nil {
-		return nil, errorAt(file, value, "%s must be a list of strings", what)
+		return nil, errorAt(file, value, "rules.err.config.stringlist", what)
 	}
 	return parsed, nil
 }

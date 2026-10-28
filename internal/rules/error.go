@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/webcartel/sweep/internal/i18n"
 )
 
 // Error is a finding in a rule file, together with the place it was found.
@@ -20,10 +22,17 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%s:%d:%d: %s", e.File, e.Line, e.Col, e.Msg)
 }
 
-// errorAt builds a finding anchored to a node of a file. A nil node leaves the
-// position at 0:0, which reads as "somewhere in the file".
-func errorAt(file string, node *yaml.Node, format string, args ...any) Error {
-	finding := Error{File: file, Msg: fmt.Sprintf(format, args...)}
+// errorAt builds a finding anchored to a node of a file, worded in the
+// language the interface speaks: the third argument is a catalog key. A nil
+// node leaves the position at 0:0, which reads as "somewhere in the file".
+func errorAt(file string, node *yaml.Node, key string, args ...any) Error {
+	return errorTextAt(file, node, i18n.T(key, args...))
+}
+
+// errorTextAt builds a finding whose message is already worded: the text
+// of a parser, or an error that came from somewhere else in the program.
+func errorTextAt(file string, node *yaml.Node, message string) Error {
+	finding := Error{File: file, Msg: message}
 	if node != nil {
 		finding.Line, finding.Col = node.Line, node.Column
 	}

@@ -70,4 +70,43 @@ var catalogEN = map[string]string{
 	"guard.err.exclude.var":    "exclude_paths %s names %%%s%%, which this machine does not set",
 	"guard.err.exclude.nopath": "exclude_paths %s names no place at all",
 	"guard.err.exclude.mask":   "exclude_paths %s is a mask, and the list takes paths",
+
+	"rules.err.config.mapping":      "a config must be a mapping of its fields",
+	"rules.err.config.twicerule":    "rule '%s' is switched twice",
+	"rules.err.config.twiceprofile": "profile '%s' is written twice",
+	"rules.err.config.maxrisk":      "max_risk must be safe, moderate or dangerous, got '%s'",
+	"rules.err.config.unknownfield": "unknown field '%s'",
+	"rules.err.config.fieldtwice":   "field '%s' is set twice",
+	"rules.err.config.mappingwhat":  "%s must be a mapping",
+	"rules.err.config.bool":         "%s must be true or false",
+	"rules.err.config.stringlist":   "%s must be a list of strings",
+
+	"rules.err.size.format":   "size %q is not a number with an optional B/KB/MB/GB/TB suffix",
+	"rules.err.size.negative": "size %q is negative",
+	"rules.err.size.large":    "size %q is too large",
+
+	"rules.err.merge.dupid":            "id '%s' is already defined in %s",
+	"rules.err.merge.usercommand":      "rule '%s' runs a command; set allow_user_commands: true to allow it",
+	"rules.warn.merge.replace":         "rule '%s' replaces the one from %s",
+	"rules.warn.config.unknownrule":    "the config switches rule '%s', which no source defines",
+	"rules.warn.config.replaceprofile": "the config profile '%s' replaces the built-in one",
+	"rules.err.readdir":                "read the rules directory %s",
+	"rules.err.readfile":               "read %s",
+
+	"rules.err.profile.unknown": "unknown profile '%s'; the profiles are %s",
+	"rules.warn.profile.mask":   "the profile '%s' %s mask '%s': %v",
+
+	"rules.err.semantic.dupid":       "id '%s' is already used at line %d",
+	"rules.err.semantic.cmdneeds":    "a command target takes cmd",
+	"rules.err.semantic.cmdnotpath":  "a command target takes cmd, not path",
+	"rules.err.semantic.pathneeds":   "a path target takes path",
+	"rules.err.semantic.pathnotcmd":  "a path target takes path, not cmd",
+	"rules.err.semantic.pathnotargs": "a path target takes path, not args",
+	"rules.err.semantic.var":         "environment variable %%%s%% is not set",
+	"rules.err.semantic.mask":        "%s '%s': %v",
+
+	"rules.err.schema.read":   "read the rule schema",
+	"rules.err.schema.add":    "add the rule schema",
+	"rules.err.schema.use":    "cannot use the rule schema: %v",
+	"rules.err.schema.decode": "cannot read the file: %v",
 }

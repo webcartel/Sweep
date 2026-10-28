@@ -3,6 +3,7 @@ package rules
 import (
 	"go.yaml.in/yaml/v3"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -42,7 +43,7 @@ func duplicateIDs(file *File) []Error {
 		}
 		if line, seen := used[id]; seen {
 			findings = append(findings,
-				errorAt(file.Path, keyOf(parsed.Node, "id"), "id '%s' is already used at line %d", id, line))
+				errorAt(file.Path, keyOf(parsed.Node, "id"), "rules.err.semantic.dupid", id, line))
 			continue
 		}
 		used[id] = parsed.Node.Line
@@ -70,23 +71,23 @@ func checkTarget(file string, node *yaml.Node, env platform.Env, warnings *[]str
 	switch model.Kind(kind) {
 	case model.KindCommand:
 		if scalar(field(node, "cmd")) == "" {
-			findings = append(findings, errorAt(file, node, "a command target takes cmd"))
+			findings = append(findings, errorAt(file, node, "rules.err.semantic.cmdneeds"))
 		}
 		if targetPath != "" {
 			findings = append(findings,
-				errorAt(file, keyOf(node, "path"), "a command target takes cmd, not path"))
+				errorAt(file, keyOf(node, "path"), "rules.err.semantic.cmdnotpath"))
 		}
 	default:
 		if targetPath == "" {
-			findings = append(findings, errorAt(file, node, "a path target takes path"))
+			findings = append(findings, errorAt(file, node, "rules.err.semantic.pathneeds"))
 		}
 		if field(node, "cmd") != nil {
 			findings = append(findings,
-				errorAt(file, keyOf(node, "cmd"), "a path target takes path, not cmd"))
+				errorAt(file, keyOf(node, "cmd"), "rules.err.semantic.pathnotcmd"))
 		}
 		if field(node, "args") != nil {
 			findings = append(findings,
-				errorAt(file, keyOf(node, "args"), "a path target takes path, not args"))
+				errorAt(file, keyOf(node, "args"), "rules.err.semantic.pathnotargs"))
 		}
 	}
 
@@ -108,7 +109,7 @@ func checkTarget(file string, node *yaml.Node, env platform.Env, warnings *[]str
 		for _, name := range platform.EnvNames(targetPath) {
 			if _, set := env.Get(name); !set {
 				*warnings = append(*warnings,
-					errorAt(file, field(node, "path"), "environment variable %%%s%% is not set", name).Error())
+					errorAt(file, field(node, "path"), "rules.err.semantic.var", name).Error())
 			}
 		}
 	}
@@ -131,7 +132,7 @@ func checkMask(file, name string, node *yaml.Node) []Error {
 		return nil
 	}
 	if _, err := platform.CompileMask(mask); err != nil {
-		return []Error{errorAt(file, node, "%s '%s': %v", name, mask, err)}
+		return []Error{errorTextAt(file, node, i18n.T("rules.err.semantic.mask", name, mask, err))}
 	}
 	return nil
 }

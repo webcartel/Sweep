@@ -1,11 +1,12 @@
 package rules
 
 import (
-	"fmt"
+	"errors"
 	"maps"
 	"slices"
 	"strings"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -31,8 +32,8 @@ var riskRank = map[model.Risk]int{
 func Select(set *Set, profileName string) ([]*model.Rule, []string, error) {
 	profile, ok := set.Profiles[profileName]
 	if !ok {
-		return nil, nil, fmt.Errorf("unknown profile '%s'; the profiles are %s",
-			profileName, profileNames(set))
+		return nil, nil, errors.New(i18n.T("rules.err.profile.unknown",
+			profileName, profileNames(set)))
 	}
 
 	warnings := unbuildableMasks(profileName, profile)
@@ -104,8 +105,8 @@ func unbuildableMasks(profileName string, profile model.Profile) []string {
 	for _, list := range lists {
 		for _, mask := range list.masks {
 			if _, err := platform.CompileMask(mask); err != nil {
-				warnings = append(warnings, fmt.Sprintf(
-					"the profile '%s' %s mask '%s': %v", profileName, list.field, mask, err))
+				warnings = append(warnings,
+					i18n.T("rules.warn.profile.mask", profileName, list.field, mask, err))
 			}
 		}
 	}

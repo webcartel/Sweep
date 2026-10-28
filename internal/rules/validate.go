@@ -15,6 +15,7 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/schema"
 )
@@ -22,21 +23,29 @@ import (
 // schemaName is the name the rule schema is compiled under.
 const schemaName = "rule.schema.json"
 
-// englishPrinter renders the schema's findings in English, the language of the
-// CLI and of the rules themselves.
-var englishPrinter = message.NewPrinter(language.English)
+// schemaPrinter renders the schema's findings in the language this run
+// speaks. x/text carries its own translations for the standard kinds the
+// schema library reports, and falls back to English for any it has not
+// got, so a missing translation never blanks the message.
+func schemaPrinter() *message.Printer {
+	tag := language.English
+	if i18n.Current() == i18n.LangRU {
+		tag = language.Russian
+	}
+	return message.NewPrinter(tag)
+}
 
 // ruleSchema holds the schema of the rule format, read once from the published
 // file the binary embeds.
 var ruleSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	document, err := jsonschema.UnmarshalJSON(bytes.NewReader(schema.JSON))
 	if err != nil {
-		return nil, fmt.Errorf("read the rule schema: %w", err)
+		return nil, fmt.Errorf("%s: %w", i18n.T("rules.err.schema.read"), err)
 	}
 
 	compiler := jsonschema.NewCompiler()
 	if err := compiler.AddResource(schemaName, document); err != nil {
-		return nil, fmt.Errorf("add the rule schema: %w", err)
+		return nil, fmt.Errorf("%s: %w", i18n.T("rules.err.schema.add"), err)
 	}
 	return compiler.Compile(schemaName)
 })
@@ -58,20 +67,20 @@ func Validate(file *File, env platform.Env) ([]Error, []string) {
 func ValidateSchema(file *File) []Error {
 	compiled, err := ruleSchema()
 	if err != nil {
-		return []Error{errorAt(file.Path, docRoot(file.Doc), "cannot use the rule schema: %v", err)}
+		return []Error{errorTextAt(file.Path, docRoot(file.Doc), i18n.T("rules.err.schema.use", err))}
 	}
 
 	var instance any
 	if root := docRoot(file.Doc); root != nil {
 		if err := root.Decode(&instance); err != nil {
-			return []Error{errorAt(file.Path, root, "cannot read the file: %v", err)}
+			return []Error{errorTextAt(file.Path, root, i18n.T("rules.err.schema.decode", err))}
 		}
 	}
 
 	if err := compiled.Validate(instance); err != nil {
 		var invalid *jsonschema.ValidationError
 		if !errors.As(err, &invalid) {
-			return []Error{errorAt(file.Path, docRoot(file.Doc), "%v", err)}
+			return []Error{errorTextAt(file.Path, docRoot(file.Doc), err.Error())}
 		}
 		return sorted(schemaFindings(file.Path, docRoot(file.Doc), invalid))
 	}
@@ -109,12 +118,12 @@ func schemaFindings(path string, root *yaml.Node, invalid *jsonschema.Validation
 			for _, name := range unexpected.Properties {
 				named := &kind.AdditionalProperties{Properties: []string{name}}
 				findings = append(findings,
-					errorAt(path, keyOf(place, name), "%s", named.LocalizedString(englishPrinter)))
+					errorTextAt(path, keyOf(place, name), named.LocalizedString(schemaPrinter())))
 			}
 			continue
 		}
 
-		findings = append(findings, errorAt(path, place, "%s", leaf.ErrorKind.LocalizedString(englishPrinter)))
+		findings = append(findings, errorTextAt(path, place, leaf.ErrorKind.LocalizedString(schemaPrinter())))
 	}
 	return findings
 }
