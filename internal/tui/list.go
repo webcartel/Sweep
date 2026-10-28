@@ -126,7 +126,7 @@ func (m *Model) chooseNone() {
 			m.selection.Rules[rp.Rule.ID] = false
 		}
 	}
-	m.notice = "Every rule is out of the choice."
+	m.notice = i18n.T("tui.list.everyout")
 }
 
 // updateList, the part of the main screen.

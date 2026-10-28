@@ -65,7 +65,18 @@ func realDeps() deps {
 // itself belongs to the core packages.
 //
 // Running `sweep` with no arguments in a terminal opens the TUI.
-func NewRootCmd() *cobra.Command { return newRootCmd(realDeps(), os.Args[1:]) }
+// NewRootCmd builds the command for this process. The error says the run
+// cannot start at all: today, a language sweep does not speak. It is
+// answered before the command is built, because cobra prints --help and
+// returns before any hook of the command has run.
+func NewRootCmd() (*cobra.Command, error) {
+	d := realDeps()
+	args := os.Args[1:]
+	if _, _, err := langEarly(d, args); err != nil {
+		return nil, err
+	}
+	return newRootCmd(d, args), nil
+}
 
 func newRootCmd(d deps, args []string) *cobra.Command {
 	// The language is set before a single command is built: cobra prints a

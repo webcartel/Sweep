@@ -4,6 +4,27 @@ package i18n
 // source of truth: the Russian catalog is this one's translation, and a
 // key that lives here must live there too.
 var catalogEN = map[string]string{
+	"tui.run.ruleof":       "Rule %d of %d",
+	"tui.run.feed.bin":     "to the bin: ",
+	"tui.run.feed.removed": "removed: ",
+	"tui.run.feed.failed":  "failed: ",
+	"tui.run.feed.skipped": "skipped %s (%s)",
+	"tui.run.feed.ran":     "ran: ",
+	"tui.scan.note.skip":   "skipped %s: %s",
+	"tui.list.everyout":    "Every rule is out of the choice.",
+	"tui.done.reportfail":  "The report was not saved: %s",
+	"tui.done.nologdir":    "There is no log directory to save the report in.",
+	"tui.done.reportsaved": "Report saved: %s",
+	"tui.window.small":     "Please make the window larger: Sweep needs at least 80 x 24.\n",
+	"tui.window.size":      "This window is %d x %d.",
+
+	"guard.err.protected":  "the path %s is protected by %s",
+	"exec.warn.ask":        "the running programs could not be asked: %v",
+	"exec.skip.apprunning": "%s is running",
+	"exec.skip.needsadmin": "the rule asks for an administrator",
+	"exec.skip.reparse":    "the path became a reparse point",
+	"exec.err.dangerous":   "the dangerous rule %s only runs with its data in the recycle bin",
+
 	"app.title": "Sweep - free space safely",
 
 	"tui.button.back": "Back",
@@ -11,7 +32,7 @@ var catalogEN = map[string]string{
 	"tui.hint.back": "Esc back",
 
 	"tui.lang.title":      "Language",
-	"tui.lang.hint":       "The choice is saved and used from the next run on.",
+	"tui.lang.hint":       "The choice applies at once and is kept for the next run.",
 	"tui.lang.current":    "Now: %s",
 	"tui.lang.saved":      "Saved.",
 	"tui.lang.savefailed": "The choice could not be saved",

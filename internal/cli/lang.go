@@ -26,7 +26,7 @@ func langEarly(d deps, args []string) (i18n.Lang, string, error) {
 		return i18n.LangEN, path, nil
 	}
 
-	if name := argValue(args, "--lang"); name != "" {
+	if name, given := langFlag(args); given {
 		lang, ok := i18n.Supported(name)
 		if !ok {
 			return "", path, usageError(fmt.Errorf(
@@ -94,4 +94,22 @@ func argGiven(args []string, flag string) bool {
 		}
 	}
 	return false
+}
+
+// langFlag answers the language the flag names, and whether the flag was
+// on the line at all. The two differ for `--lang=`, which names the empty
+// language: that is a value sweep does not speak, not a flag left out.
+func langFlag(args []string) (string, bool) {
+	for i, arg := range args {
+		if arg == "--lang" {
+			if i+1 < len(args) {
+				return args[i+1], true
+			}
+			return "", true
+		}
+		if strings.HasPrefix(arg, "--lang=") {
+			return strings.TrimPrefix(arg, "--lang="), true
+		}
+	}
+	return "", false
 }

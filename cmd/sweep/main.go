@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -19,7 +20,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	err := cli.NewRootCmd().ExecuteContext(ctx)
+	cmd, err := cli.NewRootCmd()
+	if err == nil {
+		err = cmd.ExecuteContext(ctx)
+	} else {
+		// The command was never built, so cobra has nothing to print this
+		// with: the run has to say why it does not start.
+		_, _ = fmt.Fprintln(os.Stderr, "Error:", err)
+	}
 	if err == nil {
 		return
 	}

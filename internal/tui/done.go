@@ -35,11 +35,11 @@ func (m *Model) saveNoteReport() {
 	path, err := m.saveReport()
 	switch {
 	case err != nil:
-		m.run.saveNote = "The report was not saved: " + err.Error()
+		m.run.saveNote = i18n.T("tui.done.reportfail", err.Error())
 	case path == "":
-		m.run.saveNote = "There is no log directory to save the report in."
+		m.run.saveNote = i18n.T("tui.done.nologdir")
 	default:
-		m.run.saveNote = "Report saved: " + path
+		m.run.saveNote = i18n.T("tui.done.reportsaved", path)
 	}
 }
 

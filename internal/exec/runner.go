@@ -2,9 +2,9 @@ package exec
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 )
 
@@ -38,7 +38,7 @@ func (x *Executor) runItem(rule *model.Rule, item model.Item, opt model.ExecOpti
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		return tell(model.Skip{Path: item.Path, Reason: model.ReasonNotFound,
-			Detail: "the path disappeared"})
+			Detail: i18n.T("scan.skip.disappeared")})
 	case errors.Is(err, fs.ErrPermission):
 		return tell(model.Skip{Path: item.Path, Reason: model.ReasonAccessDenied,
 			Detail: err.Error()})
@@ -49,7 +49,7 @@ func (x *Executor) runItem(rule *model.Rule, item model.Item, opt model.ExecOpti
 		// A path that read as a plain entry in the scan became a link: the
 		// rule was written for what it pointed at, not for where it leads.
 		return tell(model.Skip{Path: item.Path, Reason: model.ReasonProtected,
-			Detail: "the path became a reparse point"})
+			Detail: i18n.T("exec.skip.reparse")})
 	}
 
 	verdict, err := x.guard.Check(item.Path, item.Mode, item.Include, item.MinAgeDays)
@@ -69,8 +69,7 @@ func (x *Executor) runItem(rule *model.Rule, item model.Item, opt model.ExecOpti
 		useTrash = *opt.Trash
 	}
 	if rule.Risk == model.RiskDangerous && !useTrash {
-		return outcome{deadly: fmt.Errorf(
-			"the dangerous rule %s only runs with its data in the recycle bin", rule.ID)}
+		return outcome{deadly: errors.New(i18n.T("exec.err.dangerous", rule.ID))}
 	}
 
 	if opt.DryRun {

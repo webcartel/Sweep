@@ -4,6 +4,27 @@ package i18n
 // missing here falls back to English at lookup time, and
 // TestCatalogsHoldTheSameKeys fails until it is added.
 var catalogRU = map[string]string{
+	"tui.run.ruleof":       "Правило %d из %d",
+	"tui.run.feed.bin":     "в корзину: ",
+	"tui.run.feed.removed": "удалено: ",
+	"tui.run.feed.failed":  "не удалось: ",
+	"tui.run.feed.skipped": "пропущено %s (%s)",
+	"tui.run.feed.ran":     "выполнено: ",
+	"tui.scan.note.skip":   "пропущено %s: %s",
+	"tui.list.everyout":    "Ни одно правило не выбрано.",
+	"tui.done.reportfail":  "Отчёт не сохранён: %s",
+	"tui.done.nologdir":    "Нет каталога логов, чтобы сохранить отчёт.",
+	"tui.done.reportsaved": "Отчёт сохранён: %s",
+	"tui.window.small":     "Сделайте окно больше: Sweep нужно минимум 80 x 24.\n",
+	"tui.window.size":      "Это окно %d x %d.",
+
+	"guard.err.protected":  "путь %s защищён правилом %s",
+	"exec.warn.ask":        "не удалось опросить запущенные программы: %v",
+	"exec.skip.apprunning": "%s запущена",
+	"exec.skip.needsadmin": "правило требует администратора",
+	"exec.skip.reparse":    "путь стал точкой повторной обработки",
+	"exec.err.dangerous":   "опасное правило %s запускается только с отправкой данных в Корзину",
+
 	"app.title": "Sweep - безопасно освобождаем место",
 
 	"tui.button.back": "Назад",
@@ -11,7 +32,7 @@ var catalogRU = map[string]string{
 	"tui.hint.back": "Esc назад",
 
 	"tui.lang.title":      "Язык",
-	"tui.lang.hint":       "Выбор сохранится и будет использован при следующем запуске.",
+	"tui.lang.hint":       "Выбор применяется сразу и сохраняется для следующего запуска.",
 	"tui.lang.current":    "Сейчас: %s",
 	"tui.lang.saved":      "Сохранено.",
 	"tui.lang.savefailed": "Не удалось сохранить выбор",

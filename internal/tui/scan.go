@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 )
 
@@ -74,7 +75,7 @@ func (m *Model) noteScanEvent(event model.Event) {
 	case model.Warning:
 		m.notes = append(m.notes, one.Message)
 	case model.ItemSkipped:
-		m.notes = append(m.notes, "skipped "+one.Skip.Path+": "+string(one.Skip.Reason))
+		m.notes = append(m.notes, i18n.T("tui.scan.note.skip", one.Skip.Path, string(one.Skip.Reason)))
 	}
 }
 

@@ -229,8 +229,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View draws the screen the model is on.
 func (m *Model) View() string {
 	if m.width != 0 && (m.width < 80 || m.height < 24) {
-		return "Please make the window larger: Sweep needs at least 80 x 24.\n" +
-			fmt.Sprintf("This window is %d x %d.", m.width, m.height)
+		return i18n.T("tui.window.small") +
+			fmt.Sprintf(i18n.T("tui.window.size"), m.width, m.height)
 	}
 	switch m.screen {
 	case screenProfile:

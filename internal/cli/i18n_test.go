@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/webcartel/sweep/internal/i18n"
@@ -44,6 +45,21 @@ func TestJSONAnswerIsTheSameInBothLanguages(t *testing.T) {
 	}
 	if english != russian {
 		t.Fatalf("the --json answer changed with the language:\nen: %q\nru: %q", english, russian)
+	}
+}
+
+// A flag that names the empty language is a mistake to say, not a flag
+// left out: `--lang=` must not silently fall back to the system.
+func TestEmptyLangIsAUsageError(t *testing.T) {
+	d, _ := langMachine(t, "en")
+
+	_, _, err := langEarly(d, []string{"--lang="})
+	if err == nil {
+		t.Fatal("langEarly accepted the empty language")
+	}
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Code != ExitUsage {
+		t.Fatalf("err = %v, want a usage error with code %d", err, ExitUsage)
 	}
 }
 

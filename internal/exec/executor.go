@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/webcartel/sweep/internal/guard"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -191,18 +192,18 @@ func (x *Executor) runRule(ctx context.Context, rp *model.RulePlan, sel model.Se
 		// side of an unreadable machine is not to run: a short list would
 		// have read as "nothing is running".
 		put(model.Warning{RuleID: id,
-			Message: fmt.Sprintf("the running programs could not be asked: %v", asked)})
+			Message: i18n.T("exec.warn.ask", asked)})
 		skipAll(model.ReasonSystemUnknown,
-			fmt.Sprintf("the running programs could not be asked: %v", asked))
+			i18n.T("exec.warn.ask", asked))
 		return kept
 	}
 	if len(running) > 0 {
 		skipAll(model.ReasonAppRunning,
-			fmt.Sprintf("%s is running", strings.Join(running, ", ")))
+			i18n.T("exec.skip.apprunning", strings.Join(running, ", ")))
 		return kept
 	}
 	if rp.Rule.RequiresAdmin && !x.elevated() {
-		skipAll(model.ReasonNeedsAdmin, "the rule asks for an administrator")
+		skipAll(model.ReasonNeedsAdmin, i18n.T("exec.skip.needsadmin"))
 		return kept
 	}
 

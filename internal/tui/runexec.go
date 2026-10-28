@@ -133,10 +133,10 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 		m.run.freed += one.Bytes
 		if one.ToTrash {
 			m.run.trashed += one.Bytes
-			m.run.feed = append(m.run.feed, "to the bin: "+one.Path)
+			m.run.feed = append(m.run.feed, i18n.T("tui.run.feed.bin")+one.Path)
 		} else {
 			m.run.removed++
-			m.run.feed = append(m.run.feed, "removed: "+one.Path)
+			m.run.feed = append(m.run.feed, i18n.T("tui.run.feed.removed")+one.Path)
 		}
 		action := "removed"
 		if one.ToTrash {
@@ -148,14 +148,14 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 		return m.run.execCmd, true
 	case model.ItemFailed:
 		m.run.failed++
-		m.run.feed = append(m.run.feed, "failed: "+one.Path)
+		m.run.feed = append(m.run.feed, i18n.T("tui.run.feed.failed")+one.Path)
 		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
 			Path: one.Path, Action: "failed", Result: one.Err.Error()})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	case model.ItemSkipped:
 		m.run.skipped++
-		m.run.feed = append(m.run.feed, "skipped: "+one.Skip.Path+" ("+string(one.Skip.Reason)+")")
+		m.run.feed = append(m.run.feed, i18n.T("tui.run.feed.skipped", one.Skip.Path, string(one.Skip.Reason)))
 		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
 			Path: one.Skip.Path, Action: "skipped", Result: string(one.Skip.Reason)})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
@@ -166,7 +166,7 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
 	case model.CommandRan:
-		m.run.feed = append(m.run.feed, "ran: "+one.Command)
+		m.run.feed = append(m.run.feed, i18n.T("tui.run.feed.ran")+one.Command)
 		m.logEntry(report.Entry{Time: time.Now(), RuleID: one.RuleID,
 			Path: one.Command, Action: "ran", Result: "ok"})
 		m.run.execCmd = waitExecEvent(m.run.execEvents)

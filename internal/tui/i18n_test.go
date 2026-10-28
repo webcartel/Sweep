@@ -3,6 +3,9 @@ package tui
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
+
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/webcartel/sweep/internal/i18n"
 )
@@ -90,5 +93,23 @@ func TestRegistryScreensAreRussianUnderARussianInterface(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("the Russian registry screen does not say %q: %q", want, view)
 		}
+	}
+}
+
+// Cutting a Russian line by bytes leaves half a letter, which is not text
+// any more. The cut has to be by runes, and the result has to fit.
+func TestMutedLineCutsByRunes(t *testing.T) {
+	text := "SAFE - программы пересоздают это   MOD - возвращается медленнее   DANGER - можно потерять данные"
+
+	got := mutedLine(text, 20)
+	if !utf8.ValidString(got) {
+		t.Fatalf("mutedLine cut a letter in half: %q", got)
+	}
+	if width := lipgloss.Width(got); width > 20 {
+		t.Fatalf("mutedLine = %q, %d cells wide, want at most 20", got, width)
+	}
+
+	if got := mutedLine("короткая строка", 40); got != "короткая строка" {
+		t.Fatalf("mutedLine changed a line that fits: %q", got)
 	}
 }

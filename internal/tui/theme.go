@@ -542,7 +542,7 @@ func wrapText(text string, width int) []string {
 			line = word
 			continue
 		}
-		if len(line)+1+len(word) > width {
+		if lipgloss.Width(line)+1+lipgloss.Width(word) > width {
 			lines = append(lines, line)
 			line = word
 			continue
@@ -558,13 +558,19 @@ func wrapText(text string, width int) []string {
 // mutedLine keeps a long line inside the width, cutting it with the skin's
 // ellipsis instead of letting the frame do it.
 func mutedLine(text string, width int) string {
-	if width <= 0 || len(text) <= width {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	// Cut by runes, never by bytes: a Russian word is two bytes to a
+	// letter, and a byte cut would leave half a character on the screen.
+	runes := []rune(text)
+	if len(runes) <= width {
 		return text
 	}
 	if width <= 3 {
-		return text[:width]
+		return string(runes[:width])
 	}
-	return text[:width-3] + "..."
+	return string(runes[:width-3]) + "..."
 }
 
 // ruleCount names a number of rules with its noun.

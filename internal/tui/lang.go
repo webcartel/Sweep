@@ -31,7 +31,7 @@ func (m *Model) setLanguage(lang i18n.Lang) tea.Cmd {
 		return nil
 	}
 	m.langNotice = i18n.T("tui.lang.saved")
-	return nil
+	return tea.SetWindowTitle(i18n.T("app.title"))
 }
 
 // viewLang draws the picker. The two names stay in their own language on
@@ -44,15 +44,6 @@ func (m *Model) viewLang() string {
 	b.add("")
 	b.add(fmt.Sprintf(i18n.T("tui.lang.current"), string(i18n.Current())))
 	if m.langNotice != "" {
-		b.add("")
-		if m.langFailed {
-			b.add(warningStyle().Render(m.langNotice))
-		} else {
-			b.add(successStyle.Render(m.langNotice))
-		}
-	}
-	b.add("")
-	if m.langNotice != "" {
 		if m.langFailed {
 			b.add(warningStyle().Render(m.langNotice))
 		} else {
@@ -61,7 +52,7 @@ func (m *Model) viewLang() string {
 		b.add("")
 	}
 
-	hint := "E English" + m.skin.sep() + "R Русский" + m.skin.sep() + "Esc back"
+	hint := "E English" + m.skin.sep() + "R Русский" + m.skin.sep() + i18n.T("tui.hint.back")
 	return m.renderFrame(i18n.T("tui.lang.title"), *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: "English", primary: i18n.Current() == i18n.LangEN, action: actLangEN},
 		buttonSpec{label: "Русский", primary: i18n.Current() == i18n.LangRU, action: actLangRU},

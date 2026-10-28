@@ -6,7 +6,6 @@ package guard
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"strings"
 
@@ -116,7 +115,7 @@ func (g *Guard) CheckNormalized(target Path, mode model.Mode, include []string, 
 				// own account.
 				Path:    target.Given,
 				Reason:  model.ReasonProtected,
-				Message: fmt.Sprintf("the path %s is protected by %s", quote(candidate), quote(r.path)),
+				Message: i18n.T("guard.err.protected", quote(candidate), quote(r.path)),
 			}, nil
 		}
 	}
