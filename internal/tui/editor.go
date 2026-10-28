@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbletea"
 	"go.yaml.in/yaml/v3"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/rules"
@@ -105,7 +106,7 @@ func boolWord(value bool) string {
 // startNewRule opens the form on a blank rule.
 func (m *Model) startNewRule() {
 	if m.rulesDir == "" {
-		m.message = "No rule directory is known, so there is nowhere to save."
+		m.message = i18n.T("tui.editor.nodir")
 		return
 	}
 	m.editor = blankEditor()
@@ -118,12 +119,12 @@ func (m *Model) startNewRule() {
 func (m *Model) openUserFile(path string) tea.Cmd {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		m.message = "Cannot read " + path + ": " + err.Error()
+		m.message = fmt.Sprintf(i18n.T("tui.editor.cannotread"), path, err.Error())
 		return nil
 	}
 	file, err := rules.LoadFile(path, data)
 	if err != nil {
-		m.message = "Cannot read " + filepath.Base(path) + ": " + err.Error()
+		m.message = fmt.Sprintf(i18n.T("tui.editor.cannotread"), filepath.Base(path), err.Error())
 		return m.openNotepadAt(path)
 	}
 	if len(file.Rules) != 1 || !plainPathRule(file.Rules[0].Rule) {
@@ -233,12 +234,12 @@ func (ed editorState) field(label string) string {
 func (m *Model) viewEditor() string {
 	ed := &m.editor
 	b := &body{}
-	title := "New rule"
+	title := i18n.T("tui.rules.newrule")
 	if ed.filePath != "" {
-		title = "Edit " + filepath.Base(ed.filePath)
+		title = fmt.Sprintf(i18n.T("tui.editor.edit"), filepath.Base(ed.filePath))
 	}
 	b.add(titleStyle.Render(title))
-	b.add(mutedStyle.Render("Enter edits a value, Space flips a choice, P shows the YAML."))
+	b.add(mutedStyle.Render(i18n.T("tui.editor.formhint")))
 	b.add("")
 
 	room := m.screenHeight() - 13
@@ -268,7 +269,7 @@ func (m *Model) viewEditor() string {
 		}
 		value := field.value
 		if value == "" {
-			value = mutedStyle.Render("(not set)")
+			value = mutedStyle.Render(i18n.T("tui.editor.notset"))
 		}
 		if index == ed.cursor && ed.editing {
 			value += m.skin.caret()
@@ -284,12 +285,14 @@ func (m *Model) viewEditor() string {
 		b.add("")
 		b.add(dangerStyle.Render(ed.errText))
 	}
-	hint := "Enter edit" + m.skin.sep() + "Space flip" + m.skin.sep() + "P preview" + m.skin.sep() + "Ctrl+S save" + m.skin.sep() + "Esc back"
-	return m.renderFrame("Rules - form", *b, mutedStyle.Render(hint), makeButtons(
-		buttonSpec{label: "Save", primary: true, action: actSaveRule},
-		buttonSpec{label: "Preview YAML", action: actPreviewRule},
-		buttonSpec{label: "Notepad", action: actNotepad},
-		buttonSpec{label: "Cancel", action: actBack},
+	hint := i18n.T("tui.editor.hint") + m.skin.sep() + i18n.T("tui.editor.hint.flip") + m.skin.sep() +
+		i18n.T("tui.editor.hint.preview") + m.skin.sep() + i18n.T("tui.editor.hint.save") + m.skin.sep() +
+		i18n.T("tui.hint.back")
+	return m.renderFrame(i18n.T("tui.editor.formstep"), *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: i18n.T("tui.editor.save"), primary: true, action: actSaveRule},
+		buttonSpec{label: i18n.T("tui.editor.preview"), action: actPreviewRule},
+		buttonSpec{label: i18n.T("tui.editor.notepad"), action: actNotepad},
+		buttonSpec{label: i18n.T("tui.editor.cancel"), action: actBack},
 	))
 }
 
@@ -319,8 +322,8 @@ func (m *Model) updatePreview(msg tea.Msg) (tea.Cmd, bool) {
 func (m *Model) viewPreview() string {
 	ed := &m.editor
 	b := &body{}
-	b.add(titleStyle.Render("The rule as YAML"))
-	b.add(mutedStyle.Render("This is the whole file sweep will read."))
+	b.add(titleStyle.Render(i18n.T("tui.editor.yamltitle")))
+	b.add(mutedStyle.Render(i18n.T("tui.editor.yamlintro")))
 	b.add("")
 	lines := strings.Split(strings.TrimRight(ed.preview, "\n"), "\n")
 	room := m.screenHeight() - 11
@@ -349,9 +352,9 @@ func (m *Model) viewPreview() string {
 		b.add("")
 		b.add(dangerStyle.Render(ed.errText))
 	}
-	return m.renderFrame("Rules - preview", *b, mutedStyle.Render("Enter save"+m.skin.sep()+"Up/Down scroll"+m.skin.sep()+"Esc back to the form"), makeButtons(
-		buttonSpec{label: "Save", primary: true, action: actSaveRule},
-		buttonSpec{label: "Back to the form", action: actPreviewBack},
+	return m.renderFrame(i18n.T("tui.editor.previewstep"), *b, mutedStyle.Render(i18n.T("tui.editor.savehint")+m.skin.sep()+i18n.T("tui.editor.scrollhint")+m.skin.sep()+i18n.T("tui.editor.backtoformhint")), makeButtons(
+		buttonSpec{label: i18n.T("tui.editor.save"), primary: true, action: actSaveRule},
+		buttonSpec{label: i18n.T("tui.editor.backtoform"), action: actPreviewBack},
 	))
 }
 
@@ -375,21 +378,21 @@ func (m *Model) editorYAML() ([]byte, error) {
 	ed := &m.editor
 	id := strings.TrimSpace(ed.field("Rule id"))
 	if id == "" {
-		return nil, fmt.Errorf("a rule needs an id")
+		return nil, fmt.Errorf("%s", i18n.T("tui.editor.needid"))
 	}
 	if strings.ContainsAny(id, ` \/:*?"<>|`) {
-		return nil, fmt.Errorf("the id cannot hold spaces or %s", `\/:*?"<>|`)
+		return nil, fmt.Errorf(i18n.T("tui.editor.idspaces"), `\/:*?"<>|`)
 	}
 	if strings.TrimSpace(ed.field("Name")) == "" {
-		return nil, fmt.Errorf("a rule needs a name")
+		return nil, fmt.Errorf("%s", i18n.T("tui.editor.needname"))
 	}
 	path := strings.TrimSpace(ed.field("Path"))
 	if path == "" {
-		return nil, fmt.Errorf("a rule needs a path")
+		return nil, fmt.Errorf("%s", i18n.T("tui.editor.needpath"))
 	}
 	age, err := strconv.Atoi(strings.TrimSpace(ed.field("Older than (days)")))
 	if err != nil || age < 0 {
-		return nil, fmt.Errorf("older than must be a number of days, zero or more")
+		return nil, fmt.Errorf("%s", i18n.T("tui.editor.olderbad"))
 	}
 	target := yamlTarget{
 		Path:       path,
@@ -459,12 +462,12 @@ func (m *Model) saveEditor() tea.Cmd {
 		return nil
 	}
 	if m.rulesDir == "" {
-		ed.errText = "No rule directory is known, so there is nowhere to save."
+		ed.errText = i18n.T("tui.editor.nodir")
 		return nil
 	}
 	target := filepath.Join(m.rulesDir, strings.TrimSpace(ed.field("Rule id"))+".yaml")
 	if other := m.otherFileWithID(target, strings.TrimSpace(ed.field("Rule id"))); other != "" {
-		ed.errText = "Another file already defines this id: " + filepath.Base(other)
+		ed.errText = fmt.Sprintf(i18n.T("tui.editor.dupid"), filepath.Base(other))
 		return nil
 	}
 	file, err := rules.LoadFile(target, data)
@@ -480,7 +483,7 @@ func (m *Model) saveEditor() tea.Cmd {
 		return nil
 	}
 	if err := os.MkdirAll(m.rulesDir, 0o700); err != nil {
-		ed.errText = "Cannot make the rule directory: " + err.Error()
+		ed.errText = fmt.Sprintf(i18n.T("tui.editor.mkdirfail"), err.Error())
 		return nil
 	}
 	if _, err := os.Stat(target); err == nil {
@@ -489,15 +492,15 @@ func (m *Model) saveEditor() tea.Cmd {
 		}
 	}
 	if err := os.WriteFile(target, data, 0o600); err != nil {
-		ed.errText = "Cannot write " + filepath.Base(target) + ": " + err.Error()
+		ed.errText = fmt.Sprintf(i18n.T("tui.editor.cannotwrite"), filepath.Base(target), err.Error())
 		return nil
 	}
 	if err := m.refreshRules(); err != nil {
-		ed.errText = "The rule is saved, but the reload failed: " + err.Error()
+		ed.errText = fmt.Sprintf(i18n.T("tui.editor.savedreloadfail"), err.Error())
 		return nil
 	}
 	m.refreshUserFiles()
-	m.message = "Saved " + filepath.Base(target) + "."
+	m.message = fmt.Sprintf(i18n.T("tui.editor.saved"), filepath.Base(target))
 	m.screen = screenUserRules
 	return nil
 }
@@ -552,13 +555,13 @@ func (m *Model) deleteUserRule() tea.Cmd {
 		_ = os.WriteFile(path+".bak", data, 0o600)
 	}
 	if err := os.Remove(path); err != nil {
-		m.message = "Cannot delete " + filepath.Base(path) + ": " + err.Error()
+		m.message = fmt.Sprintf(i18n.T("tui.editor.cannotdelete"), filepath.Base(path), err.Error())
 		return nil
 	}
 	if err := m.refreshRules(); err != nil {
-		m.message = "Deleted, but the reload failed: " + err.Error()
+		m.message = fmt.Sprintf(i18n.T("tui.editor.deletedreload"), err.Error())
 	} else {
-		m.message = "Deleted " + filepath.Base(path) + ". A .bak copy stays."
+		m.message = fmt.Sprintf(i18n.T("tui.editor.deleted"), filepath.Base(path))
 	}
 	m.pendingDelete = ""
 	m.detail = nil
@@ -579,7 +582,7 @@ func (m *Model) openInNotepad() tea.Cmd {
 		path = m.editor.filePath
 	}
 	if path == "" {
-		m.message = "Save the rule first: Notepad needs a file to open."
+		m.message = i18n.T("tui.editor.notepadsave")
 		return nil
 	}
 	return m.openNotepadAt(path)
@@ -588,7 +591,7 @@ func (m *Model) openInNotepad() tea.Cmd {
 // openNotepadAt runs Notepad on a file and comes back when it closes.
 func (m *Model) openNotepadAt(path string) tea.Cmd {
 	if runtime.GOOS != "windows" {
-		m.message = "Notepad is only on Windows; the file is " + path
+		m.message = fmt.Sprintf(i18n.T("tui.editor.notepados"), path)
 		return nil
 	}
 	cmd := exec.Command("notepad.exe", path)
@@ -603,14 +606,14 @@ type notepadDone struct{ err error }
 // afterNotepad reloads the set once Notepad closes.
 func (m *Model) afterNotepad(msg notepadDone) tea.Cmd {
 	if msg.err != nil {
-		m.message = "Notepad: " + msg.err.Error()
+		m.message = fmt.Sprintf(i18n.T("tui.editor.notepader"), msg.err.Error())
 		return nil
 	}
 	if err := m.refreshRules(); err != nil {
-		m.message = "The reload failed: " + err.Error()
+		m.message = fmt.Sprintf(i18n.T("tui.editor.reloadfail"), err.Error())
 		return nil
 	}
 	m.refreshUserFiles()
-	m.message = "Reloaded after the editor."
+	m.message = i18n.T("tui.editor.reloaded")
 	return nil
 }

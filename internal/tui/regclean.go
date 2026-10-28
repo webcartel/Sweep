@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/registry"
 	"github.com/webcartel/sweep/internal/report"
@@ -66,7 +67,7 @@ func (m *Model) openRegistry() tea.Cmd {
 // scanRegistry reads the registry in one command.
 func (m *Model) scanRegistry() tea.Cmd {
 	if m.reg == nil {
-		m.errText = "The registry is not available on this system."
+		m.errText = i18n.T("tui.reg.unavailable")
 		return nil
 	}
 	reg, fsys, env := m.reg, m.fsys, m.regEnv
@@ -245,16 +246,16 @@ func (m *Model) updateRegDone(msg tea.Msg) (tea.Cmd, bool) {
 // viewRegScan draws the read.
 func (m *Model) viewRegScan() string {
 	b := &body{}
-	b.add(titleStyle.Render("Reading the registry..."))
-	b.add(mutedStyle.Render("Looking for uninstall commands, autostart values and App Paths that point nowhere."))
+	b.add(titleStyle.Render(i18n.T("tui.reg.scan")))
+	b.add(mutedStyle.Render(i18n.T("tui.reg.scanintro")))
 	b.add("")
-	b.add(mutedStyle.Render("This only reads. Nothing is removed on this screen."))
+	b.add(mutedStyle.Render(i18n.T("tui.reg.readonly")))
 	if m.errText != "" {
 		b.add("")
 		b.add(dangerStyle.Render(m.errText))
 	}
-	return m.renderFrame("Registry 1 of 4", *b, mutedStyle.Render("Esc back"), makeButtons(
-		buttonSpec{label: "Cancel", action: actRegBack},
+	return m.renderFrame(i18n.T("tui.reg.scanstep"), *b, mutedStyle.Render(i18n.T("tui.hint.back")), makeButtons(
+		buttonSpec{label: i18n.T("tui.reg.cancel"), action: actRegBack},
 	))
 }
 
@@ -262,11 +263,11 @@ func (m *Model) viewRegScan() string {
 func (m *Model) viewRegReview() string {
 	b := &body{}
 	count := m.selectedCount()
-	b.add(titleStyle.Render(fmt.Sprintf("Dead registry entries (%d found)", len(m.findings))))
-	b.add(mutedStyle.Render("Nothing is ticked. Read the reason, then tick only what you understand."))
+	b.add(titleStyle.Render(fmt.Sprintf(i18n.T("tui.reg.found"), len(m.findings))))
+	b.add(mutedStyle.Render(i18n.T("tui.reg.reviewintro")))
 	b.add("")
 	if len(m.findings) == 0 {
-		b.add("Nothing dead was found.")
+		b.add(i18n.T("tui.reg.nothing"))
 	}
 	room := m.screenHeight() - 14
 	if room < 2 {
@@ -311,15 +312,15 @@ func (m *Model) viewRegReview() string {
 	}
 	if m.regCursor < len(m.findings) {
 		b.add("")
-		b.add(mutedStyle.Render("Key: " + keyLineOf(m.findings[m.regCursor])))
+		b.add(mutedStyle.Render(i18n.T("tui.reg.key") + keyLineOf(m.findings[m.regCursor])))
 	}
 	if len(m.regNotes) != 0 {
-		b.add(mutedStyle.Render(fmt.Sprintf("%d notes; the report names them", len(m.regNotes))))
+		b.add(mutedStyle.Render(fmt.Sprintf(i18n.T("tui.reg.notes"), len(m.regNotes))))
 	}
-	hint := "Space tick" + m.skin.sep() + "C continue" + m.skin.sep() + "Esc back"
-	return m.renderFrame("Registry 2 of 4", *b, mutedStyle.Render(hint), makeButtons(
-		buttonSpec{label: fmt.Sprintf("Continue (%d)", count), primary: true, action: actRegContinue},
-		buttonSpec{label: "Back", action: actRegBack},
+	hint := i18n.T("tui.reg.hint.tick") + m.skin.sep() + i18n.T("tui.reg.hint.continue") + m.skin.sep() + i18n.T("tui.hint.back")
+	return m.renderFrame(i18n.T("tui.reg.reviewstep"), *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: fmt.Sprintf(i18n.T("tui.reg.continue"), count), primary: true, action: actRegContinue},
+		buttonSpec{label: i18n.T("tui.reg.back"), action: actRegBack},
 	))
 }
 
@@ -327,8 +328,8 @@ func (m *Model) viewRegReview() string {
 func (m *Model) viewRegConfirm() string {
 	selected := m.selectedFindings()
 	b := &body{}
-	b.add(titleStyle.Render(fmt.Sprintf("Remove %d registry entries?", len(selected))))
-	b.add(mutedStyle.Render("Every key is exported to a .reg file before the first deletion."))
+	b.add(titleStyle.Render(fmt.Sprintf(i18n.T("tui.reg.confirm"), len(selected))))
+	b.add(mutedStyle.Render(i18n.T("tui.reg.exportnote")))
 	b.add("")
 	admin := 0
 	for _, finding := range selected {
@@ -336,48 +337,48 @@ func (m *Model) viewRegConfirm() string {
 			admin++
 		}
 	}
-	b.add(fmt.Sprintf("Entries: %d", len(selected)))
+	b.add(fmt.Sprintf(i18n.T("tui.reg.entries"), len(selected)))
 	if admin != 0 {
 		if m.regElevated {
-			b.add(fmt.Sprintf("Needs administrator: %d (the process has it)", admin))
+			b.add(fmt.Sprintf(i18n.T("tui.reg.adminhas"), admin))
 		} else {
-			b.add(warningStyle().Render(fmt.Sprintf("Needs administrator: %d", admin)))
+			b.add(warningStyle().Render(fmt.Sprintf(i18n.T("tui.reg.adminneed"), admin)))
 		}
 	}
-	b.add("Backups: " + m.backup)
+	b.add(i18n.T("tui.reg.backups") + m.backup)
 	b.add("")
-	b.add(mutedStyle.Render("Restore is a double-click on the .reg file of that run."))
-	buttons := []buttonSpec{{label: "Yes, remove", primary: true, action: actRegClean}}
+	b.add(mutedStyle.Render(i18n.T("tui.reg.restore")))
+	buttons := []buttonSpec{{label: i18n.T("tui.reg.yesremove"), primary: true, action: actRegClean}}
 	if m.adminSelected() {
-		buttons = append(buttons, buttonSpec{label: "Restart as administrator", action: actRegRestart})
+		buttons = append(buttons, buttonSpec{label: i18n.T("tui.reg.restart"), action: actRegRestart})
 	}
-	buttons = append(buttons, buttonSpec{label: "Back", action: actRegBack})
-	return m.renderFrame("Registry 3 of 4", *b, mutedStyle.Render("Enter remove"+m.skin.sep()+"Esc back"), makeButtons(buttons...))
+	buttons = append(buttons, buttonSpec{label: i18n.T("tui.reg.back"), action: actRegBack})
+	return m.renderFrame(i18n.T("tui.reg.confirmstep"), *b, mutedStyle.Render(i18n.T("tui.reg.hint.remove")+m.skin.sep()+i18n.T("tui.hint.back")), makeButtons(buttons...))
 }
 
 // viewRegRunning says the cleaner works.
 func (m *Model) viewRegRunning() string {
 	b := &body{}
-	b.add(titleStyle.Render("Removing the chosen entries..."))
-	b.add(mutedStyle.Render("The backup runs before the first deletion."))
-	return m.renderFrame("Registry 4 of 4", *b, "", footerButtons{})
+	b.add(titleStyle.Render(i18n.T("tui.reg.running")))
+	b.add(mutedStyle.Render(i18n.T("tui.reg.runningnote")))
+	return m.renderFrame(i18n.T("tui.reg.runningstep"), *b, "", footerButtons{})
 }
 
 // viewRegDone answers what the cleaner came to.
 func (m *Model) viewRegDone() string {
 	result := m.regResult
 	b := &body{}
-	b.add(titleStyle.Render(fmt.Sprintf("Removed %d entries", result.Removed)))
+	b.add(titleStyle.Render(fmt.Sprintf(i18n.T("tui.reg.done"), result.Removed)))
 	if result.Skipped != 0 {
-		b.add(warningStyle().Render(fmt.Sprintf("Skipped: %d", result.Skipped)))
+		b.add(warningStyle().Render(fmt.Sprintf(i18n.T("tui.reg.skipped"), result.Skipped)))
 	}
 	if result.Failed != 0 {
-		b.add(dangerStyle.Render(fmt.Sprintf("Failed: %d", result.Failed)))
+		b.add(dangerStyle.Render(fmt.Sprintf(i18n.T("tui.reg.failed"), result.Failed)))
 	}
 	if result.BackupDir != "" {
 		b.add("")
-		b.add("Backups: " + result.BackupDir)
-		b.add(mutedStyle.Render("A double-click on a .reg file puts the entry back."))
+		b.add(i18n.T("tui.reg.backups") + result.BackupDir)
+		b.add(mutedStyle.Render(i18n.T("tui.reg.donerestore")))
 	}
 	if m.errText != "" {
 		b.add("")
@@ -389,8 +390,8 @@ func (m *Model) viewRegDone() string {
 		}
 		b.add(mutedStyle.Render(fmt.Sprintf("%s: %s (%s)", entry.Finding.Name, entry.Action, entry.Note)))
 	}
-	return m.renderFrame("Registry done", *b, mutedStyle.Render("R scan again"+m.skin.sep()+"Esc back"), makeButtons(
-		buttonSpec{label: "Back to the start", primary: true, action: actRegBack},
+	return m.renderFrame(i18n.T("tui.reg.donestep"), *b, mutedStyle.Render(i18n.T("tui.reg.donehint")+m.skin.sep()+i18n.T("tui.hint.back")), makeButtons(
+		buttonSpec{label: i18n.T("tui.reg.backto"), primary: true, action: actRegBack},
 	))
 }
 
@@ -441,7 +442,7 @@ func (m *Model) restartRegistry() tea.Cmd {
 				m.selected[finding.ID] = false
 			}
 		}
-		m.errText = "The elevation was refused. The entries that need it were taken out."
+		m.errText = i18n.T("tui.reg.elevationrefused")
 		return nil
 	}
 	return tea.Quit

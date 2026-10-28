@@ -66,7 +66,7 @@ func (m *Model) rulesOf() []*model.Rule {
 // sourceOf names where a rule came from, in the words of the screen.
 func sourceOf(rule *model.Rule) string {
 	if rule.Source == rules.SourceBuiltin || rule.Source == "" {
-		return "built-in"
+		return i18n.T("tui.rules.source.builtin")
 	}
 	return filepath.Base(rule.Source)
 }
@@ -259,8 +259,8 @@ func (m *Model) sortedRules() []*model.Rule {
 func (m *Model) viewRuleList() string {
 	all := m.sortedRules()
 	b := &body{}
-	b.add(titleStyle.Render(fmt.Sprintf("All rules (%d)", len(all))))
-	b.add(mutedStyle.Render("Built-in rules are read-only. Your files win over a built-in rule with the same id."))
+	b.add(titleStyle.Render(fmt.Sprintf(i18n.T("tui.rules.all"), len(all))))
+	b.add(mutedStyle.Render(i18n.T("tui.rules.readonly")))
 	b.add("")
 
 	width := m.screenWidth()
@@ -290,7 +290,9 @@ func (m *Model) viewRuleList() string {
 	if len(shown) > room {
 		shown = shown[:room]
 	}
-	b.add(mutedStyle.Render(fmt.Sprintf("    %-*s %-28s %-7s %s", nameWidth, "NAME", "PROFILE ID", "RISK", "SOURCE")))
+	b.add(mutedStyle.Render(fmt.Sprintf("    %-*s %-28s %-7s %s", nameWidth,
+		i18n.T("tui.rules.col.name"), i18n.T("tui.rules.col.profile"),
+		i18n.T("tui.rules.col.risk"), i18n.T("tui.rules.col.source"))))
 	for i, rule := range shown {
 		index := m.ruleOffset + i
 		pick := " "
@@ -311,11 +313,11 @@ func (m *Model) viewRuleList() string {
 		b.hit(lineIndex, 0, m.screenWidth()-8, actRuleOpen, fmt.Sprint(index))
 	}
 	if len(all) == 0 {
-		b.add(mutedStyle.Render("No rules loaded."))
+		b.add(mutedStyle.Render(i18n.T("tui.rules.empty")))
 	}
-	return m.renderFrame("Rules - browse", *b, mutedStyle.Render("Up/Down move"+m.skin.sep()+"Enter details"+m.skin.sep()+"Esc back"), makeButtons(
-		buttonSpec{label: "Back", action: actBack},
-		buttonSpec{label: "Help", action: actHelp},
+	return m.renderFrame(i18n.T("tui.rules.browsestep"), *b, mutedStyle.Render(i18n.T("tui.rules.browsehint")+m.skin.sep()+i18n.T("tui.list.hint.details")+m.skin.sep()+i18n.T("tui.hint.back")), makeButtons(
+		buttonSpec{label: i18n.T("tui.button.back"), action: actBack},
+		buttonSpec{label: i18n.T("tui.profile.help"), action: actHelp},
 	))
 }
 
@@ -350,7 +352,7 @@ func isBuiltinSource(source string) bool {
 func (m *Model) viewRuleDetail() string {
 	rule := m.detail
 	if rule == nil {
-		return "No rule is open."
+		return i18n.T("tui.rules.norule")
 	}
 	b := &body{}
 	name := rule.Name
@@ -365,19 +367,22 @@ func (m *Model) viewRuleDetail() string {
 		}
 	}
 	b.add("")
-	b.add(fmt.Sprintf("Risk: %s%s%s", riskWord(rule.Risk),
-		m.skin.sep(), map[bool]string{true: "in Everyday cleanup", false: "off by default"}[rule.DefaultEnabled]))
+	enabled := i18n.T("tui.rules.disabled")
+	if rule.DefaultEnabled {
+		enabled = i18n.T("tui.rules.enabled")
+	}
+	b.add(fmt.Sprintf(i18n.T("tui.rules.risk"), riskWord(rule.Risk)) + m.skin.sep() + enabled)
 	if rule.RequiresAdmin {
-		b.add(warningStyle().Render("Needs administrator rights."))
+		b.add(warningStyle().Render(i18n.T("tui.detail.admin")))
 	}
 	if len(rule.RequiresClosed) != 0 {
-		b.add(warningStyle().Render("Skipped while running: " + strings.Join(rule.RequiresClosed, ", ")))
+		b.add(warningStyle().Render(i18n.T("tui.detail.closed") + strings.Join(rule.RequiresClosed, ", ")))
 	}
 	if len(rule.Tags) != 0 {
-		b.add(mutedStyle.Render("Tags: " + strings.Join(rule.Tags, ", ")))
+		b.add(mutedStyle.Render(i18n.T("tui.rules.tags") + strings.Join(rule.Tags, ", ")))
 	}
 	b.add("")
-	b.add(titleStyle.Render("What it removes"))
+	b.add(titleStyle.Render(i18n.T("tui.rules.whatremoves")))
 	for _, target := range rule.Targets {
 		if target.Kind == model.KindCommand {
 			b.add("  $ " + target.Cmd + " " + strings.Join(target.Args, " "))
@@ -385,45 +390,45 @@ func (m *Model) viewRuleDetail() string {
 		}
 		line := fmt.Sprintf("  %s (%s", target.Path, modeWord(target.Mode))
 		if target.MinAgeDays != 0 {
-			line += fmt.Sprintf(", older than %d days", target.MinAgeDays)
+			line += fmt.Sprintf(i18n.T("tui.rules.olderthan"), target.MinAgeDays)
 		}
 		if len(target.Include) != 0 {
-			line += ", only " + strings.Join(target.Include, " ")
+			line += i18n.T("tui.rules.only") + strings.Join(target.Include, " ")
 		}
 		if len(target.Exclude) != 0 {
-			line += ", except " + strings.Join(target.Exclude, " ")
+			line += i18n.T("tui.rules.except") + strings.Join(target.Exclude, " ")
 		}
 		b.add(line + ")")
 	}
 
 	if m.pendingDelete != "" {
 		b.add("")
-		b.add(dangerStyle.Render("Delete this file? A .bak copy stays next to it."))
-		return m.renderFrame("Delete a rule", *b, mutedStyle.Render("This cannot be undone from the screen"), makeButtons(
-			buttonSpec{label: "Yes, delete", primary: true, action: actDeleteYes},
-			buttonSpec{label: "Cancel", action: actBack},
+		b.add(dangerStyle.Render(i18n.T("tui.rules.deletequestion")))
+		return m.renderFrame(i18n.T("tui.rules.deletestep"), *b, mutedStyle.Render(i18n.T("tui.rules.deletehint")), makeButtons(
+			buttonSpec{label: i18n.T("tui.rules.deleteyes"), primary: true, action: actDeleteYes},
+			buttonSpec{label: i18n.T("tui.scan.cancel"), action: actBack},
 		))
 	}
 
-	buttons := []buttonSpec{{label: "Back", primary: true, action: actBack}, {label: "Help", action: actHelp}}
+	buttons := []buttonSpec{{label: i18n.T("tui.button.back"), primary: true, action: actBack}, {label: i18n.T("tui.profile.help"), action: actHelp}}
 	if !isBuiltinSource(rule.Source) {
 		buttons = append([]buttonSpec{
-			{label: "Edit in Notepad", action: actNotepad},
-			{label: "Delete", action: actDeleteRule},
+			{label: i18n.T("tui.rules.editnotepad"), action: actNotepad},
+			{label: i18n.T("tui.rules.delete"), action: actDeleteRule},
 		}, buttons...)
 	}
-	return m.renderFrame("Rule", *b, mutedStyle.Render("Read-only for built-in rules"), makeButtons(buttons...))
+	return m.renderFrame(i18n.T("tui.rules.step"), *b, mutedStyle.Render(i18n.T("tui.rules.readonlyhint")), makeButtons(buttons...))
 }
 
 // modeWord names a mode in plain words.
 func modeWord(mode model.Mode) string {
 	switch mode {
 	case model.ModeSelf:
-		return "the item itself"
+		return i18n.T("tui.rules.mode.item")
 	case model.ModeFiles:
-		return "matching files"
+		return i18n.T("tui.rules.mode.files")
 	default:
-		return "the contents"
+		return i18n.T("tui.rules.mode.contents")
 	}
 }
 
@@ -450,46 +455,46 @@ func (m *Model) updateConfig(msg tea.Msg) (tea.Cmd, bool) {
 // configLines answers the config as lines a person reads.
 func (m *Model) configLines() []string {
 	lines := []string{
-		"Config file: " + m.configPath,
+		i18n.T("tui.rules.configfile") + m.configPath,
 	}
 	if _, err := os.Stat(m.configPath); err != nil {
-		lines = append(lines, "The file is not there: sweep uses its defaults.")
+		lines = append(lines, i18n.T("tui.rules.confignofile"))
 	}
 	if m.set == nil {
 		return lines
 	}
 	config := m.set.Config
-	allow := "no"
+	allow := i18n.T("tui.rules.no")
 	if config.AllowUserCommands {
-		allow = "yes"
+		allow = i18n.T("tui.rules.yes")
 	}
-	lines = append(lines, "Commands in user rules: "+allow)
+	lines = append(lines, i18n.T("tui.rules.allowcommands")+allow)
 	if len(config.ExcludePaths) == 0 {
-		lines = append(lines, "Excluded paths: none")
+		lines = append(lines, i18n.T("tui.rules.excludenone"))
 	} else {
-		lines = append(lines, "Excluded paths:")
+		lines = append(lines, i18n.T("tui.rules.excludes"))
 		for _, path := range config.ExcludePaths {
 			lines = append(lines, "  "+path)
 		}
 	}
 	if len(config.Rules) == 0 {
-		lines = append(lines, "Rule switches: none")
+		lines = append(lines, i18n.T("tui.rules.switchnone"))
 	} else {
-		lines = append(lines, "Rule switches:")
+		lines = append(lines, i18n.T("tui.rules.switches"))
 		var ids []string
 		for id := range config.Rules {
 			ids = append(ids, id)
 		}
 		sort.Strings(ids)
 		for _, id := range ids {
-			state := "off"
+			state := i18n.T("tui.rules.off")
 			if config.Rules[id].Enabled {
-				state = "on"
+				state = i18n.T("tui.rules.on")
 			}
 			lines = append(lines, fmt.Sprintf("  %s: %s", id, state))
 		}
 	}
-	lines = append(lines, "", "Profiles:")
+	lines = append(lines, "", i18n.T("tui.rules.profileshead"))
 	var names []string
 	for name := range m.set.Profiles {
 		names = append(names, name)
@@ -502,24 +507,24 @@ func (m *Model) configLines() []string {
 		if err == nil {
 			count = len(chosen)
 		}
-		lines = append(lines, fmt.Sprintf("  %s: %d rules", name, count))
+		lines = append(lines, fmt.Sprintf(i18n.T("tui.rules.profilecount"), name, m.rulesCount(count)))
 		if profile.DefaultOnly {
-			lines = append(lines, "    takes every rule of Everyday cleanup")
+			lines = append(lines, i18n.T("tui.rules.takesevery"))
 		}
 		if profile.MaxRisk != "" {
-			lines = append(lines, "    highest risk: "+string(profile.MaxRisk))
+			lines = append(lines, i18n.T("tui.rules.highestrisk")+string(profile.MaxRisk))
 		}
 		if len(profile.Include) != 0 {
-			lines = append(lines, "    include: "+strings.Join(profile.Include, ", "))
+			lines = append(lines, i18n.T("tui.rules.include")+strings.Join(profile.Include, ", "))
 		}
 		if len(profile.IncludeTags) != 0 {
-			lines = append(lines, "    tags: "+strings.Join(profile.IncludeTags, ", "))
+			lines = append(lines, i18n.T("tui.rules.tagline")+strings.Join(profile.IncludeTags, ", "))
 		}
 		if len(profile.IncludeCategories) != 0 {
-			lines = append(lines, "    categories: "+strings.Join(profile.IncludeCategories, ", "))
+			lines = append(lines, i18n.T("tui.rules.cats")+strings.Join(profile.IncludeCategories, ", "))
 		}
 		if len(profile.Exclude) != 0 {
-			lines = append(lines, "    exclude: "+strings.Join(profile.Exclude, ", "))
+			lines = append(lines, i18n.T("tui.rules.exclude")+strings.Join(profile.Exclude, ", "))
 		}
 	}
 	return lines
@@ -527,8 +532,8 @@ func (m *Model) configLines() []string {
 
 func (m *Model) viewConfig() string {
 	b := &body{}
-	b.add(titleStyle.Render("Effective config"))
-	b.add(mutedStyle.Render("Read-only: sweep reads this file at start. Edit it in a text editor."))
+	b.add(titleStyle.Render(i18n.T("tui.rules.effective")))
+	b.add(mutedStyle.Render(i18n.T("tui.rules.configreadonly")))
 	b.add("")
 	lines := m.configLines()
 	room := m.screenHeight() - 10
@@ -553,8 +558,8 @@ func (m *Model) viewConfig() string {
 	for _, line := range shown {
 		b.add(line)
 	}
-	return m.renderFrame("Rules - config", *b, mutedStyle.Render("Up/Down scroll"+m.skin.sep()+"Esc back"), makeButtons(
-		buttonSpec{label: "Back", action: actBack},
+	return m.renderFrame(i18n.T("tui.rules.configstep"), *b, mutedStyle.Render(i18n.T("tui.editor.scrollhint")+m.skin.sep()+i18n.T("tui.hint.back")), makeButtons(
+		buttonSpec{label: i18n.T("tui.button.back"), action: actBack},
 	))
 }
 
@@ -633,12 +638,12 @@ func (m *Model) ruleOfFile(path string) *model.Rule {
 
 func (m *Model) viewUserRules() string {
 	b := &body{}
-	b.add(titleStyle.Render("My rules"))
+	b.add(titleStyle.Render(i18n.T("tui.rules.mine")))
 	b.add(mutedStyle.Render(m.rulesDir))
 	b.add("")
 	if len(m.userFiles) == 0 {
-		b.add("You have no rules of your own yet.")
-		b.add(mutedStyle.Render("Press N or the button below to make the first one."))
+		b.add(i18n.T("tui.rules.userempty"))
+		b.add(mutedStyle.Render(i18n.T("tui.rules.userhint")))
 	}
 	room := m.screenHeight() - 12
 	if room < 1 {
@@ -667,7 +672,7 @@ func (m *Model) viewUserRules() string {
 		}
 		rule := m.ruleOfFile(path)
 		label := filepath.Base(path)
-		extra := "not loaded: the file has an error"
+		extra := i18n.T("tui.rules.notloaded")
 		if rule != nil {
 			label = rule.Name
 			if label == "" {
@@ -686,10 +691,12 @@ func (m *Model) viewUserRules() string {
 		b.add("")
 		b.add(successStyle.Render(m.message))
 	}
-	hint := "N new" + m.skin.sep() + "Enter edit" + m.skin.sep() + "E notepad" + m.skin.sep() + "X delete" + m.skin.sep() + "Esc back"
-	return m.renderFrame("Rules - mine", *b, mutedStyle.Render(hint), makeButtons(
-		buttonSpec{label: "New rule", primary: true, action: actNewRule},
-		buttonSpec{label: "Notepad", action: actNotepad},
-		buttonSpec{label: "Back", action: actBack},
+	hint := i18n.T("tui.rules.hint.new") + m.skin.sep() + i18n.T("tui.editor.hint") + m.skin.sep() +
+		i18n.T("tui.rules.hint.notepad") + m.skin.sep() + i18n.T("tui.rules.hint.delete") + m.skin.sep() +
+		i18n.T("tui.hint.back")
+	return m.renderFrame(i18n.T("tui.rules.minestep"), *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: i18n.T("tui.rules.newrule"), primary: true, action: actNewRule},
+		buttonSpec{label: i18n.T("tui.editor.notepad"), action: actNotepad},
+		buttonSpec{label: i18n.T("tui.button.back"), action: actBack},
 	))
 }
