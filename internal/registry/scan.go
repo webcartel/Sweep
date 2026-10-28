@@ -2,11 +2,11 @@ package registry
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"strings"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/platform"
 )
 
@@ -53,9 +53,10 @@ type checker struct {
 	notes    []string
 }
 
-// note remembers a skip worth telling the user about.
-func (c *checker) note(format string, args ...any) {
-	c.notes = append(c.notes, fmt.Sprintf(format, args...))
+// note remembers a skip worth telling the user about, worded in the
+// language the interface speaks.
+func (c *checker) note(key string, args ...any) {
+	c.notes = append(c.notes, i18n.T(key, args...))
 }
 
 // uninstall walks the keys of an Uninstall branch.
@@ -67,7 +68,7 @@ func (c *checker) uninstall(parent string) {
 	for _, key := range keys {
 		values, err := c.reg.Values(key)
 		if err != nil {
-			c.note("cannot read %s: %v", key, err)
+			c.note("registry.note.read", key, err)
 			continue
 		}
 		byName := valueMap(values)
@@ -96,7 +97,7 @@ func (c *checker) uninstall(parent string) {
 			Name:       display,
 			Key:        key,
 			Path:       path,
-			Reason:     "uninstall command not found: " + path,
+			Reason:     i18n.T("registry.reason.uninstall", path),
 			Admin:      isAdminKey(key),
 			HasSubkeys: len(subkeys) != 0,
 		})
@@ -144,7 +145,7 @@ func (c *checker) run(parent string) {
 			Key:         parent,
 			Value:       value.Name,
 			Path:        path,
-			Reason:      "program not found: " + path,
+			Reason:      i18n.T("registry.reason.program", path),
 			Admin:       isAdminKey(parent),
 			DeleteValue: true,
 		})
@@ -180,7 +181,7 @@ func (c *checker) appPaths(parent string) {
 			Name:       name,
 			Key:        key,
 			Path:       path,
-			Reason:     "program not found: " + path,
+			Reason:     i18n.T("registry.reason.program", path),
 			Admin:      isAdminKey(key),
 			HasSubkeys: len(subkeys) != 0,
 		})
@@ -216,7 +217,7 @@ func (c *checker) command(command string) (string, pathState) {
 	}
 	expanded := platform.Expand(command, c.env)
 	if names := platform.EnvNames(expanded); len(names) != 0 {
-		c.note("unknown variable %%%s%% in %q", names[0], command)
+		c.note("registry.note.var", names[0], command)
 		return "", stateSkip
 	}
 	if strings.HasPrefix(expanded, `"`) {
@@ -241,7 +242,7 @@ func (c *checker) judge(path string) (string, pathState) {
 		return "", stateSkip
 	}
 	if !isAbsPath(path) {
-		c.note("relative command %q cannot be read as a place on the disk", path)
+		c.note("registry.note.relative", path)
 		return path, stateSkip
 	}
 	if !c.fixedDrive(path) {
@@ -254,7 +255,7 @@ func (c *checker) judge(path string) (string, pathState) {
 	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, os.ErrNotExist) {
 		return path, stateDead
 	}
-	c.note("cannot read %q: %v", path, err)
+	c.note("registry.note.path", path, err)
 	return path, stateSkip
 }
 
@@ -263,11 +264,11 @@ func (c *checker) judge(path string) (string, pathState) {
 func (c *checker) fixedDrive(path string) bool {
 	kind, err := c.fs.DriveType(path)
 	if err != nil {
-		c.note("cannot read the drive of %q: %v", path, err)
+		c.note("registry.note.drive", path, err)
 		return false
 	}
 	if kind != platform.DriveFixed {
-		c.note("%q is not on a local disk; left alone", path)
+		c.note("registry.note.removable", path)
 		return false
 	}
 	return true

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/platform"
 )
 
@@ -104,7 +105,7 @@ func Clean(reg platform.Registry, findings []Finding, opts Options) (Result, err
 		return result, nil
 	}
 	if opts.BackupRoot == "" {
-		return result, fmt.Errorf("no backup directory is known")
+		return result, fmt.Errorf("%s", i18n.T("registry.err.backup"))
 	}
 	dir, err := backupDir(opts.BackupRoot, opts.Now())
 	if err != nil {
@@ -123,9 +124,9 @@ func Clean(reg platform.Registry, findings []Finding, opts Options) (Result, err
 		entry := Entry{Finding: finding}
 		switch {
 		case !Guarded(finding.Key):
-			entry.Action, entry.Note = "failed", "outside the guarded branches"
+			entry.Action, entry.Note = "failed", i18n.T("registry.note.guard")
 		case finding.HasSubkeys:
-			entry.Action, entry.Note = "skipped", "has subkeys"
+			entry.Action, entry.Note = "skipped", i18n.T("registry.note.subkeys")
 		case finding.Admin && !opts.Elevated:
 			entry.Action, entry.Note = "skipped", "needs_admin"
 		default:
@@ -174,7 +175,7 @@ func Clean(reg platform.Registry, findings []Finding, opts Options) (Result, err
 		finding := job.finding
 		entry := Entry{Finding: finding}
 		if note, ok := blocked[strings.ToLower(finding.Key)]; ok {
-			entry.Action, entry.Note = "failed", "backup failed: "+note
+			entry.Action, entry.Note = "failed", i18n.T("registry.note.backup", note)
 			result.Entries = append(result.Entries, entry)
 			countEntry(&result, entry)
 			opts.Log("registry_failed", keyLine(finding), entry.Note)

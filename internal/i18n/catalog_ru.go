@@ -39,4 +39,17 @@ var catalogRU = map[string]string{
 	"tui.rules.viewconfig":     "Конфиг",
 	"tui.rules.language":       "Язык",
 	"tui.rules.mine":           "Мои правила",
+
+	"registry.note.read":        "не удалось прочитать %s: %v",
+	"registry.note.var":         "неизвестная переменная %%%s%% в %q",
+	"registry.note.relative":    "относительную команду %q нельзя прочитать как место на диске",
+	"registry.note.path":        "не удалось прочитать %q: %v",
+	"registry.note.drive":       "не удалось прочитать диск %q: %v",
+	"registry.note.removable":   "%q находится не на локальном диске; пропущено",
+	"registry.note.guard":       "вне защищённых веток",
+	"registry.note.subkeys":     "содержит подключи",
+	"registry.note.backup":      "не удалось создать резервную копию: %s",
+	"registry.err.backup":       "не задан каталог для резервных копий",
+	"registry.reason.uninstall": "команда удаления не найдена: %s",
+	"registry.reason.program":   "программа не найдена: %s",
 }

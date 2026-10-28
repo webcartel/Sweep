@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/platform/fake"
 )
@@ -146,5 +147,27 @@ func TestGuarded(t *testing.T) {
 		if Guarded(key) {
 			t.Errorf("Guarded(%q) = true, want false", key)
 		}
+	}
+}
+
+// A note the user reads follows the language of the interface, and the
+// English text is still there under English.
+func TestNotesFollowTheInterfaceLanguage(t *testing.T) {
+	reg, fsys, env := scanMachine()
+	reg.AddValue(runKey, "Unknown", platform.Value{Data: `%NOPE%\app.exe`, Kind: platform.ValueString})
+
+	restore := i18n.Current()
+	t.Cleanup(func() { i18n.Use(restore) })
+
+	i18n.Use(i18n.LangRU)
+	_, notes := scanRun(t, reg, fsys, env)
+	if !strings.Contains(strings.Join(notes, "\n"), "неизвестная переменная") {
+		t.Errorf("notes in Russian = %v", notes)
+	}
+
+	i18n.Use(i18n.LangEN)
+	_, notes = scanRun(t, reg, fsys, env)
+	if !strings.Contains(strings.Join(notes, "\n"), "unknown variable") {
+		t.Errorf("notes in English = %v", notes)
 	}
 }

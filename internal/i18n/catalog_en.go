@@ -39,4 +39,17 @@ var catalogEN = map[string]string{
 	"tui.rules.viewconfig":     "View config",
 	"tui.rules.language":       "Language",
 	"tui.rules.mine":           "My rules",
+
+	"registry.note.read":        "cannot read %s: %v",
+	"registry.note.var":         "unknown variable %%%s%% in %q",
+	"registry.note.relative":    "relative command %q cannot be read as a place on the disk",
+	"registry.note.path":        "cannot read %q: %v",
+	"registry.note.drive":       "cannot read the drive of %q: %v",
+	"registry.note.removable":   "%q is not on a local disk; left alone",
+	"registry.note.guard":       "outside the guarded branches",
+	"registry.note.subkeys":     "has subkeys",
+	"registry.note.backup":      "backup failed: %s",
+	"registry.err.backup":       "no backup directory is known",
+	"registry.reason.uninstall": "uninstall command not found: %s",
+	"registry.reason.program":   "program not found: %s",
 }
