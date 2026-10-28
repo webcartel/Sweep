@@ -218,6 +218,11 @@ func (m *Model) updateList(msg tea.Msg) (tea.Cmd, bool) {
 		return m.startScan(), true
 	case "q", "ctrl+c":
 		return tea.Quit, true
+	case "esc":
+		// Leaving the list drops the scan: nothing was removed yet, and
+		// the start screen scans again.
+		m.screen = screenProfile
+		return nil, true
 	}
 	return nil, true
 }
@@ -393,9 +398,11 @@ func (m *Model) viewList() string {
 		i18n.T("tui.list.hint.find") + m.skin.sep() +
 		i18n.T("tui.list.hint.sort") + m.skin.sep() +
 		i18n.T("tui.list.hint.details") + m.skin.sep() +
-		i18n.T("tui.list.hint.help")
+		i18n.T("tui.list.hint.help") + m.skin.sep() +
+		i18n.T("tui.hint.back")
 	return m.renderFrame(i18n.T("tui.frame.step", 3, 4), *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: cleanLabel, primary: true, action: actConfirm},
+		buttonSpec{label: i18n.T("tui.button.back"), action: actBack},
 		buttonSpec{label: i18n.T("tui.list.safely"), action: actSelectSafe},
 		buttonSpec{label: binButton, action: actToggleBin},
 		buttonSpec{label: i18n.T("tui.profile.help"), action: actHelp},

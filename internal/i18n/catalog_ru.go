@@ -31,12 +31,17 @@ var catalogRU = map[string]string{
 
 	"tui.hint.back": "Esc назад",
 
-	"tui.lang.title":      "Язык",
-	"tui.lang.hint":       "Выбор применяется сразу и сохраняется для следующего запуска.",
-	"tui.lang.current":    "Сейчас: %s",
-	"tui.lang.saved":      "Сохранено.",
-	"tui.lang.savefailed": "Не удалось сохранить выбор",
-	"tui.lang.nosettings": "Нет файла настроек для записи.",
+	"tui.lang.title":       "Язык",
+	"tui.lang.hint":        "Выберите язык и подтвердите.",
+	"tui.lang.confirm":     "Подтвердить",
+	"tui.lang.cancel":      "Отмена",
+	"tui.lang.hint.move":   " выбор",
+	"tui.lang.hint.choose": "Space выбрать",
+	"tui.lang.hint.save":   "Enter сохранить",
+	"tui.lang.hint.cancel": "Esc отмена",
+	"tui.lang.saved":       "Сохранено.",
+	"tui.lang.savefailed":  "Не удалось сохранить выбор",
+	"tui.lang.nosettings":  "Нет файла настроек для записи.",
 
 	"tui.rules.title":          "Правила и настройки",
 	"tui.rules.intro":          "Правила определяют, что ищет sweep. Встроенные правила менять нельзя.",

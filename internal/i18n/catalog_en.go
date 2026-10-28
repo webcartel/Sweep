@@ -31,12 +31,17 @@ var catalogEN = map[string]string{
 
 	"tui.hint.back": "Esc back",
 
-	"tui.lang.title":      "Language",
-	"tui.lang.hint":       "The choice applies at once and is kept for the next run.",
-	"tui.lang.current":    "Now: %s",
-	"tui.lang.saved":      "Saved.",
-	"tui.lang.savefailed": "The choice could not be saved",
-	"tui.lang.nosettings": "There is no settings file to write to.",
+	"tui.lang.title":       "Language",
+	"tui.lang.hint":        "Pick a language, then confirm.",
+	"tui.lang.confirm":     "Confirm",
+	"tui.lang.cancel":      "Cancel",
+	"tui.lang.hint.move":   " move",
+	"tui.lang.hint.choose": "Space choose",
+	"tui.lang.hint.save":   "Enter save",
+	"tui.lang.hint.cancel": "Esc cancel",
+	"tui.lang.saved":       "Saved.",
+	"tui.lang.savefailed":  "The choice could not be saved",
+	"tui.lang.nosettings":  "There is no settings file to write to.",
 
 	"tui.rules.title":          "Rules & settings",
 	"tui.rules.intro":          "Rules decide what sweep looks for. Built-in rules stay read-only.",

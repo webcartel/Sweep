@@ -39,6 +39,10 @@ type rulesState struct {
 	// langFailed is whether it had to say it the hard way.
 	langNotice string
 	langFailed bool
+	// langEntry is the language the picker opened with, and langCursor
+	// the row the arrow keys stand on.
+	langEntry  i18n.Lang
+	langCursor int
 
 	ruleCursor   int
 	ruleOffset   int
@@ -147,7 +151,7 @@ func (m *Model) updateRules(msg tea.Msg) (tea.Cmd, bool) {
 		m.screen = screenUserRules
 		m.refreshUserFiles()
 	case "l":
-		m.screen = screenLang
+		m.openLanguage()
 	case "?":
 		m.openHelp()
 	}

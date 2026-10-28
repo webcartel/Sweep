@@ -162,8 +162,10 @@ The language is chosen by this chain, strongest first:
 - Windows answers with the user interface language it is set to; every
   language but Russian falls back to English.
 
-In the interface, open **Rules & settings** and choose **Language** (`l`).
-The choice is saved at once and every screen redraws in it.
+In the interface, open **Rules & settings** and choose **Language** (`l`). The
+list of languages is on the page; pick one and the screens switch at once so
+you see the result, then **Confirm** keeps it and **Cancel** puts the old one
+back. Nothing is written until you confirm.
 
 The machine answers never change language. `--json` output and the JSONL log
 stay English whatever the interface says, so a script that reads them keeps

@@ -48,6 +48,18 @@ func english(t *testing.T) {
 	t.Cleanup(func() { i18n.Use(old) })
 }
 
+// openPicker walks the settings screen to the picker.
+func openPicker(t *testing.T) *Model {
+	t.Helper()
+	m, _ := langMachine(t)
+	m = keyIn(m, "g", 0)
+	m = keyIn(m, "l", 0)
+	if m.screen != screenLang {
+		t.Fatalf("the picker did not open: screen %d", m.screen)
+	}
+	return m
+}
+
 // The settings screen is the way to the picker.
 func TestLanguageMenuOpensThePicker(t *testing.T) {
 	m, _ := langMachine(t)
@@ -62,35 +74,67 @@ func TestLanguageMenuOpensThePicker(t *testing.T) {
 	}
 }
 
-// Choosing Russian changes the language at once: the very screen the user
-// is on redraws in the language they picked.
-func TestLanguageChoiceRendersInRussian(t *testing.T) {
+// The languages are rows of the page, not buttons of the footer: the
+// footer holds the two answers, confirm and cancel.
+func TestLanguagesAreRowsOfThePage(t *testing.T) {
 	english(t)
-	m, _ := langMachine(t)
-	m = keyIn(m, "g", 0)
-	m = keyIn(m, "l", 0)
+	m := openPicker(t)
+
+	view := m.View()
+	for _, want := range []string{"English", "Русский", i18n.T("tui.lang.confirm"), i18n.T("tui.lang.cancel")} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("the picker does not show %q: %q", want, view)
+		}
+	}
+	// The language names are on their own lines, above the buttons.
+	lines := strings.Split(view, "\n")
+	englishLine, buttonLine := -1, -1
+	for i, line := range lines {
+		if strings.Contains(line, "English") && englishLine < 0 {
+			englishLine = i
+		}
+		if strings.Contains(line, i18n.T("tui.lang.confirm")) && buttonLine < 0 {
+			buttonLine = i
+		}
+	}
+	if englishLine < 0 || buttonLine < 0 || englishLine >= buttonLine {
+		t.Fatalf("a language is not above the buttons (name %d, buttons %d)", englishLine, buttonLine)
+	}
+}
+
+// Picking a language shows it at once, so the choice is judged by its
+// result rather than by its name.
+func TestPickingALanguagePreviewsIt(t *testing.T) {
+	english(t)
+	m := openPicker(t)
 
 	m = clickAction(t, m, actLangRU)
 
 	if got := i18n.Current(); got != i18n.LangRU {
-		t.Fatalf("the language is %q, want Russian", got)
+		t.Fatalf("the language is %q, want the preview to apply it", got)
 	}
 	if view := m.View(); !strings.Contains(view, "Язык") {
 		t.Fatalf("the picker did not redraw in Russian: %q", view)
 	}
 }
 
-// The choice is written where the next run reads it.
-func TestLanguageChoiceWritesTheFile(t *testing.T) {
+// Nothing is saved until the user confirms.
+func TestConfirmSavesTheLanguage(t *testing.T) {
 	english(t)
 	m, path := langMachine(t)
 	m = keyIn(m, "g", 0)
 	m = keyIn(m, "l", 0)
 
-	// The click mutates the model in place and writes the file; the
-	// answer is not read here.
-	clickAction(t, m, actLangRU)
+	m = clickAction(t, m, actLangRU)
+	if _, found, _ := settings.Read(path); found {
+		t.Fatal("picking a language wrote the setting before the confirmation")
+	}
 
+	m = clickAction(t, m, actLangSave)
+
+	if m.screen != screenRules {
+		t.Fatalf("the confirmation left the screen at %d", m.screen)
+	}
 	name, found, err := settings.Read(path)
 	if err != nil {
 		t.Fatalf("read the setting back: %v", err)
@@ -98,36 +142,61 @@ func TestLanguageChoiceWritesTheFile(t *testing.T) {
 	if !found || name != "ru" {
 		t.Fatalf("the setting is %q, %v; want ru, true", name, found)
 	}
+	if got := i18n.Current(); got != i18n.LangRU {
+		t.Fatalf("the language is %q after the confirmation", got)
+	}
 }
 
-// Language names always read in their own language, so a user who cannot
-// read the screen can still find the way back.
-func TestLanguageNamesStayInTheirOwnLanguage(t *testing.T) {
+// Cancel puts back the language the screen opened with and saves nothing.
+func TestCancelRevertsTheLanguage(t *testing.T) {
 	english(t)
-	m, _ := langMachine(t)
+	m, path := langMachine(t)
 	m = keyIn(m, "g", 0)
 	m = keyIn(m, "l", 0)
-
-	view := m.View()
-	for _, want := range []string{"English", "Русский"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("the picker does not offer %q: %q", want, view)
-		}
-	}
 
 	m = clickAction(t, m, actLangRU)
-	view = m.View()
-	for _, want := range []string{"English", "Русский"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("after switching, the picker hides %q: %q", want, view)
-		}
+	m = clickAction(t, m, actLangCancel)
+
+	if got := i18n.Current(); got != i18n.LangEN {
+		t.Fatalf("cancel left the language at %q", got)
+	}
+	if m.screen != screenRules {
+		t.Fatalf("cancel left the screen at %d", m.screen)
+	}
+	if _, found, _ := settings.Read(path); found {
+		t.Fatal("cancel wrote the setting")
 	}
 }
 
-func TestBackLeavesThePicker(t *testing.T) {
-	m, _ := langMachine(t)
-	m = keyIn(m, "g", 0)
-	m = keyIn(m, "l", 0)
+// The way back responds to the mouse: the picker's footer draws Cancel,
+// and the generic Back action is the safety net behind it.
+func TestBackRespondsToTheMouseOnThePicker(t *testing.T) {
+	english(t)
+	m := openPicker(t)
+
+	m = clickAction(t, m, actLangCancel)
+	if m.screen != screenRules {
+		t.Fatalf("the cancel button left the screen at %d", m.screen)
+	}
+
+	// The same screen, reached again, answers the generic back action too:
+	// the handler used to have no case for this screen at all.
+	m = openPicker(t)
+	_ = m.View()
+	m.hits = append(m.hits, clickBox{x1: 1, x2: 4, y1: 1, y2: 1, action: actBack})
+	next, _ := m.Update(tea.MouseMsg{
+		X: 2, Y: 1, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft,
+	})
+	m = next.(*Model)
+	if m.screen != screenRules {
+		t.Fatalf("the generic back action left the screen at %d", m.screen)
+	}
+}
+
+// Esc closes the picker without saving.
+func TestEscapeLeavesThePicker(t *testing.T) {
+	english(t)
+	m := openPicker(t)
 
 	m = keyIn(m, "", tea.KeyEsc)
 
@@ -145,5 +214,26 @@ func TestPickerIsClickable(t *testing.T) {
 	m = clickAction(t, m, actLang)
 	if m.screen != screenLang {
 		t.Fatalf("the click left the screen at %d, want the picker", m.screen)
+	}
+}
+
+// The list of what will be cleaned has a way back to the start screen.
+func TestListHasABackButton(t *testing.T) {
+	m := chomped(t)
+
+	m = clickAction(t, m, actBack)
+
+	if m.screen != screenProfile {
+		t.Fatalf("the back button left the screen at %d, want the start", m.screen)
+	}
+}
+
+func TestListEscapeReturnsToTheStart(t *testing.T) {
+	m := chomped(t)
+
+	m = keyIn(m, "", tea.KeyEsc)
+
+	if m.screen != screenProfile {
+		t.Fatalf("Esc left the screen at %d, want the start", m.screen)
 	}
 }

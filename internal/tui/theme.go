@@ -78,6 +78,8 @@ const (
 	actLang        = "lang-open"
 	actLangEN      = "lang-en"
 	actLangRU      = "lang-ru"
+	actLangSave    = "lang-save"
+	actLangCancel  = "lang-cancel"
 )
 
 // hitAt answers the box under a press.
@@ -149,6 +151,11 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		}
 		return m.confirmEnter(), true
 	case actBack:
+		// The picker keeps its own way out: leaving it puts the language
+		// back the way it was, rather than keeping a preview.
+		if m.screen == screenLang {
+			return m.cancelLanguage(), true
+		}
 		switch m.screen {
 		case screenDetail, screenConfirm:
 			m.screen = screenList
@@ -156,6 +163,8 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		case screenHelp:
 			m.screen = m.screenBehind
 		case screenRules:
+			m.screen = screenProfile
+		case screenList:
 			m.screen = screenProfile
 		case screenRuleList, screenConfig, screenUserRules:
 			m.screen = screenRules
@@ -237,12 +246,16 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		m.screen = screenEditor
 		return nil, true
 	case actLang:
-		m.screen = screenLang
+		m.openLanguage()
 		return nil, true
 	case actLangEN:
-		return m.setLanguage(i18n.LangEN), true
+		return m.previewLanguage(i18n.LangEN), true
 	case actLangRU:
-		return m.setLanguage(i18n.LangRU), true
+		return m.previewLanguage(i18n.LangRU), true
+	case actLangSave:
+		return m.saveLanguage(), true
+	case actLangCancel:
+		return m.cancelLanguage(), true
 	case actRegOpen:
 		return m.openRegistry(), true
 	case actRegToggle:
