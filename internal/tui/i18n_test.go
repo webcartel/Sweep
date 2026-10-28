@@ -60,3 +60,35 @@ func TestRuleCountIsWordedInRussian(t *testing.T) {
 		t.Errorf("rulesCount(1) in English = %q, want the one form the catalog holds", got)
 	}
 }
+
+// The rules browser and the registry screens speak the language too: a
+// user who switched is not left reading English halfway through.
+func TestRulesViewerIsRussianUnderARussianInterface(t *testing.T) {
+	useLang(t, i18n.LangRU)
+	m, _, _ := rulesMachine(t)
+
+	m = keyIn(m, "g", 0)
+	m = keyIn(m, "b", 0)
+	if m.screen != screenRuleList {
+		t.Fatalf("the browser did not open: screen %d", m.screen)
+	}
+	view := m.View()
+	for _, want := range []string{"Все правила", "Встроенные правила менять нельзя"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("the Russian browser does not say %q: %q", want, view)
+		}
+	}
+}
+
+func TestRegistryScreensAreRussianUnderARussianInterface(t *testing.T) {
+	useLang(t, i18n.LangRU)
+	m, _, _ := registryModel(t)
+
+	m = drive(m, m.openRegistry())
+	view := m.View()
+	for _, want := range []string{"Мёртвые записи реестра", "Пробел отметить"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("the Russian registry screen does not say %q: %q", want, view)
+		}
+	}
+}
