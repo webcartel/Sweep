@@ -52,4 +52,22 @@ var catalogRU = map[string]string{
 	"registry.err.backup":       "не задан каталог для резервных копий",
 	"registry.reason.uninstall": "команда удаления не найдена: %s",
 	"registry.reason.program":   "программа не найдена: %s",
+
+	"scan.skip.var":         "переменная %s не задана",
+	"scan.skip.mask":        "ни одного пути из маски нет на диске",
+	"scan.skip.notfound":    "путь не существует",
+	"scan.skip.contents":    "цель — файл, а режим contents чистит каталоги",
+	"scan.skip.disappeared": "путь исчез",
+	"scan.skip.build":       "правило требует сборку %d, а здесь Windows со сборкой %d",
+	"scan.warn.walk":        "правило не удалось обойти: %v",
+
+	"guard.err.empty":          "путь пуст",
+	"guard.err.var":            "путь %s называет %%%s%%, которую эта машина не задаёт",
+	"guard.err.nopath":         "путь %s не называет никакого места",
+	"guard.err.loop":           "ссылки %s ведут обратно сами в себя",
+	"guard.err.depth":          "ссылки %s глубже %d",
+	"guard.err.disk":           "путь %s находится не на локальном фиксированном диске",
+	"guard.err.exclude.var":    "exclude_paths %s называет %%%s%%, которую эта машина не задаёт",
+	"guard.err.exclude.nopath": "exclude_paths %s не называет никакого места",
+	"guard.err.exclude.mask":   "exclude_paths %s — маска, а список принимает пути",
 }

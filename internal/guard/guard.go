@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"strings"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -126,18 +127,18 @@ func (g *Guard) CheckNormalized(target Path, mode model.Mode, include []string, 
 // with, and refuses the ones that must not be touched at all.
 func (g *Guard) Normalize(path string) (Path, error) {
 	if path == "" {
-		return Path{}, refuse("the path is empty")
+		return Path{}, refuse(i18n.T("guard.err.empty"))
 	}
 
 	expanded := platform.Expand(path, g.env)
 	if names := platform.EnvNames(expanded); len(names) > 0 {
-		return Path{}, refuse(fmt.Sprintf("the path %s names %%%s%%, which this machine does not set", quote(path), names[0]))
+		return Path{}, refuse(i18n.T("guard.err.var", quote(path), names[0]))
 	}
 
 	text := deviceFree(expanded)
 	given := cleanPath(text)
 	if given == "" {
-		return Path{}, refuse(fmt.Sprintf("the path %s names no place at all", quote(path)))
+		return Path{}, refuse(i18n.T("guard.err.nopath", quote(path)))
 	}
 	if !isAbsPath(text) {
 		given = g.absolute(text, given)
@@ -203,7 +204,7 @@ func (g *Guard) resolve(path string) (string, []string, error) {
 	for hop := 0; hop <= limit; hop++ {
 		key := pathKey(current)
 		if seen[key] {
-			return "", nil, refuse(fmt.Sprintf("the links of %s lead back to themselves", quote(path)))
+			return "", nil, refuse(i18n.T("guard.err.loop", quote(path)))
 		}
 		seen[key] = true
 
@@ -218,7 +219,7 @@ func (g *Guard) resolve(path string) (string, []string, error) {
 		current = next
 	}
 
-	return "", nil, refuse(fmt.Sprintf("the links of %s are more than %d deep", quote(path), limit))
+	return "", nil, refuse(i18n.T("guard.err.depth", quote(path), limit))
 }
 
 // linkOn finds the first link on the way to a path and answers the path with
@@ -282,7 +283,7 @@ func (g *Guard) checkLocalFixed(path string) error {
 		return err
 	}
 	if kind != platform.DriveFixed {
-		return refuse(fmt.Sprintf("the path %s is not on a fixed local disk", quote(path)))
+		return refuse(i18n.T("guard.err.disk", quote(path)))
 	}
 	return nil
 }

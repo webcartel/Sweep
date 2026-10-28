@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -18,7 +19,7 @@ func (s *Scanner) collect(ctx context.Context, t model.Target, add func(model.It
 	expanded := platform.Expand(t.Path, s.env)
 	if unset := platform.EnvNames(expanded); len(unset) > 0 {
 		skip(model.Skip{Path: t.Path, Reason: model.ReasonNotFound,
-			Detail: "the variable " + unset[0] + " is not set"})
+			Detail: i18n.T("scan.skip.var", unset[0])})
 		return nil
 	}
 
@@ -32,7 +33,7 @@ func (s *Scanner) collect(ctx context.Context, t model.Target, add func(model.It
 		if len(names) == 0 {
 			// A mask that names no path is a path that is not there.
 			skip(model.Skip{Path: t.Path, Reason: model.ReasonNotFound,
-				Detail: "no path the mask names is on the disk"})
+				Detail: i18n.T("scan.skip.mask")})
 			return nil
 		}
 		candidates = names
@@ -40,7 +41,7 @@ func (s *Scanner) collect(ctx context.Context, t model.Target, add func(model.It
 		if _, err := s.fs.Lstat(expanded); err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				skip(model.Skip{Path: t.Path, Reason: model.ReasonNotFound,
-					Detail: "the path does not exist"})
+					Detail: i18n.T("scan.skip.notfound")})
 				return nil
 			}
 			return err
@@ -89,7 +90,7 @@ func (s *Scanner) candidate(ctx context.Context, path string, mode model.Mode,
 			// The rule asked for the contents of directories, and a file
 			// holds none. Removing it here would be a guess.
 			skip(model.Skip{Path: path, Reason: model.ReasonNotFound,
-				Detail: "the target is a file, and the contents mode cleans directories"})
+				Detail: i18n.T("scan.skip.contents")})
 			return nil
 		}
 		entries, err := s.children(ctx, path, skip)
@@ -160,7 +161,7 @@ func (s *Scanner) children(ctx context.Context, path string, skip func(model.Ski
 	if err != nil {
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
-			skip(model.Skip{Path: path, Reason: model.ReasonNotFound, Detail: "the path disappeared"})
+			skip(model.Skip{Path: path, Reason: model.ReasonNotFound, Detail: i18n.T("scan.skip.disappeared")})
 		case errors.Is(err, fs.ErrPermission):
 			skip(model.Skip{Path: path, Reason: model.ReasonAccessDenied, Detail: err.Error()})
 		default:
@@ -246,7 +247,7 @@ func (s *Scanner) aggregate(ctx context.Context, dir platform.Info) (int64, int,
 func (s *Scanner) skipIO(path string, err error, skip func(model.Skip)) error {
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		skip(model.Skip{Path: path, Reason: model.ReasonNotFound, Detail: "the path disappeared"})
+		skip(model.Skip{Path: path, Reason: model.ReasonNotFound, Detail: i18n.T("scan.skip.disappeared")})
 	case errors.Is(err, fs.ErrPermission):
 		skip(model.Skip{Path: path, Reason: model.ReasonAccessDenied, Detail: err.Error()})
 	default:

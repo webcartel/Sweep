@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/webcartel/sweep/internal/guard"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -129,7 +130,7 @@ func (s *Scanner) scan(ctx context.Context, rules []*model.Rule, opt model.ScanO
 				// to blame for, and that is not the context's doing.
 				select {
 				case out <- model.Warning{RuleID: rule.ID,
-					Message: fmt.Sprintf("the rule could not be walked: %v", err)}:
+					Message: i18n.T("scan.warn.walk", err)}:
 				case <-done:
 				}
 				return
@@ -163,8 +164,7 @@ func (s *Scanner) planFor(ctx context.Context, rule *model.Rule, report func(fil
 			var skipped []model.Skip
 			for _, target := range rule.Targets {
 				skipped = append(skipped, model.Skip{Path: target.Path, Reason: model.ReasonOSTooOld,
-					Detail: fmt.Sprintf("the rule names build %d, and this Windows is build %d",
-						rule.OSMinBuild, build)})
+					Detail: i18n.T("scan.skip.build", rule.OSMinBuild, build)})
 			}
 			return model.RulePlan{Rule: rule, Skipped: skipped}, nil, nil
 		}
@@ -228,7 +228,7 @@ func (s *Scanner) target(ctx context.Context, t model.Target,
 	// a path it cannot make sense of.
 	if unset := platform.EnvNames(platform.Expand(t.Path, s.env)); len(unset) > 0 {
 		skip(model.Skip{Path: t.Path, Reason: model.ReasonNotFound,
-			Detail: "the variable " + unset[0] + " is not set"})
+			Detail: i18n.T("scan.skip.var", unset[0])})
 		return nil
 	}
 

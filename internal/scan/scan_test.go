@@ -4,11 +4,13 @@ import (
 	"context"
 	"reflect"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/webcartel/sweep/internal/guard"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/platform/fake"
@@ -134,6 +136,46 @@ func TestScanEventOrder(t *testing.T) {
 	}
 	if plan := done.Plan.Rules[0]; plan.Bytes != 3 || plan.Files != 3 || len(plan.Items) != 3 {
 		t.Errorf("RulePlan = %+v, want each file of the target", plan)
+	}
+}
+
+// A skip the user reads follows the language of the interface.
+func TestSkipDetailsFollowTheInterfaceLanguage(t *testing.T) {
+	fsys := bigTree(1)
+	env := theEnv()
+	s := New(Deps{FS: fsys, Env: env, System: fake.NewSystem(), Guard: buildGuard(t, env, fsys)})
+
+	rules := []*model.Rule{
+		{ID: "unset.rule", Targets: []model.Target{
+			{Kind: model.KindPath, Path: `%NOPE%\stuff`, Mode: model.ModeContents}}},
+	}
+
+	restore := i18n.Current()
+	t.Cleanup(func() { i18n.Use(restore) })
+
+	details := func(lang i18n.Lang) string {
+		i18n.Use(lang)
+		events := drain(s.Scan(context.Background(), rules, model.ScanOptions{Workers: 1, Throttle: time.Hour}))
+		var out []string
+		for _, event := range events {
+			done, ok := event.(model.ScanDone)
+			if !ok {
+				continue
+			}
+			for _, plan := range done.Plan.Rules {
+				for _, skip := range plan.Skipped {
+					out = append(out, skip.Detail)
+				}
+			}
+		}
+		return strings.Join(out, "\n")
+	}
+
+	if got := details(i18n.LangRU); !strings.Contains(got, "переменная") {
+		t.Errorf("the skip in Russian = %q", got)
+	}
+	if got := details(i18n.LangEN); !strings.Contains(got, "the variable") {
+		t.Errorf("the skip in English = %q", got)
 	}
 }
 

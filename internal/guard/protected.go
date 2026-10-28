@@ -1,9 +1,10 @@
 package guard
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/platform"
 )
 
@@ -209,19 +210,19 @@ func protectedRanges(env platform.Env, extra []string) []protectedRange {
 func (g *Guard) exclusion(entry string) (string, error) {
 	expanded := platform.Expand(entry, g.env)
 	if names := platform.EnvNames(expanded); len(names) > 0 {
-		return "", fmt.Errorf("exclude_paths %s names %%%s%%, which this machine does not set", quote(entry), names[0])
+		return "", errors.New(i18n.T("guard.err.exclude.var", quote(entry), names[0]))
 	}
 
 	text := deviceFree(expanded)
 	cleaned := cleanPath(text)
 	if cleaned == "" {
-		return "", fmt.Errorf("exclude_paths %s names no place at all", quote(entry))
+		return "", errors.New(i18n.T("guard.err.exclude.nopath", quote(entry)))
 	}
 	// An entry is a path, not a mask: the specification lets the config add to
 	// the refusal list and nothing more. A mask that refuses nothing would be
 	// a config that loads and quietly does not do what it says.
 	if strings.ContainsAny(cleaned, `*?`) {
-		return "", fmt.Errorf("exclude_paths %s is a mask, and the list takes paths", quote(entry))
+		return "", errors.New(i18n.T("guard.err.exclude.mask", quote(entry)))
 	}
 	if !isAbsPath(text) {
 		cleaned = g.absolute(text, cleaned)
