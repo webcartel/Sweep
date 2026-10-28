@@ -17,7 +17,7 @@ import (
 // returns what it printed and how it ended.
 func cleanExec(t *testing.T, d deps, args ...string) (string, string, error) {
 	t.Helper()
-	root := newRootCmd(d)
+	root := newRootCmd(d, pinEnglish(append([]string{"clean"}, args...)))
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errOut)

@@ -38,7 +38,7 @@ func registryMachine(t *testing.T) (deps, *fake.Registry, *fake.FS) {
 // runRegistry runs `sweep registry ...` on the deps given.
 func runRegistry(t *testing.T, d deps, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := newRootCmd(d)
+	cmd := newRootCmd(d, pinEnglish(append([]string{"registry"}, args...)))
 	var out, errOut bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
@@ -164,7 +164,7 @@ func TestRegistryCleanDryRun(t *testing.T) {
 
 // The command line declares the cleaner; the plan fills it in.
 func TestRegistryCommandIsDeclared(t *testing.T) {
-	cmd := newRootCmd(deps{})
+	cmd := newRootCmd(deps{}, nil)
 	found := false
 	for _, child := range cmd.Commands() {
 		if child.Name() == "registry" {

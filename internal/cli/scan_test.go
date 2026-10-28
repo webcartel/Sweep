@@ -75,7 +75,7 @@ func scanTree() *fake.FS {
 // returns what it printed and how it ended.
 func scanRun(t *testing.T, d deps, args ...string) (string, string, error) {
 	t.Helper()
-	root := newRootCmd(d)
+	root := newRootCmd(d, pinEnglish(append([]string{"scan"}, args...)))
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errOut)
@@ -261,7 +261,7 @@ func TestScanExitCodes(t *testing.T) {
 
 func TestScanCancel(t *testing.T) {
 	d := scanDeps(t)
-	root := newRootCmd(d)
+	root := newRootCmd(d, pinEnglish([]string{"scan"}))
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errOut)

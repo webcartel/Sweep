@@ -12,6 +12,7 @@ import (
 
 	"github.com/webcartel/sweep/internal/exec"
 	"github.com/webcartel/sweep/internal/guard"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/rules"
@@ -63,9 +64,14 @@ func realDeps() deps {
 // itself belongs to the core packages.
 //
 // Running `sweep` with no arguments in a terminal opens the TUI.
-func NewRootCmd() *cobra.Command { return newRootCmd(realDeps()) }
+func NewRootCmd() *cobra.Command { return newRootCmd(realDeps(), os.Args[1:]) }
 
-func newRootCmd(d deps) *cobra.Command {
+func newRootCmd(d deps, args []string) *cobra.Command {
+	// The language is set before a single command is built: cobra prints a
+	// command's help from the text that command was built with.
+	lang, settingsPath, langErr := langEarly(d, args)
+	i18n.Use(lang)
+
 	root := &cobra.Command{
 		Use:   "sweep",
 		Short: "Clean Windows according to YAML rules",
@@ -95,12 +101,20 @@ func newRootCmd(d deps) *cobra.Command {
 	root.PersistentFlags().String("preselect-registry", "",
 		"the registry findings a run was already agreed to")
 	_ = root.PersistentFlags().MarkHidden("preselect-registry")
+	root.PersistentFlags().String("lang", "",
+		`interface language: "en" or "ru" (default: the language of the system)`)
+
+	// A language sweep does not speak is a mistake to say, and it is said
+	// before any command runs.
+	if langErr != nil {
+		root.PersistentPreRunE = func(*cobra.Command, []string) error { return langErr }
+	}
 
 	root.RunE = func(c *cobra.Command, args []string) error {
 		if len(args) != 0 {
 			return usageError(fmt.Errorf("%q names nothing the run has", args[0]))
 		}
-		return openTUI(d, c)
+		return openTUI(d, c, settingsPath)
 	}
 
 	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d), newCleanCmd(d), newRegistryCmd(d))
@@ -156,7 +170,10 @@ func tuiLogDir(d deps) string {
 
 // openTUI assembles what the run reaches the machine through and lets the
 // screens of bubble tea take over.
-func openTUI(d deps, c *cobra.Command) error {
+// openTUI is the root command's body: it loads the rules, builds the
+// screens and hands the run to them. settingsPath is where the language
+// this run picked may be saved again from the interface.
+func openTUI(d deps, c *cobra.Command, settingsPath string) error {
 	set, err := loadSet(d, c)
 	if err != nil {
 		return err

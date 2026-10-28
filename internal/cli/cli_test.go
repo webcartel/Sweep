@@ -11,6 +11,16 @@ import (
 	"github.com/webcartel/sweep/internal/tui"
 )
 
+// pinEnglish keeps a test on the language it was written for. The real
+// machine may speak Russian, and newRootCmd sets the language from it, so
+// a test that says nothing about a language would render in Russian.
+func pinEnglish(args []string) []string {
+	if argGiven(args, "--lang") {
+		return args
+	}
+	return append([]string{"--lang", "en"}, args...)
+}
+
 // execute runs the root command with the given arguments and returns what it
 // wrote to stdout, what it wrote to stderr, and the error it returned. The two
 // streams are kept apart on purpose: a command that sends its answer to stderr
@@ -18,7 +28,7 @@ import (
 func execute(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
-	cmd := NewRootCmd()
+	cmd := newRootCmd(realDeps(), pinEnglish(args))
 	var out, errOut bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
@@ -78,7 +88,7 @@ func TestRootWithoutArgsRunsTUI(t *testing.T) {
 		Cwd:    t.TempDir(),
 		TUI:    func(u tui.Deps) error { called = true; got = u; return nil },
 	}
-	root := newRootCmd(d)
+	root := newRootCmd(d, pinEnglish([]string{"--ascii"}))
 	root.SetArgs([]string{"--ascii"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("sweep without arguments returned %v", err)
