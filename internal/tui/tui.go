@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/exec"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
 	"github.com/webcartel/sweep/internal/rules"
@@ -148,7 +149,7 @@ func New(d Deps) *Model {
 // Init starts the first command of the program: a run whose preselect
 // named the rules goes straight to the scan.
 func (m *Model) Init() tea.Cmd {
-	title := tea.SetWindowTitle("Sweep - free space safely")
+	title := tea.SetWindowTitle(i18n.T("app.title"))
 	if len(m.registryPreselect) != 0 && m.reg != nil {
 		m.screen = screenRegScan
 		return tea.Batch(title, m.scanRegistry())

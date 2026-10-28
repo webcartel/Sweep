@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/exec"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -183,7 +184,7 @@ func (m *Model) updateRunning(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case model.RuleFinished:
 		m.run.rulesDone++
-		m.run.feed = append(m.run.feed, fmt.Sprintf("rule %s: %s",
+		m.run.feed = append(m.run.feed, fmt.Sprintf(i18n.T("tui.run.rule"),
 			rpRuleID(one.Result), one.Result.Status))
 		m.run.execCmd = waitExecEvent(m.run.execEvents)
 		return m.run.execCmd, true
@@ -199,7 +200,7 @@ func (m *Model) viewRunning() string {
 		total = len(m.plan.Rules)
 	}
 	b := &body{}
-	b.add(titleStyle.Render("Cleaning..."))
+	b.add(titleStyle.Render(i18n.T("tui.run.headline")))
 	var planned int64
 	if m.plan != nil {
 		for _, rp := range m.plan.Rules {
@@ -212,33 +213,35 @@ func (m *Model) viewRunning() string {
 	} else if total != 0 {
 		portion = float64(m.run.rulesDone) / float64(total)
 	}
-	b.add(mutedStyle.Render(fmt.Sprintf("Rule %d of %d%s%d%%", m.run.rulesDone, total, m.skin.sep(), int(portion*100+0.5))))
+	b.add(mutedStyle.Render(i18n.T("tui.run.ruleof", m.run.rulesDone, total) + m.skin.sep() +
+		fmt.Sprintf("%d%%", int(portion*100+0.5))))
 	b.add(m.skin.bar(48, portion))
 	b.add("")
 	if planned != 0 {
-		b.add(fmt.Sprintf("Freed %s of %s", report.FormatBytes(m.run.freed), report.FormatBytes(planned)))
+		b.add(fmt.Sprintf(i18n.T("tui.run.freedof"), report.FormatBytes(m.run.freed), report.FormatBytes(planned)))
 	} else {
-		b.add(fmt.Sprintf("Freed so far: %s", report.FormatBytes(m.run.freed)))
+		b.add(fmt.Sprintf(i18n.T("tui.run.freedsofar"), report.FormatBytes(m.run.freed)))
 	}
 	if m.run.trashed != 0 {
-		b.add(mutedStyle.Render(report.FormatBytes(m.run.trashed) + " of it went to the Recycle Bin"))
+		b.add(mutedStyle.Render(fmt.Sprintf(i18n.T("tui.run.trashed"), report.FormatBytes(m.run.trashed))))
 	}
 	b.add("")
-	b.add(titleStyle.Render("Latest actions"))
+	b.add(titleStyle.Render(i18n.T("tui.run.latest")))
 	feed := m.run.feed
 	if len(feed) > 8 {
 		feed = feed[len(feed)-8:]
 	}
 	if len(feed) == 0 {
-		b.add(mutedStyle.Render("Nothing yet. Windows is checking the first rule."))
+		b.add(mutedStyle.Render(i18n.T("tui.run.nothingyet")))
 	}
 	for _, line := range feed {
 		b.add(mutedStyle.Render("  " + line))
 	}
 
-	return m.renderFrame("Cleaning", *b, mutedStyle.Render("Esc stops the run and goes back"), makeButtons(
-		buttonSpec{label: "Stop", action: actStop},
-	))
+	return m.renderFrame(i18n.T("tui.run.step"), *b,
+		mutedStyle.Render(i18n.T("tui.run.stophint")), makeButtons(
+			buttonSpec{label: i18n.T("tui.run.stop"), action: actStop},
+		))
 }
 
 // rpRuleID names the rule a result answers with.

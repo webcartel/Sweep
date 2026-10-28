@@ -491,13 +491,13 @@ func makeButtons(items ...buttonSpec) footerButtons {
 func humanProfile(name string) (title, about string) {
 	switch name {
 	case "default":
-		return "Everyday cleanup", "Caches and temporary files that Windows and apps rebuild."
+		return i18n.T("tui.profile.default.title"), i18n.T("tui.profile.default.about")
 	case "dev":
-		return "Developer cleanup", "Build caches of npm, Go, Docker and other tools."
+		return i18n.T("tui.profile.dev.title"), i18n.T("tui.profile.dev.about")
 	case "aggressive":
-		return "Deep cleanup", "Everything from Everyday, plus crash dumps and update leftovers."
+		return i18n.T("tui.profile.deep.title"), i18n.T("tui.profile.deep.about")
 	}
-	return name, "The rules this profile selects."
+	return name, i18n.T("tui.profile.otherabout")
 }
 
 // riskWord names a risk the way the badge of the spec writes it.
@@ -514,7 +514,7 @@ func riskWord(r model.Risk) string {
 
 // riskLegend explains the badges in plain words.
 func riskLegend() string {
-	return "SAFE - apps rebuild it   MOD - comes back slower   DANGER - may lose data"
+	return i18n.T("tui.risk.legend")
 }
 
 // riskStyleOf colors the plain word of a risk.
@@ -569,10 +569,13 @@ func mutedLine(text string, width int) string {
 
 // ruleCount names a number of rules with its noun.
 func ruleCount(n int) string {
-	if n == 1 {
-		return "1 rule"
+	if i18n.Current() == i18n.LangRU {
+		return fmt.Sprintf("%d %s", n, russianPlural(n, "правило", "правила", "правил"))
 	}
-	return fmt.Sprintf("%d rules", n)
+	if n == 1 {
+		return i18n.T("tui.rulescount.one")
+	}
+	return fmt.Sprintf(i18n.T("tui.rulescount.many"), n)
 }
 
 // humanCount writes an integer with thousands groups: 11623 -> 11,623.
@@ -593,4 +596,49 @@ func humanCount(n int64) string {
 		out = "-" + out
 	}
 	return out
+}
+
+// rulesCount words a number of rules the way the language counts. Russian
+// has three endings and picks one by the last digits; English has one
+// form in the catalog today.
+func (m *Model) rulesCount(n int) string {
+	if i18n.Current() == i18n.LangRU {
+		return fmt.Sprintf("%d %s", n, russianPlural(n, "правило", "правила", "правил"))
+	}
+	return fmt.Sprintf(i18n.T("tui.profile.rulescount"), n)
+}
+
+// filesCount words a number of files the same way.
+func (m *Model) filesCount(n int64) string {
+	if i18n.Current() == i18n.LangRU {
+		return fmt.Sprintf("%d %s", n, russianPlural(int(n), "файл", "файла", "файлов"))
+	}
+	return fmt.Sprintf(i18n.T("tui.scan.filescount"), n)
+}
+
+// notesCount words a number of notes the same way.
+func (m *Model) notesCount(n int) string {
+	if i18n.Current() == i18n.LangRU {
+		return fmt.Sprintf("%d %s", n, russianPlural(n, "заметка", "заметки", "заметок"))
+	}
+	return fmt.Sprintf(i18n.T("tui.scan.notescount"), n)
+}
+
+// russianPlural picks the ending a number takes: one, a few or many. The
+// 11..14 range is the exception Russian keeps, where 11 is many rather
+// than one.
+func russianPlural(n int, one, few, many string) string {
+	abs := n
+	if abs < 0 {
+		abs = -abs
+	}
+	switch {
+	case abs%100 >= 11 && abs%100 <= 14:
+		return many
+	case abs%10 == 1:
+		return one
+	case abs%10 >= 2 && abs%10 <= 4:
+		return few
+	}
+	return many
 }

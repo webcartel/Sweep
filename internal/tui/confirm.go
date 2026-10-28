@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -66,23 +67,23 @@ func (m *Model) updateConfirm(msg tea.Msg) (tea.Cmd, bool) {
 func (m *Model) viewConfirm() string {
 	rules, files, bytes := m.totals()
 	b := &body{}
-	b.add(titleStyle.Render(fmt.Sprintf("Ready to clean %s", report.FormatBytes(bytes))))
+	b.add(titleStyle.Render(fmt.Sprintf(i18n.T("tui.confirm.ready"), report.FormatBytes(bytes))))
 	_, about := humanProfile(m.profileOfHeader())
-	b.add(mutedStyle.Render(fmt.Sprintf("%s%s%s files%s%s",
+	b.add(mutedStyle.Render(fmt.Sprintf(i18n.T("tui.confirm.summary"),
 		ruleCount(rules), m.skin.sep(), humanCount(files), m.skin.sep(), about)))
 	b.add("")
 
 	if m.trash {
-		b.add("Files go to the Recycle Bin. You can restore them if you change your mind.")
+		b.add(i18n.T("tui.confirm.trash"))
 	} else {
-		b.add("Files are deleted permanently. They cannot be restored.")
+		b.add(i18n.T("tui.confirm.permanent"))
 	}
-	b.add(mutedStyle.Render("Safety check runs again before every deletion."))
+	b.add(mutedStyle.Render(i18n.T("tui.confirm.safety")))
 
 	danger := m.selectedDangerous()
 	if danger {
 		b.add("")
-		b.add(dangerStyle.Render("Some chosen rules may remove data you still want:"))
+		b.add(dangerStyle.Render(i18n.T("tui.confirm.danger")))
 		for _, rp := range m.plan.Rules {
 			if rp.Rule != nil && rp.Rule.Risk == model.RiskDangerous && m.selection.Rules[rp.Rule.ID] {
 				name := rp.Rule.Name
@@ -94,26 +95,27 @@ func (m *Model) viewConfirm() string {
 		}
 		b.add("")
 		if m.confirmText == "yes" {
-			b.add(safeStyle.Render("Type yes to allow these rules: ") + "yes")
+			b.add(safeStyle.Render(i18n.T("tui.confirm.typeyes")) + "yes")
 		} else {
-			b.add("Type yes to allow these rules: " + m.confirmText + m.skin.caret())
+			b.add(i18n.T("tui.confirm.typeyes") + m.confirmText + m.skin.caret())
 		}
 	}
 
 	if m.adminNeeded() {
 		b.add("")
-		b.add(warningStyle().Render("Some chosen rules need administrator rights."))
-		b.add(mutedStyle.Render("Restart Sweep as administrator to include them."))
+		b.add(warningStyle().Render(i18n.T("tui.confirm.adminsome")))
+		b.add(mutedStyle.Render(i18n.T("tui.confirm.adminrestart")))
 	}
 
-	buttons := []buttonSpec{{label: "Yes, clean now", primary: true, action: actClean}}
+	buttons := []buttonSpec{{label: i18n.T("tui.confirm.clean"), primary: true, action: actClean}}
 	if m.adminNeeded() {
-		buttons = append(buttons, buttonSpec{label: "Restart as administrator", action: actRestart})
+		buttons = append(buttons, buttonSpec{label: i18n.T("tui.confirm.restart"), action: actRestart})
 	}
-	buttons = append(buttons, buttonSpec{label: "Go back", action: actBack})
+	buttons = append(buttons, buttonSpec{label: i18n.T("tui.confirm.goback"), action: actBack})
 
-	hint := "Enter clean" + m.skin.sep() + "Esc back" + m.skin.sep() + "T recycle bin"
-	return m.renderFrame("Step 4 of 4", *b, mutedStyle.Render(hint), makeButtons(buttons...))
+	hint := i18n.T("tui.confirm.hint.clean") + m.skin.sep() +
+		i18n.T("tui.hint.back") + m.skin.sep() + i18n.T("tui.confirm.hint.bin")
+	return m.renderFrame(i18n.T("tui.frame.step", 4, 4), *b, mutedStyle.Render(hint), makeButtons(buttons...))
 }
 
 // pendingWord answers whether the risky rules still wait for their word.

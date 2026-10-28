@@ -2,6 +2,8 @@ package tui
 
 import (
 	"github.com/charmbracelet/bubbletea"
+
+	"github.com/webcartel/sweep/internal/i18n"
 )
 
 const (
@@ -33,33 +35,34 @@ func (m *Model) openHelp() {
 // needs them.
 func (m *Model) viewHelp() string {
 	b := &body{}
-	b.add(titleStyle.Render("How Sweep works"))
-	for _, line := range wrapText("Sweep finds files that are safe to remove, shows you the list, and deletes only what you tick. It never stops your apps and never touches Windows itself.", m.screenWidth()-8) {
+	b.add(titleStyle.Render(i18n.T("tui.help.title")))
+	for _, line := range wrapText(i18n.T("tui.help.intro"), m.screenWidth()-8) {
 		b.add(line)
 	}
 	b.add("")
-	b.add(titleStyle.Render("Keys"))
+	b.add(titleStyle.Render(i18n.T("tui.help.keys")))
 	rows := [][2]string{
-		{"Up/Down or J K", "move between rows"},
-		{"Space", "choose or unchoose a rule"},
-		{"A / N", "choose every safe rule / choose none"},
-		{"/", "find a rule by name"},
-		{"O", "sort by size or by name"},
-		{"Enter or D", "show every path of a rule"},
-		{"C", "continue to the confirmation"},
-		{"T", "send files to the Recycle Bin instead"},
-		{"R", "scan again"},
-		{"S", "save the report (on the result screen)"},
-		{"? ", "this help"},
-		{"Q / Esc", "go back or quit"},
+		{"Up/Down or J K", i18n.T("tui.help.rows.move")},
+		{"Space", i18n.T("tui.help.rows.choose")},
+		{"A / N", i18n.T("tui.help.rows.allsafe")},
+		{"/", i18n.T("tui.help.rows.find")},
+		{"O", i18n.T("tui.help.rows.sort")},
+		{"Enter or D", i18n.T("tui.help.rows.detail")},
+		{"C", i18n.T("tui.help.rows.continue")},
+		{"T", i18n.T("tui.help.rows.bin")},
+		{"R", i18n.T("tui.help.rows.again")},
+		{"S", i18n.T("tui.help.rows.save")},
+		{"? ", i18n.T("tui.help.rows.help")},
+		{"Q / Esc", i18n.T("tui.help.rows.quit")},
 	}
 	for _, row := range rows {
 		b.add("  " + fit(row[0], 12) + mutedStyle.Render(row[1]))
 	}
 	b.add("")
-	b.add(mutedStyle.Render("Mouse: click a row to tick it, click a button to run it."))
+	b.add(mutedStyle.Render(i18n.T("tui.help.mouse")))
 
-	return m.renderFrame("Help", *b, mutedStyle.Render("Esc or ? close"), makeButtons(
-		buttonSpec{label: "Close help", primary: true, action: actCloseHelp},
-	))
+	return m.renderFrame(i18n.T("tui.help.step"), *b,
+		mutedStyle.Render(i18n.T("tui.help.closehint")), makeButtons(
+			buttonSpec{label: i18n.T("tui.help.close"), primary: true, action: actCloseHelp},
+		))
 }

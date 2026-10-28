@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -115,7 +116,7 @@ func (m *Model) chooseSafeOnly() {
 			safe++
 		}
 	}
-	m.notice = fmt.Sprintf("Only safe rules are chosen: %s.", ruleCount(safe))
+	m.notice = fmt.Sprintf(i18n.T("tui.list.safenotice"), ruleCount(safe))
 }
 
 // chooseNone takes every rule out of the choice.
@@ -276,20 +277,22 @@ func (m *Model) viewList() string {
 
 	b := &body{}
 	if m.filtering {
-		b.add("Find: " + m.filter + m.skin.caret())
+		b.add(i18n.T("tui.list.find") + " " + m.filter + m.skin.caret())
 	} else {
-		b.add(titleStyle.Render(fmt.Sprintf("Found %s you can free", report.FormatBytes(bytes))))
+		b.add(titleStyle.Render(fmt.Sprintf(i18n.T("tui.list.found"), report.FormatBytes(bytes))))
 		_, about := humanProfile(m.profileOfHeader())
-		b.add(mutedStyle.Render(fmt.Sprintf("%d of %s chosen%s%s files%s%s",
+		b.add(mutedStyle.Render(fmt.Sprintf(i18n.T("tui.list.chosen"),
 			rules, ruleCount(len(m.plan.Rules)), m.skin.sep(), humanCount(files), m.skin.sep(), about)))
 	}
 	b.add("")
 
 	order := ""
 	if m.sort == "name" {
-		order = "sorted A-Z"
+		order = i18n.T("tui.list.sorted")
 	}
-	header := fmt.Sprintf("    %-*s  %-7s %8s %9s   %s", nameWidth, "ITEM", "RISK", "FILES", "SIZE", order)
+	header := fmt.Sprintf("    %-*s  %-7s %8s %9s   %s", nameWidth,
+		i18n.T("tui.list.item"), i18n.T("tui.list.risk"), i18n.T("tui.list.files"),
+		i18n.T("tui.list.size"), order)
 	b.add(mutedStyle.Render(mutedLine(riskLegend(), inner)))
 	b.add(mutedStyle.Render(header))
 
@@ -333,7 +336,7 @@ func (m *Model) viewList() string {
 		}
 		sizeText := report.FormatBytes(rp.Bytes)
 		if rp.Files == 0 && rp.Bytes == 0 {
-			sizeText = "nothing"
+			sizeText = i18n.T("tui.list.nothing")
 		}
 		line := fmt.Sprintf("%s %s %-*s  %-7s %8s %9s   %s",
 			pick, mark, nameWidth, fit(name, nameWidth),
@@ -360,38 +363,43 @@ func (m *Model) viewList() string {
 		}
 	}
 	if hidden != 0 {
-		label := fmt.Sprintf("%d rules found nothing here (click to show)", hidden)
+		label := i18n.T("tui.list.hidden.show", hidden)
 		if m.showEmpty {
-			label = fmt.Sprintf("%d rules found nothing here (click to hide)", hidden)
+			label = i18n.T("tui.list.hidden.hide", hidden)
 		}
 		index := b.add(mutedStyle.Render(label))
 		b.hit(index, 0, len(label)+2, actShowEmpty, "")
 	}
 
-	binState := "Off - files are deleted permanently"
-	binButton := "Recycle bin: Off"
+	binState := i18n.T("tui.list.bin.off")
+	binButton := i18n.T("tui.list.bin.buttonoff")
 	if m.trash {
-		binState = "On - files go to the Recycle Bin"
-		binButton = "Recycle bin: On"
+		binState = i18n.T("tui.list.bin.on")
+		binButton = i18n.T("tui.list.bin.buttonon")
 	}
-	b.add(mutedStyle.Render("Recycle Bin: " + binState))
-	b.add(mutedStyle.Render("Nothing is removed until you press Clean up."))
+	b.add(mutedStyle.Render(i18n.T("tui.list.bintitle") + " " + binState))
+	b.add(mutedStyle.Render(i18n.T("tui.list.nothingyet")))
 	if m.notice != "" {
 		b.add(successStyle.Render(m.notice))
 	}
 
-	cleanLabel := fmt.Sprintf("Clean up %s", report.FormatBytes(bytes))
+	cleanLabel := fmt.Sprintf(i18n.T("tui.list.cleanup"), report.FormatBytes(bytes))
 	if bytes == 0 {
-		cleanLabel = "Nothing chosen"
+		cleanLabel = i18n.T("tui.list.nothingchosen")
 	}
-	hint := "Space toggle" + m.skin.sep() + "A safe only" + m.skin.sep() + "N choose none" +
-		m.skin.sep() + "/ find" + m.skin.sep() + "O sort" + m.skin.sep() + "Enter details" + m.skin.sep() + "? help"
-	return m.renderFrame("Step 3 of 4", *b, mutedStyle.Render(hint), makeButtons(
+	hint := i18n.T("tui.list.hint.toggle") + m.skin.sep() +
+		i18n.T("tui.list.hint.safe") + m.skin.sep() +
+		i18n.T("tui.list.hint.none") + m.skin.sep() +
+		i18n.T("tui.list.hint.find") + m.skin.sep() +
+		i18n.T("tui.list.hint.sort") + m.skin.sep() +
+		i18n.T("tui.list.hint.details") + m.skin.sep() +
+		i18n.T("tui.list.hint.help")
+	return m.renderFrame(i18n.T("tui.frame.step", 3, 4), *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: cleanLabel, primary: true, action: actConfirm},
-		buttonSpec{label: "Choose safe only", action: actSelectSafe},
+		buttonSpec{label: i18n.T("tui.list.safely"), action: actSelectSafe},
 		buttonSpec{label: binButton, action: actToggleBin},
-		buttonSpec{label: "Help", action: actHelp},
-		buttonSpec{label: "Quit", action: actQuit},
+		buttonSpec{label: i18n.T("tui.profile.help"), action: actHelp},
+		buttonSpec{label: i18n.T("tui.profile.quit"), action: actQuit},
 	))
 }
 

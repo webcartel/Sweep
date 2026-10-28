@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -86,10 +87,10 @@ func (m *Model) updateProfile(msg tea.Msg) (tea.Cmd, bool) {
 // clean, and the one button that starts the scan.
 func (m *Model) viewProfile() string {
 	b := &body{}
-	b.add(titleStyle.Render("Free space safely."))
-	b.add(mutedStyle.Render("Sweep finds files you no longer need. Nothing goes without your approval."))
+	b.add(titleStyle.Render(i18n.T("tui.profile.headline")))
+	b.add(mutedStyle.Render(i18n.T("tui.profile.intro")))
 	b.add("")
-	b.add(titleStyle.Render("Choose how deep to clean:"))
+	b.add(titleStyle.Render(i18n.T("tui.profile.choose")))
 	b.add("")
 
 	for i, p := range m.profiles {
@@ -103,7 +104,7 @@ func (m *Model) viewProfile() string {
 		if title != p.Name {
 			line += m.skin.sep() + name
 		}
-		line += m.skin.sep() + fmt.Sprintf("%d rules", p.Rules)
+		line += m.skin.sep() + m.rulesCount(p.Rules)
 		if i == m.cursor {
 			line = selectedStyle.Render(line)
 		}
@@ -114,21 +115,26 @@ func (m *Model) viewProfile() string {
 		b.add("")
 	}
 
-	b.add(mutedStyle.Render("You will see exactly what will be removed before anything is deleted."))
+	b.add(mutedStyle.Render(i18n.T("tui.profile.promise")))
 
-	hint := m.skin.arrows() + " choose" + m.skin.sep() + "Enter start" + m.skin.sep() + "G rules" + m.skin.sep() + "R registry" + m.skin.sep() + "? help" + m.skin.sep() + "Q quit"
-	startLabel := "Start scan"
+	hint := m.skin.arrows() + i18n.T("tui.profile.hint.choose") + m.skin.sep() +
+		i18n.T("tui.profile.hint.start") + m.skin.sep() +
+		i18n.T("tui.profile.hint.rules") + m.skin.sep() +
+		i18n.T("tui.profile.hint.registry") + m.skin.sep() +
+		i18n.T("tui.profile.hint.help") + m.skin.sep() +
+		i18n.T("tui.profile.hint.quit")
+	startLabel := i18n.T("tui.profile.start")
 	if m.cursor < len(m.profiles) {
 		if title, _ := humanProfile(m.profiles[m.cursor].Name); title != "" {
-			startLabel = "Start: " + title
+			startLabel = i18n.T("tui.profile.startwith", title)
 		}
 	}
-	return m.renderFrame("Step 1 of 4", *b, mutedStyle.Render(hint), makeButtons(
+	return m.renderFrame(i18n.T("tui.frame.step", 1, 4), *b, mutedStyle.Render(hint), makeButtons(
 		buttonSpec{label: startLabel, primary: true, action: actStart},
-		buttonSpec{label: "Rules & settings", action: actRules},
-		buttonSpec{label: "Registry cleanup", action: actRegOpen},
-		buttonSpec{label: "Help", action: actHelp},
-		buttonSpec{label: "Quit", action: actQuit},
+		buttonSpec{label: i18n.T("tui.profile.rules"), action: actRules},
+		buttonSpec{label: i18n.T("tui.profile.registry"), action: actRegOpen},
+		buttonSpec{label: i18n.T("tui.profile.help"), action: actHelp},
+		buttonSpec{label: i18n.T("tui.profile.quit"), action: actQuit},
 	))
 }
 
@@ -136,14 +142,14 @@ func (m *Model) viewProfile() string {
 // so far, and the button that stops it.
 func (m *Model) viewScanning() string {
 	b := &body{}
-	b.add(titleStyle.Render("Looking for files to clean..."))
+	b.add(titleStyle.Render(i18n.T("tui.scan.headline")))
 	total := len(m.scanRules)
 	done := len(m.progress)
 	if total != 0 {
-		b.add(mutedStyle.Render(fmt.Sprintf("Rule %d of %d%skeep this window open", done, total, m.skin.sep())))
+		b.add(mutedStyle.Render(i18n.T("tui.scan.ruleof", done, total) + m.skin.sep() + i18n.T("tui.scan.keepopen")))
 		b.add(m.skin.bar(48, float64(done)/float64(total)))
 	} else {
-		b.add(mutedStyle.Render("Reading the rules of the profile..."))
+		b.add(mutedStyle.Render(i18n.T("tui.scan.reading")))
 	}
 	b.add("")
 
@@ -153,7 +159,7 @@ func (m *Model) viewScanning() string {
 		files += int64(plan.Files)
 		bytes += plan.Bytes
 	}
-	b.add(fmt.Sprintf("Found so far: %s in %s files", report.FormatBytes(bytes), humanCount(files)))
+	b.add(fmt.Sprintf(i18n.T("tui.scan.found"), report.FormatBytes(bytes), m.filesCount(files)))
 
 	// The rules already walked, the largest first: the screen says what is
 	// being found while the walk goes on.
@@ -186,14 +192,14 @@ func (m *Model) viewScanning() string {
 	}
 	if m.scanError != nil {
 		b.add("")
-		b.add(dangerStyle.Render("The scan stopped: " + m.scanError.Error()))
+		b.add(dangerStyle.Render(i18n.T("tui.scan.scanerror") + m.scanError.Error()))
 	} else if len(m.notes) != 0 {
-		b.add(mutedStyle.Render(fmt.Sprintf("%d notes - details are in the final report", len(m.notes))))
+		b.add(mutedStyle.Render(i18n.T("tui.scan.notes", m.notesCount(len(m.notes)))))
 	}
 	b.add("")
-	b.add(mutedStyle.Render("Folders that do not exist are normal: the app may not be installed."))
+	b.add(mutedStyle.Render(i18n.T("tui.scan.absent")))
 
-	return m.renderFrame("Step 2 of 4", *b, mutedStyle.Render("Esc cancel"), makeButtons(
-		buttonSpec{label: "Cancel", action: actCancelScan},
+	return m.renderFrame(i18n.T("tui.frame.step", 2, 4), *b, mutedStyle.Render(i18n.T("tui.scan.cancelhint")), makeButtons(
+		buttonSpec{label: i18n.T("tui.scan.cancel"), action: actCancelScan},
 	))
 }

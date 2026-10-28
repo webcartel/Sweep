@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -126,19 +127,19 @@ func (m *Model) viewDetail() string {
 		}
 	}
 	b.add("")
-	b.add(fmt.Sprintf("This rule frees %s in %s files.",
+	b.add(fmt.Sprintf(i18n.T("tui.detail.frees"),
 		report.FormatBytes(rp.Bytes), humanCount(int64(rp.Files))))
 	if rp.Rule != nil && rp.Rule.RequiresAdmin {
-		b.add(warningStyle().Render("Needs administrator rights."))
+		b.add(warningStyle().Render(i18n.T("tui.detail.admin")))
 	}
 	if rp.Rule != nil && len(rp.Rule.RequiresClosed) != 0 {
-		b.add(warningStyle().Render("Skipped while running: " + strings.Join(rp.Rule.RequiresClosed, ", ")))
+		b.add(warningStyle().Render(i18n.T("tui.detail.closed") + strings.Join(rp.Rule.RequiresClosed, ", ")))
 	}
 	b.add("")
 
 	items := m.detailItems()
 	if len(items) == 0 {
-		b.add(mutedStyle.Render("This rule runs a command instead of deleting paths."))
+		b.add(mutedStyle.Render(i18n.T("tui.detail.command")))
 		if rp.Rule != nil {
 			for _, target := range rp.Rule.Targets {
 				if target.Kind == model.KindCommand {
@@ -147,7 +148,7 @@ func (m *Model) viewDetail() string {
 			}
 		}
 	} else {
-		b.add(mutedStyle.Render("Untick anything you want to keep:"))
+		b.add(mutedStyle.Render(i18n.T("tui.detail.keep")))
 		for i, item := range items {
 			mark := m.skin.checkbox(!m.selection.Exclude[item.Path])
 			pick := "  "
@@ -168,10 +169,11 @@ func (m *Model) viewDetail() string {
 		}
 	}
 
-	return m.renderFrame("Details", *b, mutedStyle.Render("Space include or keep"+m.skin.sep()+"Esc back to the list"), makeButtons(
-		buttonSpec{label: "Back to the list", primary: true, action: actBack},
-		buttonSpec{label: "Help", action: actHelp},
-	))
+	return m.renderFrame(i18n.T("tui.detail.step"), *b,
+		mutedStyle.Render(i18n.T("tui.detail.hint")+m.skin.sep()+i18n.T("tui.hint.back")), makeButtons(
+			buttonSpec{label: i18n.T("tui.detail.backto"), primary: true, action: actBack},
+			buttonSpec{label: i18n.T("tui.profile.help"), action: actHelp},
+		))
 }
 
 // warningStyle colors a line that asks the reader to think.

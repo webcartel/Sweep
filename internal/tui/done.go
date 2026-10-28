@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/report"
 )
@@ -68,27 +69,28 @@ func (m *Model) viewDone() string {
 	r := m.run.result
 	if r == nil {
 		b := &body{}
-		b.add(titleStyle.Render("The run ended without a result."))
-		b.add(mutedStyle.Render("Nothing was removed."))
-		return m.renderFrame("Done", *b, mutedStyle.Render("Q quit"), makeButtons(
-			buttonSpec{label: "Quit", action: actQuit},
+		b.add(titleStyle.Render(i18n.T("tui.done.noresult")))
+		b.add(mutedStyle.Render(i18n.T("tui.done.nothingremoved")))
+		return m.renderFrame(i18n.T("tui.done.step"), *b, mutedStyle.Render(i18n.T("tui.done.quithint")), makeButtons(
+			buttonSpec{label: i18n.T("tui.profile.quit"), action: actQuit},
 		))
 	}
 	b := &body{}
-	b.add(bigStyle.Render("Freed " + report.FormatBytes(r.FreedBytes)))
-	b.add(mutedStyle.Render(fmt.Sprintf("%s files removed%s%d rules", humanCount(r.Files), m.skin.sep(), len(r.PerRule))))
+	b.add(bigStyle.Render(i18n.T("tui.done.freed") + report.FormatBytes(r.FreedBytes)))
+	b.add(mutedStyle.Render(fmt.Sprintf(i18n.T("tui.done.summary"),
+		m.filesCount(r.Files), m.skin.sep(), len(r.PerRule))))
 	b.add("")
-	b.add(fmt.Sprintf("Removed:            %s", humanCount(int64(r.Removed))))
+	b.add(fmt.Sprintf("%-19s%s", i18n.T("tui.done.removed"), humanCount(int64(r.Removed))))
 	if r.TrashBytes != 0 {
-		b.add(fmt.Sprintf("Sent to the bin:    %s", report.FormatBytes(r.TrashBytes)))
+		b.add(fmt.Sprintf("%-19s%s", i18n.T("tui.done.bin"), report.FormatBytes(r.TrashBytes)))
 	}
 	if r.Skipped != 0 {
-		b.add(fmt.Sprintf("Skipped:            %s", humanCount(int64(r.Skipped))))
-		b.add(mutedStyle.Render("Skipped files were in use. Close the app and run Sweep again."))
+		b.add(fmt.Sprintf("%-19s%s", i18n.T("tui.done.skipped"), humanCount(int64(r.Skipped))))
+		b.add(mutedStyle.Render(i18n.T("tui.done.skippedwhy")))
 	}
 	if r.Failed != 0 {
-		b.add(fmt.Sprintf("Failed:             %s", humanCount(int64(r.Failed))))
-		b.add(mutedStyle.Render("Close the apps that hold these files and try again."))
+		b.add(fmt.Sprintf("%-19s%s", i18n.T("tui.done.failed"), humanCount(int64(r.Failed))))
+		b.add(mutedStyle.Render(i18n.T("tui.done.failedwhy")))
 		var failed []string
 		for _, one := range r.PerRule {
 			if one.Status == model.StatusFailed {
@@ -107,17 +109,17 @@ func (m *Model) viewDone() string {
 		}
 	}
 	if len(r.PendingReboot) != 0 {
-		b.add(fmt.Sprintf("After a restart:    %s files", humanCount(int64(len(r.PendingReboot)))))
+		b.add(fmt.Sprintf("%-19s%s", i18n.T("tui.done.reboot"), m.filesCount(int64(len(r.PendingReboot)))))
 	}
 	b.add("")
-	b.add(mutedStyle.Render("Every action is in the log. Press S to save a JSON report."))
+	b.add(mutedStyle.Render(i18n.T("tui.done.loghint")))
 	if m.run.saveNote != "" {
 		b.add(successStyle.Render(m.run.saveNote))
 	}
 
-	hint := "S save report" + m.skin.sep() + "Q quit"
-	return m.renderFrame("Done", *b, mutedStyle.Render(hint), makeButtons(
-		buttonSpec{label: "Save report", primary: true, action: actSaveReport},
-		buttonSpec{label: "Quit", action: actQuit},
+	hint := i18n.T("tui.done.hint.save") + m.skin.sep() + i18n.T("tui.done.quithint")
+	return m.renderFrame(i18n.T("tui.done.step"), *b, mutedStyle.Render(hint), makeButtons(
+		buttonSpec{label: i18n.T("tui.done.savereport"), primary: true, action: actSaveReport},
+		buttonSpec{label: i18n.T("tui.profile.quit"), action: actQuit},
 	))
 }
