@@ -142,6 +142,8 @@ an old console. The interface needs at least 80 x 24 cells.
 
 ![The start screen in Russian](.github/i18n-profile.png)
 
+![The review list in Russian](.github/i18n-list.png)
+
 ## Language
 
 The interface speaks English and Russian. English is the default.
