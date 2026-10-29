@@ -66,6 +66,9 @@ func (m *Model) updateProfile(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case "r":
 		return m.openRegistry(), true
+	case "f":
+		m.openExplorer()
+		return nil, true
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
@@ -121,6 +124,7 @@ func (m *Model) viewProfile() string {
 		i18n.T("tui.profile.hint.start") + m.skin.sep() +
 		i18n.T("tui.profile.hint.rules") + m.skin.sep() +
 		i18n.T("tui.profile.hint.registry") + m.skin.sep() +
+		i18n.T("tui.profile.hint.explore") + m.skin.sep() +
 		i18n.T("tui.profile.hint.help") + m.skin.sep() +
 		i18n.T("tui.profile.hint.quit")
 	startLabel := i18n.T("tui.profile.start")
@@ -133,6 +137,7 @@ func (m *Model) viewProfile() string {
 		buttonSpec{label: startLabel, primary: true, action: actStart},
 		buttonSpec{label: i18n.T("tui.profile.rules"), action: actRules},
 		buttonSpec{label: i18n.T("tui.profile.registry"), action: actRegOpen},
+		buttonSpec{label: i18n.T("tui.profile.explore"), action: actExplore},
 		buttonSpec{label: i18n.T("tui.profile.help"), action: actHelp},
 		buttonSpec{label: i18n.T("tui.profile.quit"), action: actQuit},
 	))

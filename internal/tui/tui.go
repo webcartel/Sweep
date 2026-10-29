@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/webcartel/sweep/internal/exec"
+	"github.com/webcartel/sweep/internal/guard"
 	"github.com/webcartel/sweep/internal/i18n"
 	"github.com/webcartel/sweep/internal/model"
 	"github.com/webcartel/sweep/internal/platform"
@@ -74,6 +75,9 @@ type Deps struct {
 	// SettingsPath is the settings.yaml of this run, next to config.yaml.
 	// It is where the language the user picks is saved again.
 	SettingsPath string
+	// Guard is what the overview asks before it removes a path the user
+	// ticked.
+	Guard *guard.Guard
 }
 
 // Model is the one Bubble Tea model of the TUI. Every screen of the run is a
@@ -92,6 +96,7 @@ type Model struct {
 	uacState
 	rulesState
 	regState
+	exploreState
 	registryPreselect []string
 	logDir            string
 	run               runState
@@ -141,6 +146,7 @@ func New(d Deps) *Model {
 	m.regEnv = env
 	m.regElevated = elevatedOf(d.System)
 	m.registryRestart = d.RestartRegistry
+	m.guard = d.Guard
 	m.skin = newSkin(env, d.AsciiFlag, d.NoASCIIFlag)
 	m.sort = "size"
 	return m
@@ -222,6 +228,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, _ = m.updateRegRunning(msg)
 	case screenRegDone:
 		cmd, _ = m.updateRegDone(msg)
+	case screenExRoot:
+		cmd, _ = m.updateExRoot(msg)
+	case screenExScan:
+		cmd, _ = m.updateExScan(msg)
+	case screenExTree:
+		cmd, _ = m.updateExTree(msg)
+	case screenExConfirm:
+		cmd, _ = m.updateExConfirm(msg)
+	case screenExDone:
+		cmd, _ = m.updateExDone(msg)
 	}
 	return m, cmd
 }
@@ -275,6 +291,16 @@ func (m *Model) View() string {
 		return m.viewRegRunning()
 	case screenRegDone:
 		return m.viewRegDone()
+	case screenExRoot:
+		return m.viewExRoot()
+	case screenExScan:
+		return m.viewExScan()
+	case screenExTree:
+		return m.viewExTree()
+	case screenExConfirm:
+		return m.viewExConfirm()
+	case screenExDone:
+		return m.viewExDone()
 	}
 	return ""
 }

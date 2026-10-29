@@ -35,51 +35,64 @@ type clickBox struct {
 
 // The actions a press can carry.
 const (
-	actStart       = "start"
-	actPickProfile = "pick-profile"
-	actHelp        = "help"
-	actQuit        = "quit"
-	actCloseHelp   = "close-help"
-	actCancelScan  = "cancel-scan"
-	actToggleRule  = "toggle-rule"
-	actOpenDetail  = "open-detail"
-	actSelectSafe  = "select-safe"
-	actSelectNone  = "select-none"
-	actToggleBin   = "toggle-bin"
-	actConfirm     = "confirm"
-	actClean       = "clean"
-	actBack        = "back"
-	actRestart     = "restart"
-	actStop        = "stop"
-	actSaveReport  = "save-report"
-	actToggleItem  = "toggle-item"
-	actRow         = "row"
-	actShowEmpty   = "show-empty"
-	actRules       = "rules"
-	actBrowseRules = "browse-rules"
-	actViewConfig  = "view-config"
-	actUserRules   = "user-rules"
-	actRuleOpen    = "rule-open"
-	actOpenUser    = "open-user-file"
-	actNewRule     = "new-rule"
-	actSaveRule    = "save-rule"
-	actPreviewRule = "preview-rule"
-	actNotepad     = "notepad"
-	actDeleteRule  = "delete-rule"
-	actDeleteYes   = "delete-yes"
-	actField       = "field"
-	actPreviewBack = "preview-back"
-	actRegOpen     = "registry-open"
-	actRegToggle   = "registry-toggle"
-	actRegContinue = "registry-continue"
-	actRegClean    = "registry-clean"
-	actRegRestart  = "registry-restart"
-	actRegBack     = "registry-back"
-	actLang        = "lang-open"
-	actLangEN      = "lang-en"
-	actLangRU      = "lang-ru"
-	actLangSave    = "lang-save"
-	actLangCancel  = "lang-cancel"
+	actStart         = "start"
+	actPickProfile   = "pick-profile"
+	actHelp          = "help"
+	actQuit          = "quit"
+	actCloseHelp     = "close-help"
+	actCancelScan    = "cancel-scan"
+	actToggleRule    = "toggle-rule"
+	actOpenDetail    = "open-detail"
+	actSelectSafe    = "select-safe"
+	actSelectNone    = "select-none"
+	actToggleBin     = "toggle-bin"
+	actConfirm       = "confirm"
+	actClean         = "clean"
+	actBack          = "back"
+	actRestart       = "restart"
+	actStop          = "stop"
+	actSaveReport    = "save-report"
+	actToggleItem    = "toggle-item"
+	actRow           = "row"
+	actShowEmpty     = "show-empty"
+	actRules         = "rules"
+	actBrowseRules   = "browse-rules"
+	actViewConfig    = "view-config"
+	actUserRules     = "user-rules"
+	actRuleOpen      = "rule-open"
+	actOpenUser      = "open-user-file"
+	actNewRule       = "new-rule"
+	actSaveRule      = "save-rule"
+	actPreviewRule   = "preview-rule"
+	actNotepad       = "notepad"
+	actDeleteRule    = "delete-rule"
+	actDeleteYes     = "delete-yes"
+	actField         = "field"
+	actPreviewBack   = "preview-back"
+	actRegOpen       = "registry-open"
+	actRegToggle     = "registry-toggle"
+	actRegContinue   = "registry-continue"
+	actRegClean      = "registry-clean"
+	actRegRestart    = "registry-restart"
+	actRegBack       = "registry-back"
+	actLang          = "lang-open"
+	actLangEN        = "lang-en"
+	actLangRU        = "lang-ru"
+	actLangSave      = "lang-save"
+	actLangCancel    = "lang-cancel"
+	actExplore       = "explore-open"
+	actExRootProfile = "ex-root-profile"
+	actExRootDrive   = "ex-root-drive"
+	actExStart       = "ex-start"
+	actExCancel      = "ex-cancel"
+	actExTick        = "ex-tick"
+	actExUp          = "ex-up"
+	actExTop         = "ex-top"
+	actExInvert      = "ex-invert"
+	actExClear       = "ex-clear"
+	actExContinue    = "ex-continue"
+	actExClean       = "ex-clean"
+	actExBack        = "ex-back"
 )
 
 // hitAt answers the box under a press.
@@ -256,6 +269,54 @@ func (m *Model) handleClick(msg tea.MouseMsg) (tea.Cmd, bool) {
 		return m.saveLanguage(), true
 	case actLangCancel:
 		return m.cancelLanguage(), true
+	case actExplore:
+		m.openExplorer()
+		return nil, true
+	case actExRootProfile:
+		m.exRoot = m.exploreProfile()
+		return nil, true
+	case actExRootDrive:
+		m.exRoot = m.exploreDrive()
+		return nil, true
+	case actExStart:
+		return m.startExplore(), true
+	case actExCancel:
+		if m.exCancel != nil {
+			m.exCancel()
+		}
+		m.screen = screenProfile
+		return nil, true
+	case actExTick:
+		m.toggleTick(atoiOrZero(box.arg))
+		return nil, true
+	case actExUp:
+		m.goUp()
+		return nil, true
+	case actExTop:
+		m.exShowTop = !m.exShowTop
+		m.exCursor, m.exOffset = 0, 0
+		return nil, true
+	case actExInvert:
+		m.invertTicks()
+		return nil, true
+	case actExClear:
+		m.clearTicks()
+		return nil, true
+	case actExContinue:
+		if len(m.exTicked) != 0 {
+			m.screen = screenExConfirm
+		}
+		return nil, true
+	case actExClean:
+		return m.removeTicked(), true
+	case actExBack:
+		switch m.screen {
+		case screenExConfirm:
+			m.screen = screenExTree
+		default:
+			m.screen = screenProfile
+		}
+		return nil, true
 	case actRegOpen:
 		return m.openRegistry(), true
 	case actRegToggle:
