@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/webcartel/sweep/internal/i18n"
@@ -43,6 +44,13 @@ func TestJSONAnswerIsTheSameInBothLanguages(t *testing.T) {
 	if english == "" {
 		t.Fatal("scan --json printed nothing")
 	}
+	// The document carries the time it was made, and the items carry the
+	// times the fake machine is built against. Two runs either side of a
+	// second differ there and nowhere else.
+	stamp := regexp.MustCompile(`"(created_at|mod_time)":\s*"[^"]*"`)
+	english = stamp.ReplaceAllString(english, `"$1":""`)
+	russian = stamp.ReplaceAllString(russian, `"$1":""`)
+
 	if english != russian {
 		t.Fatalf("the --json answer changed with the language:\nen: %q\nru: %q", english, russian)
 	}

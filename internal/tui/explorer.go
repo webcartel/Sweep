@@ -185,14 +185,22 @@ func (m *Model) updateExRoot(msg tea.Msg) (tea.Cmd, bool) {
 	case "ctrl+v":
 		// A terminal in raw mode sends Ctrl+V as a key, not as the text:
 		// the clipboard is read here and appended as if it were typed.
-		if m.system != nil {
-			if text, err := m.system.Clipboard(); err == nil {
-				text = strings.ReplaceAll(strings.ReplaceAll(text, "\r", ""), "\n", "")
-				m.exRoot += strings.TrimSpace(text)
-			} else {
-				m.exErrText = i18n.T("tui.explore.root.pastefailed")
-			}
+		if m.system == nil {
+			m.exErrText = i18n.T("tui.explore.root.pastefailed")
+			break
 		}
+		text, err := m.system.Clipboard()
+		if err != nil {
+			m.exErrText = i18n.T("tui.explore.root.pastefailed")
+			break
+		}
+		text = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(text, "\r", ""), "\n", ""))
+		if text == "" {
+			m.exErrText = i18n.T("tui.explore.root.pasteempty")
+			break
+		}
+		m.exRoot += text
+		m.exErrText = ""
 	default:
 		if runes := key.Runes; len(runes) != 0 {
 			m.exRoot += string(runes)

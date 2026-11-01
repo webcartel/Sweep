@@ -37,6 +37,7 @@ var catalogRU = map[string]string{
 	"tui.explore.root.field":        "Путь:",
 	"tui.explore.root.hint":         "Введите путь или вставьте его через Ctrl+V; Ctrl+U очищает поле. Enter начинает.",
 	"tui.explore.root.pastefailed":  "Не удалось прочитать буфер обмена; вставьте ещё раз или введите путь.",
+	"tui.explore.root.pasteempty":   "В буфере обмена нет текста.",
 	"tui.explore.unreadable":        `По пути "%s" ничего не удалось прочитать. Проверьте путь.`,
 	"tui.explore.notfound":          `Путь "%s" не существует.`,
 	"tui.explore.root.step":         "Обзор 1 из 5",

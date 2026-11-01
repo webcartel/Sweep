@@ -150,6 +150,23 @@ func TestPasteFromTheClipboard(t *testing.T) {
 	}
 }
 
+// An empty clipboard says so rather than leaving the user guessing why the
+// field stayed empty.
+func TestPasteOfAnEmptyClipboardSaysSo(t *testing.T) {
+	m, _ := explorerModel(t)
+	m = keyIn(m, "f", 0)
+	m.system = fake.NewSystem()
+
+	m = keyIn(m, "", tea.KeyCtrlV)
+
+	if m.exRoot != "" {
+		t.Fatalf("the field holds %q after an empty paste", m.exRoot)
+	}
+	if !strings.Contains(m.exErrText, "holds no text") {
+		t.Fatalf("the screen says %q, want the empty clipboard notice", m.exErrText)
+	}
+}
+
 // The walk lands on a tree, largest folder first, with the totals of the folder.
 func TestOverviewShowsTheTree(t *testing.T) {
 	m, _ := startScan(t)
