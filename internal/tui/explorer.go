@@ -2,7 +2,9 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 
 	"github.com/charmbracelet/bubbletea"
@@ -81,6 +83,16 @@ func (m *Model) openExplorer() {
 	m.screen = screenExRoot
 }
 
+// normalizeRoot turns what a user types or pastes into the path the walk
+// uses. Spaces and quotes around a path are not part of it, and a path that
+// starts with one names nothing at all: the device spelling keeps the space,
+// so the folder is not found.
+func normalizeRoot(text string) string {
+	text = strings.TrimSpace(text)
+	text = strings.Trim(text, `"`)
+	return strings.TrimSpace(text)
+}
+
 // exploreProfile is the home folder of the machine's user.
 func (m *Model) exploreProfile() string {
 	if home, ok := m.env.Get("USERPROFILE"); ok && home != "" {
@@ -100,7 +112,7 @@ func (m *Model) exploreDrive() string {
 // startExplore measures the chosen root in one command and reports progress
 // through a channel, so the screen is not blank for a whole drive.
 func (m *Model) startExplore() tea.Cmd {
-	root := m.exRoot
+	root := normalizeRoot(m.exRoot)
 	if root == "" {
 		root = m.exHome
 	}
@@ -113,6 +125,7 @@ func (m *Model) startExplore() tea.Cmd {
 		m.exErrText = i18n.T("tui.explore.nofs")
 		return nil
 	}
+	m.exErrText = ""
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.exCancel = cancel
@@ -199,7 +212,11 @@ func (m *Model) updateExScan(msg tea.Msg) (tea.Cmd, bool) {
 		m.exCancel = nil
 		m.exEvents = nil
 		if one.err != nil && one.tree == nil {
-			m.exErrText = i18n.T("tui.explore.unreadable", m.exRoot)
+			if errors.Is(one.err, fs.ErrNotExist) {
+				m.exErrText = i18n.T("tui.explore.notfound", m.exRoot)
+			} else {
+				m.exErrText = i18n.T("tui.explore.unreadable", m.exRoot)
+			}
 			m.screen = screenExRoot
 			return nil, true
 		}

@@ -89,6 +89,12 @@ func Scan(ctx context.Context, fsys platform.FS, root string, opt Options) (Resu
 		return w.result, err
 	}
 	if node == nil {
+		// The walk could not even name the root. The reason matters: a path
+		// that is not there and a folder without access send the user to
+		// different fixes.
+		if _, statErr := fsys.Lstat(root); statErr != nil {
+			return w.result, statErr
+		}
 		return w.result, errors.New("nothing could be read under " + root)
 	}
 	return w.result, nil

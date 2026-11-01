@@ -94,6 +94,45 @@ func TestTypingIsTheWholePath(t *testing.T) {
 	}
 }
 
+// A path typed with a stray space or a quote around it still names the folder:
+// the walk trims it and scans what the user meant.
+func TestRootIsTrimmedBeforeTheWalk(t *testing.T) {
+	m, _ := explorerModel(t)
+	m = keyIn(m, "f", 0)
+
+	for _, r := range " C:\\Users\\probe " {
+		m = keyIn(m, string(r), 0)
+	}
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = drive(next.(*Model), cmd)
+
+	if m.screen != screenExTree {
+		t.Fatalf("the walk left the screen at %d: %s", m.screen, m.exErrText)
+	}
+	if m.exRoot != `C:\Users\probe` {
+		t.Fatalf("root = %q, want the path without the spaces", m.exRoot)
+	}
+}
+
+// A path that is not there says so, rather than blaming the folders inside it.
+func TestMissingRootSaysItIsMissing(t *testing.T) {
+	m, _ := explorerModel(t)
+	m = keyIn(m, "f", 0)
+
+	for _, r := range `C:\Users\probe\nope` {
+		m = keyIn(m, string(r), 0)
+	}
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = drive(next.(*Model), cmd)
+
+	if m.screen != screenExRoot {
+		t.Fatalf("screen = %d, want the root screen", m.screen)
+	}
+	if !strings.Contains(m.exErrText, "does not exist") {
+		t.Fatalf("error = %q, want it to say the path is missing", m.exErrText)
+	}
+}
+
 // Ctrl+V reads the clipboard: a terminal in raw mode sends the key, not the
 // text, so the app has to fetch it.
 func TestPasteFromTheClipboard(t *testing.T) {
