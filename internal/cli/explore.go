@@ -83,7 +83,8 @@ func printExplore(out io.Writer, result explore.Result) {
 
 	_, _ = fmt.Fprintln(out)
 	_, _ = fmt.Fprintln(out, fmt.Sprintf(i18n.T("cli.explore.total"),
-		report.FormatBytes(result.Root.Size), result.Root.Files, result.Progress.Dirs))
+		report.FormatBytes(result.Root.Size),
+		wordFiles(result.Root.Files), wordFolders(result.Progress.Dirs)))
 	if result.Root.Denied != 0 {
 		_, _ = fmt.Fprintln(out, fmt.Sprintf(i18n.T("cli.explore.denied"), result.Root.Denied))
 	}
@@ -95,6 +96,29 @@ func printExplore(out io.Writer, result explore.Result) {
 			_, _ = fmt.Fprintf(out, "  %10s  %s\n", report.FormatBytes(file.Size), file.Path)
 		}
 	}
+}
+
+// wordFiles words a number of files the way the language counts: Russian
+// takes three endings, English two forms.
+func wordFiles(n int) string {
+	if i18n.Current() == i18n.LangRU {
+		return fmt.Sprintf("%d %s", n, i18n.Plural(n, "файл", "файла", "файлов"))
+	}
+	if n == 1 {
+		return i18n.T("cli.explore.onefile")
+	}
+	return fmt.Sprintf(i18n.T("cli.explore.files"), n)
+}
+
+// wordFolders words a number of folders the same way.
+func wordFolders(n int) string {
+	if i18n.Current() == i18n.LangRU {
+		return fmt.Sprintf("%d %s", n, i18n.Plural(n, "папка", "папки", "папок"))
+	}
+	if n == 1 {
+		return i18n.T("cli.explore.onefolder")
+	}
+	return fmt.Sprintf(i18n.T("cli.explore.folders"), n)
 }
 
 // printExploreNode writes one row and, indented, what it holds.

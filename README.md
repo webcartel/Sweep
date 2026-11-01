@@ -131,6 +131,7 @@ allowed; give your own rule the same id to override it.
 | `e` | show or hide rules that found nothing |
 | `r` | scan again |
 | `g` | rules and settings |
+| `f` | find what takes space |
 | `l` | language, inside rules and settings |
 | `r` | registry cleanup, on the start screen |
 | `s` | save the report on the result screen |
@@ -176,8 +177,22 @@ working: `status`, `action`, `kind`, `id`, `reason` and `note` are the same
 bytes in both languages. Rule names, descriptions and categories in YAML are
 data and stay as written.
 
-## Commands
+### Find what takes space
 
+`f` on the start screen opens the overview. It measures every folder under a
+path — the home folder, a whole drive, or one you type or paste — and shows the
+tree largest first, with the largest files one key away (`t`).
+
+`Space` marks a row for removal; `i` inverts the whole view, which is how you
+choose what to **keep**: mark everything, then take the keepers back. Removal
+goes to the Recycle Bin, and every path passes the same guard as the rules, so
+a protected path is refused with the reason shown.
+
+![The overview at work](.github/explore.png)
+
+![The largest files](.github/explore-tree.png)
+
+## Commands
 ### `sweep scan`
 
 Reads the disk and prints what would be cleaned. It changes nothing.
@@ -226,9 +241,22 @@ sweep rules validate <path>     # a directory of rule files
 sweep rules show <id>           # one rule, with its paths expanded
 ```
 
-### `sweep registry`
+### `sweep explore`
 
-A separate, narrow cleanup for dead registry entries: uninstall commands,
+Reads every folder under a path and prints the largest, plus the largest files.
+It changes nothing — removing stays in the interface, where you can choose.
+
+```sh
+sweep explore                          # your home folder
+sweep explore "C:\Users\me" --depth 3 --top 50
+sweep explore --json                   # one document, always English
+```
+
+`--depth` sets how many levels of folders are printed (default 2), `--top` how
+many of the largest files (default 20). Folders the process may not read are
+counted as `Not read`, not as errors.
+
+### `sweep registry`A separate, narrow cleanup for dead registry entries: uninstall commands,
 `Run` values and `App Paths` that point at a program that is gone.
 
 ```sh

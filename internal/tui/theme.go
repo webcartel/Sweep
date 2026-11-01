@@ -708,17 +708,5 @@ func (m *Model) notesCount(n int) string {
 // 11..14 range is the exception Russian keeps, where 11 is many rather
 // than one.
 func russianPlural(n int, one, few, many string) string {
-	abs := n
-	if abs < 0 {
-		abs = -abs
-	}
-	switch {
-	case abs%100 >= 11 && abs%100 <= 14:
-		return many
-	case abs%10 == 1:
-		return one
-	case abs%10 >= 2 && abs%10 <= 4:
-		return few
-	}
-	return many
+	return i18n.Plural(n, one, few, many)
 }
