@@ -37,7 +37,7 @@ var catalogEN = map[string]string{
 	"tui.explore.root.hint":         "Type a path or paste it with Ctrl+V; Ctrl+U clears the field. Enter starts.",
 	"tui.explore.root.pastefailed":  "The clipboard could not be read; paste again or type the path.",
 	"tui.explore.root.pasteempty":   "The clipboard holds no text.",
-	"tui.explore.unreadable":        `Nothing under "%s" could be read. Check the path.`,
+	"tui.explore.unreadable":        `Nothing under "%s" could be read (%v). Check the path.`,
 	"tui.explore.notfound":          `The path "%s" does not exist.`,
 	"tui.explore.root.step":         "Overview 1 of 5",
 	"tui.explore.root.keys":         "Enter start · Esc back",

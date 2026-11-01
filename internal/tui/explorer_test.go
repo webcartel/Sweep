@@ -114,6 +114,24 @@ func TestRootIsTrimmedBeforeTheWalk(t *testing.T) {
 	}
 }
 
+// A control character that rode in with a paste names nothing at all: it is
+// dropped before the walk sees the path.
+func TestControlCharactersAreStrippedFromTheRoot(t *testing.T) {
+	m, _ := explorerModel(t)
+	m = keyIn(m, "f", 0)
+
+	m.exRoot = "C:\\Users\\probe\x00\r"
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = drive(next.(*Model), cmd)
+
+	if m.screen != screenExTree {
+		t.Fatalf("the walk left the screen at %d: %s", m.screen, m.exErrText)
+	}
+	if m.exRoot != `C:\Users\probe` {
+		t.Fatalf("root = %q, want the control characters gone", m.exRoot)
+	}
+}
+
 // A path that is not there says so, rather than blaming the folders inside it.
 func TestMissingRootSaysItIsMissing(t *testing.T) {
 	m, _ := explorerModel(t)

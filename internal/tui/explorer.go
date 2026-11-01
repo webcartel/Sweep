@@ -84,10 +84,16 @@ func (m *Model) openExplorer() {
 }
 
 // normalizeRoot turns what a user types or pastes into the path the walk
-// uses. Spaces and quotes around a path are not part of it, and a path that
-// starts with one names nothing at all: the device spelling keeps the space,
-// so the folder is not found.
+// uses. Spaces and quotes around a path are not part of it, and a control
+// character that rode in with a paste names nothing at all: the device
+// spelling keeps it, so the folder is not found.
 func normalizeRoot(text string) string {
+	text = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, text)
 	text = strings.TrimSpace(text)
 	text = strings.Trim(text, `"`)
 	return strings.TrimSpace(text)
@@ -223,7 +229,9 @@ func (m *Model) updateExScan(msg tea.Msg) (tea.Cmd, bool) {
 			if errors.Is(one.err, fs.ErrNotExist) {
 				m.exErrText = i18n.T("tui.explore.notfound", m.exRoot)
 			} else {
-				m.exErrText = i18n.T("tui.explore.unreadable", m.exRoot)
+				// The reason is the only way a reader can tell a locked
+				// folder from a broken one, so it travels with the message.
+				m.exErrText = i18n.T("tui.explore.unreadable", m.exRoot, one.err)
 			}
 			m.screen = screenExRoot
 			return nil, true
