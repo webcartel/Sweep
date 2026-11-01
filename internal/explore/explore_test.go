@@ -180,6 +180,35 @@ func TestSkipLeavesAPathOut(t *testing.T) {
 	}
 }
 
+// The pool changes the speed, not the answer.
+func TestWorkersDoNotChangeTheAnswer(t *testing.T) {
+	one := scan(t, tree(), Options{Depth: 3, TopFiles: 5, Workers: 1})
+	many := scan(t, tree(), Options{Depth: 3, TopFiles: 5, Workers: 8})
+
+	if !sameNode(one.Root, many.Root) {
+		t.Fatalf("one worker and eight disagree:\n%+v\n%+v", one.Root, many.Root)
+	}
+	if len(one.Top) != len(many.Top) {
+		t.Fatalf("top = %d with one worker and %d with eight", len(one.Top), len(many.Top))
+	}
+}
+
+// sameNode compares two measured trees by everything the screen shows.
+func sameNode(a, b *Node) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.Path != b.Path || a.Size != b.Size || a.Files != b.Files || a.Denied != b.Denied || len(a.Kids) != len(b.Kids) {
+		return false
+	}
+	for i := range a.Kids {
+		if !sameNode(a.Kids[i], b.Kids[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // A cancelled walk stops and answers what it had, with the reason.
 func TestCancelStopsTheWalk(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -194,13 +223,17 @@ func TestCancelStopsTheWalk(t *testing.T) {
 	}
 }
 
-// The progress hook is told where the walk got to.
+// The progress hook is told where the walk got to, and the last total is the
+// one the result carries.
 func TestProgressIsReported(t *testing.T) {
-	var last Progress
-	scan(t, tree(), Options{Depth: 2, Progress: func(p Progress) { last = p }})
+	seen := 0
+	res := scan(t, tree(), Options{Depth: 2, Progress: func(Progress) { seen++ }})
 
-	if last.Files != 4 || last.Dirs == 0 || last.Bytes != 180 {
-		t.Fatalf("progress = %+v, want 4 files, some dirs and 180 bytes", last)
+	if seen == 0 {
+		t.Fatal("the walk reported no progress")
+	}
+	if res.Progress.Files != 4 || res.Progress.Dirs == 0 || res.Progress.Bytes != 180 {
+		t.Fatalf("progress = %+v, want 4 files, some dirs and 180 bytes", res.Progress)
 	}
 }
 

@@ -6,12 +6,20 @@
 // link back up the tree cannot double the count or loop forever. A folder the
 // process may not read is counted as unread rather than as an error: on a
 // whole drive that is the normal state of a few folders, not a failure.
+//
+// Directories are read by a pool: a slot guards each ReadDir so that the disk
+// is not flooded, and a second, wider permit guards the number of goroutines,
+// so a tree with a hundred thousand folders cannot turn into a hundred
+// thousand stacks. A parent gives its slot back before it waits for its
+// children; holding it would deadlock the pool.
 package explore
 
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sort"
+	"sync"
 
 	"github.com/webcartel/sweep/internal/platform"
 )
@@ -44,6 +52,9 @@ type Options struct {
 	Depth int
 	// TopFiles is how many of the largest files to keep. Zero keeps none.
 	TopFiles int
+	// Workers is how many directories are read at once. Zero asks for the
+	// number of processors.
+	Workers int
 	// Skip, when set, says whether a path is left alone entirely. The CLI
 	// passes the guard's list here.
 	Skip func(path string) bool
@@ -68,6 +79,13 @@ type Result struct {
 	Progress Progress
 }
 
+// measured is what one path came to. A path the caller skips is told apart
+// from a path that could not be read, because only the second is unread.
+type measured struct {
+	node    *Node
+	skipped bool
+}
+
 // Scan measures the tree under root. A cancelled context stops the walk and
 // returns what it had measured by then together with the context's error, so a
 // caller may show the partial tree rather than nothing.
@@ -75,16 +93,32 @@ func Scan(ctx context.Context, fsys platform.FS, root string, opt Options) (Resu
 	if opt.Depth < 0 {
 		opt.Depth = 0
 	}
+	if opt.Workers <= 0 {
+		opt.Workers = runtime.NumCPU()
+	}
 	if opt.Skip != nil && opt.Skip(root) {
 		return Result{}, errors.New("the root is a path sweep leaves alone: " + root)
 	}
-	w := &walker{ctx: ctx, fs: fsys, opt: opt}
+
+	w := &walker{
+		ctx: ctx,
+		fs:  fsys,
+		opt: opt,
+		// One slot per directory read.
+		slots: make(chan struct{}, opt.Workers),
+		// Several goroutines may be blocked on a slot; the permits cap how
+		// many there can be.
+		permits: make(chan struct{}, opt.Workers*8),
+	}
 	node := w.measure(root, 0)
 	if node != nil {
 		w.result.Root = node
 	}
+	w.mu.Lock()
 	w.result.Progress = w.progress
-	w.result.Top = w.top()
+	w.result.Top = w.topLocked()
+	w.mu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return w.result, err
 	}
@@ -102,24 +136,36 @@ func Scan(ctx context.Context, fsys platform.FS, root string, opt Options) (Resu
 
 // walker carries what one walk collected.
 type walker struct {
-	ctx      context.Context
-	fs       platform.FS
-	opt      Options
+	ctx     context.Context
+	fs      platform.FS
+	opt     Options
+	slots   chan struct{}
+	permits chan struct{}
+
+	mu       sync.Mutex
 	result   Result
 	progress Progress
 	// biggest holds the largest files seen so far, unsorted until the end.
 	biggest []*Node
 }
 
-// measure answers the node of one path, or nil when it could not be read at
-// all. A path below the display depth still gets a node, just without kids.
+// measure answers the node of one path, or nil when it could not be read or
+// was skipped.
 func (w *walker) measure(path string, depth int) *Node {
+	return w.measureOne(path, depth).node
+}
+
+// measureOne is measure with the reason it came back empty.
+func (w *walker) measureOne(path string, depth int) measured {
 	if w.ctx.Err() != nil {
-		return nil
+		return measured{}
+	}
+	if w.opt.Skip != nil && w.opt.Skip(path) {
+		return measured{skipped: true}
 	}
 	info, err := w.fs.Lstat(path)
 	if err != nil {
-		return nil
+		return measured{}
 	}
 
 	node := &Node{Path: path, Name: info.Name, IsDir: info.IsDir}
@@ -130,52 +176,81 @@ func (w *walker) measure(path string, depth int) *Node {
 		node.Size = info.Size
 		node.Files = 1
 		w.countFile(node)
-		return node
+		return measured{node: node}
 	}
 	if info.Reparse {
 		node.Link = true
-		w.progress.Dirs++
-		w.report()
-		return node
+		w.countDir()
+		return measured{node: node}
 	}
 
+	// Read the entries under a slot, then give the slot back: a parent that
+	// keeps its slot while it waits for its children would deadlock the pool.
+	w.slots <- struct{}{}
 	entries, err := w.fs.ReadDir(path)
+	<-w.slots
 	if err != nil {
 		node.Denied++
-		w.progress.Dirs++
-		w.report()
-		return node
+		w.countDir()
+		return measured{node: node}
 	}
-	w.progress.Dirs++
+	w.countDir()
 
-	for _, entry := range entries {
+	children := make([]measured, len(entries))
+	var wg sync.WaitGroup
+	for i, entry := range entries {
 		if w.ctx.Err() != nil {
 			break
 		}
-		if w.opt.Skip != nil && w.opt.Skip(entry.Path) {
+		if entry.IsDir && w.spawn(&wg, children, i, entry.Path, depth+1) {
 			continue
 		}
-		child := w.measure(entry.Path, depth+1)
-		if child == nil {
+		children[i] = w.measureOne(entry.Path, depth+1)
+	}
+	wg.Wait()
+
+	for _, child := range children {
+		switch {
+		case child.skipped:
+		case child.node == nil:
 			// The entry is there but could not be read: an unread child is
 			// still part of what the folder holds.
 			node.Denied++
-			continue
-		}
-		node.Size += child.Size
-		node.Files += child.Files
-		node.Denied += child.Denied
-		if depth < w.opt.Depth {
-			node.Kids = append(node.Kids, child)
+		default:
+			node.Size += child.node.Size
+			node.Files += child.node.Files
+			node.Denied += child.node.Denied
+			if depth < w.opt.Depth {
+				node.Kids = append(node.Kids, child.node)
+			}
 		}
 	}
 	sortNodes(node.Kids)
-	w.report()
-	return node
+	return measured{node: node}
+}
+
+// spawn walks one child in its own goroutine while a permit is free, and
+// answers false when the pool is full: the caller then walks it inline, so the
+// tree never turns into more goroutines than the permits allow.
+func (w *walker) spawn(wg *sync.WaitGroup, children []measured, i int, path string, depth int) bool {
+	select {
+	case w.permits <- struct{}{}:
+	default:
+		return false
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() { <-w.permits }()
+		children[i] = w.measureOne(path, depth)
+	}()
+	return true
 }
 
 // countFile adds one file to the totals and to the largest-files list.
 func (w *walker) countFile(node *Node) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.progress.Files++
 	w.progress.Bytes += node.Size
 	if w.opt.TopFiles <= 0 {
@@ -188,20 +263,25 @@ func (w *walker) countFile(node *Node) {
 	}
 }
 
-// top answers the largest files, largest first, capped at the limit.
-func (w *walker) top() []*Node {
+// countDir moves the folder counter and tells the caller how far the walk got.
+func (w *walker) countDir() {
+	w.mu.Lock()
+	w.progress.Dirs++
+	progress := w.progress
+	w.mu.Unlock()
+	if w.opt.Progress != nil {
+		w.opt.Progress(progress)
+	}
+}
+
+// topLocked answers the largest files, largest first, capped at the limit.
+// The caller holds the lock.
+func (w *walker) topLocked() []*Node {
 	sortNodes(w.biggest)
 	if len(w.biggest) > w.opt.TopFiles && w.opt.TopFiles > 0 {
 		w.biggest = w.biggest[:w.opt.TopFiles]
 	}
 	return w.biggest
-}
-
-// report calls the progress hook, if the caller gave one.
-func (w *walker) report() {
-	if w.opt.Progress != nil {
-		w.opt.Progress(w.progress)
-	}
 }
 
 // sortNodes puts the largest first, and the name orders the equal sizes so a
