@@ -678,20 +678,18 @@ func humanCount(n int64) string {
 	return out
 }
 
-// rulesCount words a number of rules the way the language counts. Russian
-// has three endings and picks one by the last digits; English has one
-// form in the catalog today.
+// rulesCount words a number of rules the way the language counts.
 func (m *Model) rulesCount(n int) string {
-	if i18n.Current() == i18n.LangRU {
-		return fmt.Sprintf("%d %s", n, russianPlural(n, "правило", "правила", "правил"))
-	}
-	return fmt.Sprintf(i18n.T("tui.profile.rulescount"), n)
+	return ruleCount(n)
 }
 
 // filesCount words a number of files the same way.
 func (m *Model) filesCount(n int64) string {
 	if i18n.Current() == i18n.LangRU {
 		return fmt.Sprintf("%d %s", n, russianPlural(int(n), "файл", "файла", "файлов"))
+	}
+	if n == 1 {
+		return i18n.T("tui.scan.onefile")
 	}
 	return fmt.Sprintf(i18n.T("tui.scan.filescount"), n)
 }
@@ -700,6 +698,9 @@ func (m *Model) filesCount(n int64) string {
 func (m *Model) notesCount(n int) string {
 	if i18n.Current() == i18n.LangRU {
 		return fmt.Sprintf("%d %s", n, russianPlural(n, "заметка", "заметки", "заметок"))
+	}
+	if n == 1 {
+		return i18n.T("tui.scan.onenote")
 	}
 	return fmt.Sprintf(i18n.T("tui.scan.notescount"), n)
 }

@@ -59,8 +59,8 @@ func TestRuleCountIsWordedInRussian(t *testing.T) {
 	}
 
 	i18n.Use(i18n.LangEN)
-	if got := m.rulesCount(1); got != "1 rules" {
-		t.Errorf("rulesCount(1) in English = %q, want the one form the catalog holds", got)
+	if got := m.rulesCount(1); got != "1 rule" {
+		t.Errorf("rulesCount(1) in English = %q, want the singular", got)
 	}
 }
 

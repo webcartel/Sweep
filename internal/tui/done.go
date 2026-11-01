@@ -78,7 +78,7 @@ func (m *Model) viewDone() string {
 	b := &body{}
 	b.add(bigStyle.Render(i18n.T("tui.done.freed") + report.FormatBytes(r.FreedBytes)))
 	b.add(mutedStyle.Render(fmt.Sprintf(i18n.T("tui.done.summary"),
-		m.filesCount(r.Files), m.skin.sep(), len(r.PerRule))))
+		m.filesCount(r.Files), m.skin.sep(), ruleCount(len(r.PerRule)))))
 	b.add("")
 	b.add(fmt.Sprintf("%-19s%s", i18n.T("tui.done.removed"), humanCount(int64(r.Removed))))
 	if r.TrashBytes != 0 {

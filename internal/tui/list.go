@@ -368,9 +368,9 @@ func (m *Model) viewList() string {
 		}
 	}
 	if hidden != 0 {
-		label := i18n.T("tui.list.hidden.show", hidden)
+		label := i18n.T("tui.list.hidden.show", ruleCount(hidden))
 		if m.showEmpty {
-			label = i18n.T("tui.list.hidden.hide", hidden)
+			label = i18n.T("tui.list.hidden.hide", ruleCount(hidden))
 		}
 		index := b.add(mutedStyle.Render(label))
 		b.hit(index, 0, len(label)+2, actShowEmpty, "")
