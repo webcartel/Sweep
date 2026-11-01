@@ -3,6 +3,7 @@
 package platform
 
 import (
+	"os/exec"
 	"strings"
 
 	"golang.org/x/sys/windows"
@@ -50,4 +51,18 @@ func (system) UILanguage() string {
 		return "ru"
 	}
 	return "en"
+}
+
+// Clipboard answers the text on the clipboard. The terminal is in raw mode,
+// so Ctrl+V never reaches the app as text: the clipboard is read here. It
+// goes through PowerShell rather than through the Win32 calls, because a
+// uintptr from a syscall may not be turned into a pointer without tripping
+// the vet check, and a paste is rare enough for a process to be cheap.
+func (system) Clipboard() (string, error) {
+	out, err := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive",
+		"-Command", "Get-Clipboard -Raw").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimPrefix(string(out), "\ufeff"), nil
 }

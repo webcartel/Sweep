@@ -327,9 +327,10 @@ func (f *FS) drop(key string) {
 
 // System is the running Windows in memory.
 type System struct {
-	build    int
-	elevated bool
-	lang     string
+	build     int
+	elevated  bool
+	lang      string
+	clipboard string
 }
 
 // NewSystem returns a system that reports build 0 until SetBuild is called,
@@ -361,6 +362,12 @@ func (s *System) UILanguage() string {
 
 // SetUILanguage says what language the user interface of the system speaks.
 func (s *System) SetUILanguage(v string) { s.lang = v }
+
+// Clipboard answers the text SetClipboard put there.
+func (s *System) Clipboard() (string, error) { return s.clipboard, nil }
+
+// SetClipboard says what a paste reads.
+func (s *System) SetClipboard(v string) { s.clipboard = v }
 
 // Procs is a process list in memory.
 type Procs struct {

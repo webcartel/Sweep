@@ -57,7 +57,8 @@ func startScan(t *testing.T) (*Model, *fake.FS) {
 	return m, fsys
 }
 
-// The start screen offers the overview, and it opens on the home folder.
+// The start screen offers the overview, and it opens on the home folder as a
+// suggestion rather than as text already in the field.
 func TestOverviewOpensOnTheHomeFolder(t *testing.T) {
 	m, _ := explorerModel(t)
 
@@ -66,11 +67,47 @@ func TestOverviewOpensOnTheHomeFolder(t *testing.T) {
 	if m.screen != screenExRoot {
 		t.Fatalf("screen = %d, want the root screen", m.screen)
 	}
-	if m.exRoot != `C:\Users\probe` {
-		t.Fatalf("root = %q, want the home folder", m.exRoot)
+	if m.exRoot != "" {
+		t.Fatalf("the field opens with %q, want it empty", m.exRoot)
 	}
-	if view := m.View(); !strings.Contains(view, "What takes space?") {
-		t.Fatalf("the root screen does not ask: %q", view)
+	if m.exHome != `C:\Users\probe` {
+		t.Fatalf("home = %q, want the home folder as the suggestion", m.exHome)
+	}
+	view := m.View()
+	if !strings.Contains(view, "What takes space?") || !strings.Contains(view, `C:\Users\probe`) {
+		t.Fatalf("the root screen does not offer the home folder: %q", view)
+	}
+}
+
+// What the user types is the whole path: the field does not carry a stale one
+// in front of it.
+func TestTypingIsTheWholePath(t *testing.T) {
+	m, _ := explorerModel(t)
+	m = keyIn(m, "f", 0)
+
+	for _, r := range `C:\Windows\Temp` {
+		m = keyIn(m, string(r), 0)
+	}
+
+	if m.exRoot != `C:\Windows\Temp` {
+		t.Fatalf("typed %q, want the path alone", m.exRoot)
+	}
+}
+
+// Ctrl+V reads the clipboard: a terminal in raw mode sends the key, not the
+// text, so the app has to fetch it.
+func TestPasteFromTheClipboard(t *testing.T) {
+	m, _ := explorerModel(t)
+	m = keyIn(m, "f", 0)
+
+	sys := fake.NewSystem()
+	sys.SetClipboard("C:\\Windows\\Temp\r\n")
+	m.system = sys
+
+	m = keyIn(m, "", tea.KeyCtrlV)
+
+	if m.exRoot != `C:\Windows\Temp` {
+		t.Fatalf("the paste left %q, want the path", m.exRoot)
 	}
 }
 

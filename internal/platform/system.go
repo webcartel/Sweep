@@ -13,4 +13,9 @@ type System interface {
 	// "en" or "ru". Every other language Windows may speak answers "en",
 	// which is the fallback the whole program falls back on.
 	UILanguage() string
+
+	// Clipboard answers the text on the clipboard. A clipboard another
+	// program holds open is an error the caller may report and the user may
+	// retry.
+	Clipboard() (string, error)
 }

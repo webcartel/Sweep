@@ -24,8 +24,10 @@ const (
 
 // exploreState is what the overview remembers between frames.
 type exploreState struct {
-	// exRoot is the path being measured.
+	// exRoot is the path being measured; exHome is the fallback the field
+	// shows while it is empty.
 	exRoot string
+	exHome string
 
 	exTree    *explore.Node
 	exTop     []*explore.Node
@@ -62,9 +64,12 @@ type exploreDone struct {
 // exploreRemoved carries what the removal came to.
 type exploreRemoved struct{ removals []explore.Removal }
 
-// openExplorer starts the overview at the user's profile.
+// openExplorer starts the overview. The field opens empty on purpose: a field
+// that already holds a path swallows what the user types after it, and the
+// home folder is offered as the suggestion it is.
 func (m *Model) openExplorer() {
-	m.exRoot = m.exploreProfile()
+	m.exHome = m.exploreProfile()
+	m.exRoot = ""
 	m.exTree = nil
 	m.exTop = nil
 	m.exStack = nil
@@ -95,7 +100,12 @@ func (m *Model) exploreDrive() string {
 // startExplore measures the chosen root in one command and reports progress
 // through a channel, so the screen is not blank for a whole drive.
 func (m *Model) startExplore() tea.Cmd {
-	if m.exRoot == "" {
+	root := m.exRoot
+	if root == "" {
+		root = m.exHome
+	}
+	m.exRoot = root
+	if root == "" {
 		m.exErrText = i18n.T("tui.explore.noroot")
 		return nil
 	}
@@ -159,6 +169,17 @@ func (m *Model) updateExRoot(msg tea.Msg) (tea.Cmd, bool) {
 		}
 	case "ctrl+u":
 		m.exRoot = ""
+	case "ctrl+v":
+		// A terminal in raw mode sends Ctrl+V as a key, not as the text:
+		// the clipboard is read here and appended as if it were typed.
+		if m.system != nil {
+			if text, err := m.system.Clipboard(); err == nil {
+				text = strings.ReplaceAll(strings.ReplaceAll(text, "\r", ""), "\n", "")
+				m.exRoot += strings.TrimSpace(text)
+			} else {
+				m.exErrText = i18n.T("tui.explore.root.pastefailed")
+			}
+		}
 	default:
 		if runes := key.Runes; len(runes) != 0 {
 			m.exRoot += string(runes)
@@ -178,7 +199,7 @@ func (m *Model) updateExScan(msg tea.Msg) (tea.Cmd, bool) {
 		m.exCancel = nil
 		m.exEvents = nil
 		if one.err != nil && one.tree == nil {
-			m.exErrText = one.err.Error()
+			m.exErrText = i18n.T("tui.explore.unreadable", m.exRoot)
 			m.screen = screenExRoot
 			return nil, true
 		}
@@ -425,7 +446,11 @@ func (m *Model) viewExRoot() string {
 	b.add(mutedStyle.Render(i18n.T("tui.explore.root.intro")))
 	b.add("")
 	b.add(i18n.T("tui.explore.root.field"))
-	b.add("  " + m.exRoot + m.skin.caret())
+	if m.exRoot == "" {
+		b.add(mutedStyle.Render("  " + m.exHome + m.skin.caret()))
+	} else {
+		b.add("  " + m.exRoot + m.skin.caret())
+	}
 	if m.exErrText != "" {
 		b.add("")
 		b.add(dangerStyle.Render(m.exErrText))
