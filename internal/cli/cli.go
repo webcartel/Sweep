@@ -126,7 +126,7 @@ func newRootCmd(d deps, args []string) *cobra.Command {
 		return openTUI(d, c, settingsPath)
 	}
 
-	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d), newCleanCmd(d), newRegistryCmd(d))
+	root.AddCommand(newVersionCmd(), newListCmd(d), newRulesCmd(d), newScanCmd(d), newCleanCmd(d), newRegistryCmd(d), newExploreCmd(d))
 
 	return root
 }

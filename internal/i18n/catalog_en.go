@@ -27,6 +27,19 @@ var catalogEN = map[string]string{
 
 	"app.title": "Sweep - free space safely",
 
+	"cli.explore.short":      "Show what takes space under a folder",
+	"cli.explore.long":       "Reads every folder under the path and prints the largest, with the largest files. It changes nothing; removing is done in the interface.",
+	"cli.explore.nopath":     "There is no home folder to look at; name a path.",
+	"cli.explore.flag.depth": "how many levels of folders to print",
+	"cli.explore.flag.top":   "how many of the largest files to print",
+	"cli.explore.flag.json":  "print one JSON document instead of a table",
+	"cli.explore.header":     "SIZE                FILES  NAME",
+	"cli.explore.total":      "Total: %s in %d files, %d folders",
+	"cli.explore.denied":     "Not read: %d (no access)",
+	"cli.explore.top":        "Largest files",
+	"cli.explore.nothing":    "Nothing could be read under that path.",
+	"cli.explore.link":       "(link, not followed)",
+
 	"tui.profile.explore":      "What takes space",
 	"tui.profile.hint.explore": "F overview",
 

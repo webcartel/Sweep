@@ -27,6 +27,19 @@ var catalogRU = map[string]string{
 
 	"app.title": "Sweep - безопасно освобождаем место",
 
+	"cli.explore.short":      "Показать, что занимает место в папке",
+	"cli.explore.long":       "Читает все папки под указанным путём и печатает самые крупные, а также крупнейшие файлы. Ничего не меняет; удаление выполняется в интерфейсе.",
+	"cli.explore.nopath":     "Нет домашней папки для обзора; укажите путь.",
+	"cli.explore.flag.depth": "сколько уровней папок печатать",
+	"cli.explore.flag.top":   "сколько крупнейших файлов печатать",
+	"cli.explore.flag.json":  "напечатать один JSON-документ вместо таблицы",
+	"cli.explore.header":     "РАЗМЕР              ФАЙЛЫ  ИМЯ",
+	"cli.explore.total":      "Всего: %s в %d файлах, %d папок",
+	"cli.explore.denied":     "Не прочитано: %d (нет доступа)",
+	"cli.explore.top":        "Крупнейшие файлы",
+	"cli.explore.nothing":    "По этому пути ничего не удалось прочитать.",
+	"cli.explore.link":       "(ссылка, не раскрывается)",
+
 	"tui.profile.explore":      "Что занимает место",
 	"tui.profile.hint.explore": "F обзор",
 
